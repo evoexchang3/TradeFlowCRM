@@ -8,6 +8,24 @@ The system is built as a customizable template that can be individually tailored
 
 ## Recent Changes
 
+**October 13, 2025 - Milestone 3 Complete: Subaccount Architecture & Team-Based Client Assignment (Backend)**
+- **Subaccount Architecture**: Multi-subaccount support per trading account
+  - Schema: Added `subaccounts` table with fields: accountId, name, currency, balance, equity, margin, isDefault, isActive
+  - Database Relations: orders/positions now link to subaccountId (optional, for backward compatibility)
+  - API Endpoints:
+    - GET /api/subaccounts?accountId=xxx - List subaccounts with ownership verification
+    - POST /api/subaccounts - Create subaccount (requires balance.adjust permission or ownership)
+    - PATCH /api/subaccounts/:id - Update subaccount (whitelisted fields: name, isDefault, isActive)
+  - Security: Client ownership verified, staff requires 'balance.view'/'balance.adjust' permissions, balance/accountId manipulation blocked
+- **Team-Based Client Assignment**: Assign clients to agents/teams
+  - API Endpoints:
+    - PATCH /api/clients/:id/assign - Single client assignment with partial update support
+    - POST /api/clients/bulk-assign - Bulk assignment with audit logging
+  - Authorization: Requires 'client.edit' permission or Administrator role
+  - Security: Staff-only access, proper role verification, comprehensive audit logging
+- **Security Model**: All endpoints secured with role-based permissions, ownership validation, and field whitelisting
+- **Remaining Work**: Frontend UI for subaccounts (subaccount-4/5), assignment UI (team-assignment-3/4/5)
+
 **October 13, 2025 - Milestone 2 Complete: Role-Based Dashboards & Trading Platform Integration**
 - **Simplified Login**: Removed role tabs from landing page - role auto-detected from authenticated user
 - **Role-Based Dashboards**: Created dedicated dashboard components for each role:
@@ -136,10 +154,11 @@ Preferred communication style: Simple, everyday language.
 
 **Core Entities**:
 - Users (admin/agent/team leader profiles)
-- Clients (customer accounts with KYC)
+- Clients (customer accounts with KYC, includes assignedAgentId and teamId)
 - Accounts (trading accounts linked to client)
-- Orders (pending and filled trading orders)
-- Positions (open and closed trading positions)
+- Subaccounts (multiple trading subaccounts per account with independent balances)
+- Orders (pending and filled trading orders, linked to subaccount)
+- Positions (open and closed trading positions, linked to subaccount)
 - Transactions (deposits and withdrawals)
 - Roles & Permissions (dynamic access control)
 - Teams (organizational grouping)
@@ -149,7 +168,9 @@ Preferred communication style: Simple, everyday language.
 
 **Key Relationships**:
 - Clients have one-to-one relationship with Accounts
-- Accounts have one-to-many relationships with Orders, Positions, and Transactions
+- Clients can be assigned to Agents (assignedAgentId) and Teams (teamId)
+- Accounts have one-to-many relationship with Subaccounts
+- Subaccounts have one-to-many relationships with Orders and Positions
 - Users belong to Roles and Teams
 - All modifications tracked in Audit Logs
 
