@@ -101,6 +101,22 @@ export const accounts = pgTable("accounts", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Subaccounts (Multiple trading accounts per client)
+export const subaccounts = pgTable("subaccounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountId: varchar("account_id").notNull().references(() => accounts.id),
+  name: text("name").notNull(), // e.g., "Main", "Scalping", "Long-term"
+  currency: text("currency").notNull().default('USD'),
+  balance: decimal("balance", { precision: 18, scale: 2 }).notNull().default('0'),
+  equity: decimal("equity", { precision: 18, scale: 2 }).notNull().default('0'),
+  margin: decimal("margin", { precision: 18, scale: 2 }).notNull().default('0'),
+  freeMargin: decimal("free_margin", { precision: 18, scale: 2 }).notNull().default('0'),
+  marginLevel: decimal("margin_level", { precision: 8, scale: 2 }).default('0'),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Transactions (Deposits/Withdrawals)
 export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -119,6 +135,7 @@ export const transactions = pgTable("transactions", {
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   accountId: varchar("account_id").notNull().references(() => accounts.id),
+  subaccountId: varchar("subaccount_id").references(() => subaccounts.id), // Optional: for subaccount-level trading
   symbol: text("symbol").notNull(), // e.g., EUR/USD, BTC/USD
   type: orderTypeEnum("type").notNull(),
   side: orderSideEnum("side").notNull(),
@@ -141,6 +158,7 @@ export const orders = pgTable("orders", {
 export const positions = pgTable("positions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   accountId: varchar("account_id").notNull().references(() => accounts.id),
+  subaccountId: varchar("subaccount_id").references(() => subaccounts.id), // Optional: for subaccount-level trading
   orderId: varchar("order_id").references(() => orders.id),
   symbol: text("symbol").notNull(),
   side: orderSideEnum("side").notNull(),
@@ -249,7 +267,14 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
   client: one(clients, { fields: [accounts.clientId], references: [clients.id] }),
+  subaccounts: many(subaccounts),
   transactions: many(transactions),
+  orders: many(orders),
+  positions: many(positions),
+}));
+
+export const subaccountsRelations = relations(subaccounts, ({ one, many }) => ({
+  account: one(accounts, { fields: [subaccounts.accountId], references: [accounts.id] }),
   orders: many(orders),
   positions: many(positions),
 }));
@@ -261,10 +286,12 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 
 export const ordersRelations = relations(orders, ({ one }) => ({
   account: one(accounts, { fields: [orders.accountId], references: [accounts.id] }),
+  subaccount: one(subaccounts, { fields: [orders.subaccountId], references: [subaccounts.id] }),
 }));
 
 export const positionsRelations = relations(positions, ({ one }) => ({
   account: one(accounts, { fields: [positions.accountId], references: [accounts.id] }),
+  subaccount: one(subaccounts, { fields: [positions.subaccountId], references: [subaccounts.id] }),
   order: one(orders, { fields: [positions.orderId], references: [orders.id] }),
 }));
 
@@ -310,6 +337,11 @@ export const insertAccountSchema = createInsertSchema(accounts).omit({
   createdAt: true,
 });
 
+export const insertSubaccountSchema = createInsertSchema(subaccounts).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertTransactionSchema = createInsertSchema(transactions).omit({
   id: true,
   createdAt: true,
@@ -350,6 +382,9 @@ export type InsertClient = z.infer<typeof insertClientSchema>;
 
 export type Account = typeof accounts.$inferSelect;
 export type InsertAccount = z.infer<typeof insertAccountSchema>;
+
+export type Subaccount = typeof subaccounts.$inferSelect;
+export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
