@@ -1496,6 +1496,246 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/metrics/performance", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Block client-type users from accessing staff metrics
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      // Get user's role for filtering
+      const user = await storage.getUser(req.user!.id);
+      let clients = await storage.getClients();
+      
+      // Apply role-based filtering
+      if (user?.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        if (roleName === 'team leader') {
+          clients = clients.filter(c => c.teamId === user.teamId);
+        } else if (roleName === 'agent') {
+          clients = clients.filter(c => c.assignedAgentId === user.id);
+        }
+      }
+
+      const teams = await storage.getTeams();
+      const users = await storage.getUsers();
+      const allComments = await storage.getComments();
+      const allAuditLogs = await storage.getAuditLogs();
+
+      const clientIds = new Set(clients.map(c => c.id));
+      const comments = allComments.filter(c => clientIds.has(c.clientId));
+      
+      // Filter audit logs for client status changes
+      const statusChangeAudits = allAuditLogs.filter(
+        log => log.targetType === 'client' && 
+               log.action === 'client_edit' && 
+               log.targetId &&
+               clientIds.has(log.targetId) &&
+               log.details && typeof log.details === 'object' &&
+               'status' in log.details
+      );
+
+      // Calculate conversion rates
+      const statusCounts = clients.reduce((acc: any, client: any) => {
+        acc[client.status] = (acc[client.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      const totalClients = clients.length;
+      const activeClients = clients.filter(c => 
+        ['active', 'funded', 'converted'].includes(c.status)
+      ).length;
+      const leadClients = clients.filter(c => c.status === 'lead').length;
+      
+      const conversionRate = totalClients > 0 
+        ? Math.round((activeClients / totalClients) * 100) 
+        : 0;
+      const leadConversionRate = leadClients > 0
+        ? Math.round((activeClients / (leadClients + activeClients)) * 100)
+        : 0;
+
+      // Client acquisition trends (last 30 days, grouped by week)
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      const newClients = clients.filter(c => {
+        const createdAt = new Date(c.createdAt);
+        return createdAt >= thirtyDaysAgo;
+      });
+
+      // Group by week
+      const weeklyAcquisition: any = {};
+      newClients.forEach(client => {
+        const createdAt = new Date(client.createdAt);
+        const weekStart = new Date(createdAt);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of week (Sunday)
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        weeklyAcquisition[weekKey] = (weeklyAcquisition[weekKey] || 0) + 1;
+      });
+
+      // Activity metrics
+      const totalComments = comments.length;
+      const avgCommentsPerClient = totalClients > 0 
+        ? Math.round((totalComments / totalClients) * 10) / 10 
+        : 0;
+      const totalStatusChanges = statusChangeAudits.length;
+      const avgStatusChangesPerClient = totalClients > 0
+        ? Math.round((totalStatusChanges / totalClients) * 10) / 10
+        : 0;
+
+      // Most active agents by comments
+      const commentsByAgent = comments.reduce((acc: any, comment: any) => {
+        if (comment.userId) {
+          const agent = users.find((u: any) => u.id === comment.userId);
+          const agentName = agent?.name || 'Unknown Agent';
+          
+          if (!acc[comment.userId]) {
+            acc[comment.userId] = {
+              id: comment.userId,
+              name: agentName,
+              commentCount: 0,
+            };
+          }
+          acc[comment.userId].commentCount++;
+        }
+        return acc;
+      }, {});
+
+      // Status change activity by agent
+      const statusChangesByAgent = statusChangeAudits.reduce((acc: any, log: any) => {
+        if (log.userId) {
+          const agent = users.find((u: any) => u.id === log.userId);
+          const agentName = agent?.name || 'Unknown Agent';
+          
+          if (!acc[log.userId]) {
+            acc[log.userId] = {
+              id: log.userId,
+              name: agentName,
+              statusChangeCount: 0,
+            };
+          }
+          acc[log.userId].statusChangeCount++;
+        }
+        return acc;
+      }, {});
+
+      // Combine activity metrics per agent
+      const agentActivity: any = {};
+      [...Object.values(commentsByAgent), ...Object.values(statusChangesByAgent)].forEach((entry: any) => {
+        if (!agentActivity[entry.id]) {
+          agentActivity[entry.id] = {
+            id: entry.id,
+            name: entry.name,
+            commentCount: 0,
+            statusChangeCount: 0,
+            totalActivity: 0,
+          };
+        }
+        if (entry.commentCount) {
+          agentActivity[entry.id].commentCount = entry.commentCount;
+        }
+        if (entry.statusChangeCount) {
+          agentActivity[entry.id].statusChangeCount = entry.statusChangeCount;
+        }
+        agentActivity[entry.id].totalActivity = 
+          agentActivity[entry.id].commentCount + agentActivity[entry.id].statusChangeCount;
+      });
+
+      // Response time metrics (time to first comment per client)
+      const responseTimesMs: number[] = [];
+      clients.forEach(client => {
+        const clientComments = comments.filter(c => c.clientId === client.id);
+        if (clientComments.length > 0) {
+          // Sort by createdAt
+          const sortedComments = clientComments.sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          const firstComment = sortedComments[0];
+          const clientCreatedAt = new Date(client.createdAt).getTime();
+          const firstCommentAt = new Date(firstComment.createdAt).getTime();
+          responseTimesMs.push(firstCommentAt - clientCreatedAt);
+        }
+      });
+
+      const avgResponseTimeHours = responseTimesMs.length > 0
+        ? Math.round((responseTimesMs.reduce((sum, time) => sum + time, 0) / responseTimesMs.length) / (1000 * 60 * 60))
+        : 0;
+
+      // Breakdown by team
+      const byTeam = clients.reduce((acc: any, client: any) => {
+        if (client.teamId) {
+          const team = teams.find((t: any) => t.id === client.teamId);
+          const teamName = team?.name || 'Unknown Team';
+          
+          if (!acc[client.teamId]) {
+            acc[client.teamId] = {
+              id: client.teamId,
+              name: teamName,
+              clientCount: 0,
+              activeClients: 0,
+              conversionRate: 0,
+              avgComments: 0,
+              totalComments: 0,
+            };
+          }
+
+          acc[client.teamId].clientCount++;
+          if (['active', 'funded', 'converted'].includes(client.status)) {
+            acc[client.teamId].activeClients++;
+          }
+
+          const teamComments = comments.filter(c => c.clientId === client.id);
+          acc[client.teamId].totalComments += teamComments.length;
+        }
+        return acc;
+      }, {});
+
+      // Calculate team conversion rates and averages
+      Object.values(byTeam).forEach((team: any) => {
+        team.conversionRate = team.clientCount > 0
+          ? Math.round((team.activeClients / team.clientCount) * 100)
+          : 0;
+        team.avgComments = team.clientCount > 0
+          ? Math.round((team.totalComments / team.clientCount) * 10) / 10
+          : 0;
+      });
+
+      res.json({
+        // Conversion metrics
+        conversionRate,
+        leadConversionRate,
+        activeClients,
+        statusDistribution: statusCounts,
+        
+        // Acquisition metrics
+        newClientsLast30Days: newClients.length,
+        weeklyAcquisition: Object.entries(weeklyAcquisition)
+          .map(([week, count]) => ({ week, count }))
+          .sort((a, b) => a.week.localeCompare(b.week)),
+        
+        // Activity metrics
+        totalComments,
+        avgCommentsPerClient,
+        totalStatusChanges,
+        avgStatusChangesPerClient,
+        avgResponseTimeHours,
+        clientsWithComments: responseTimesMs.length,
+        
+        // Team performance
+        byTeam: Object.values(byTeam).sort((a: any, b: any) => b.conversionRate - a.conversionRate),
+        
+        // Agent activity
+        byAgent: Object.values(agentActivity)
+          .sort((a: any, b: any) => b.totalActivity - a.totalActivity),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== API KEY MANAGEMENT =====
   app.post("/api/admin/api-keys", authMiddleware, async (req: AuthRequest, res) => {
     try {
