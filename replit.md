@@ -123,6 +123,14 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Sidebar: "User Management" link for administrators
   - Comprehensive audit logging for all user management actions
 
+- **Integration-5a: Webhook Receiver** (COMPLETE ✅)
+  - POST /api/webhooks/site: Receives webhooks from Trading Platform
+  - HMAC-SHA256 signature verification using WEBHOOK_SECRET env var
+  - Handles 5 event types: client.registered, deposit.completed, withdrawal.completed, kyc.updated, account.updated
+  - Creates audit logs for all webhook events (success and errors)
+  - Automatic client/account creation for client.registered events
+  - Automatic balance updates for deposit/withdrawal events
+
 **Previous Phases Completed:**
 - Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
 - Phase 2: Internal Transfers System (Full Stack) - Architect Approved ✅

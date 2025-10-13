@@ -308,6 +308,25 @@ export default function ClientDetail() {
     },
   });
 
+  const impersonateMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/clients/${clientId}/impersonate`, 'POST'),
+    onSuccess: (data: any) => {
+      // Open SSO URL in new tab
+      window.open(data.ssoUrl, '_blank');
+      toast({
+        title: "SSO token generated",
+        description: "Opening Trading Platform in new tab. Token expires in 15 minutes.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Impersonation failed",
+        description: error.message || "Failed to generate SSO token.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleClientTransfer = () => {
     if (!clientTransferReason.trim()) {
       toast({
@@ -392,8 +411,15 @@ export default function ClientDetail() {
             <Phone className="h-4 w-4 mr-2" />
             Call
           </Button>
-          <Button variant="outline" size="sm" data-testid="button-impersonate" className="hover-elevate active-elevate-2">
-            Login as Client
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => impersonateMutation.mutate()}
+            disabled={impersonateMutation.isPending}
+            data-testid="button-impersonate" 
+            className="hover-elevate active-elevate-2"
+          >
+            {impersonateMutation.isPending ? "Generating..." : "Login as Client"}
           </Button>
           <Button 
             variant="outline" 

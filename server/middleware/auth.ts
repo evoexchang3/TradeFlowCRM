@@ -58,3 +58,26 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
 
   next();
 }
+
+// Service API authentication for Trading Platform
+export function serviceTokenMiddleware(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  const serviceToken = process.env.SERVICE_API_TOKEN;
+  
+  if (!serviceToken) {
+    console.error('[Service API] SERVICE_API_TOKEN not configured');
+    return res.status(500).json({ error: 'Service API not configured' });
+  }
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No service token provided' });
+  }
+
+  const token = authHeader.substring(7);
+
+  if (token !== serviceToken) {
+    return res.status(401).json({ error: 'Invalid service token' });
+  }
+
+  next();
+}
