@@ -1,0 +1,128 @@
+
+
+### ✅ Proceed — Updated Scope Confirmation
+
+Your breakdown is perfect — please go ahead with the detailed task plan and implementation.
+There’s just **one clarification about the Landing Page** that must be reflected in the development order and design.
+
+---
+
+## 🔺 Updated High-Priority Features (Build in this Order)
+
+### **0) Landing Page (High Priority — Role-Based Login)**
+
+**Goal:**
+A simple, professional **landing/login page** where each role (Admin, CRM Manager, Team Leader, Agent) can log in securely and be redirected to their respective dashboard.
+
+**Requirements**
+
+* Single route: `/` (serves as the unified login entry point).
+* The landing page **does not need public marketing content** — only the **login area**.
+* Show separate **login tiles or tabs** for each role (Admin, CRM Manager, Team Leader, Agent).
+* Each login section can reuse the same auth endpoint but display its role label for clarity.
+* Post-login **redirect** logic:
+
+  * Admin → `/admin`
+  * CRM Manager → `/crm`
+  * Team Leader → `/team`
+  * Agent → `/agent`
+* Include company **logo**, title, dark/light mode toggle, and optional language dropdown.
+
+**Optional Enhancements**
+
+* Add a “Forgot Password” link → `/auth/forgot`
+* Add an “Enable 2FA” prompt after successful login (for users without 2FA active)
+
+**Acceptance Criteria**
+
+* Visiting `/` displays the role-based login screen.
+* Each role successfully logs in via the correct credentials and is redirected to their proper dashboard.
+* If already authenticated, `/` redirects directly to the assigned dashboard.
+* Works seamlessly on desktop and mobile.
+* Passes QA for dark/light mode.
+
+---
+
+### **1) API Key Management (Admin Only)**
+
+* Admin can generate/revoke secure API tokens for integration with the external **trading platform website**.
+* Keys include scopes (read/trade/user-sync) and IP whitelist.
+* Show key usage stats and audit all changes.
+
+---
+
+### **2) Subaccount System + Internal Transfers**
+
+* Support multiple subaccounts per client with internal fund transfers.
+* Record transaction logs and reason codes (Deposit, Bonus, Adjustment, etc.).
+
+---
+
+### **3) Enhanced Trading Controls**
+
+* Batch open/close trades for multiple clients.
+* Full edit rights for trades: P&L, open/close prices, timestamps, fees/spread/commission.
+* All edits audited with before/after snapshot.
+
+---
+
+### **4) Team-Based Client Assignment**
+
+* CRM Manager can bulk transfer clients between teams or specific agents.
+* Team Leader dashboard shows team-level performance (active clients, balances, trades, total P&L).
+
+---
+
+### **5) 2FA & Password Reset**
+
+* Implement TOTP-based 2FA (Google Authenticator-compatible).
+* Secure password reset with email verification.
+
+---
+
+## 🔻 Medium-Priority (Phase 2)
+
+* **Balance Adjustment System** (with audit & reason codes)
+* **Exports (CSV/XLSX)** for clients, trades, transactions
+* **Advanced Search & Filtering**
+* **Enhanced Audit Trail UI**
+* **API Usage Dashboard**
+
+---
+
+## 🧑‍💼 Default Admin Credentials
+
+Please seed this initial administrator account for QA:
+
+```
+Email: apitwelve001@gmail.com
+Password: Admin123
+Role: Administrator
+2FA: Disabled (enable manually later)
+```
+
+---
+
+## 🔐 Global Security & Compliance
+
+* Full server-side RBAC and permission gates.
+* Audit all sensitive actions (API keys, trades, roles, fund transfers, etc.).
+* Rate-limits and 2FA on all critical endpoints.
+* Strong password hashing, JWT secrets in `.env.example`.
+
+---
+
+## 📦 Deliverables for this Phase
+
+1. Landing page (login-only) functional for all roles.
+2. Admin dashboard with API key management.
+3. Subaccount & transfer logic working.
+4. Enhanced trading controls (edit/batch).
+5. Team-based client assignment with stats.
+6. 2FA + password reset flow.
+7. Default admin seeded, all tested and audited.
+
+---
+
+Please start the **task breakdown** with the **Landing Page (login-only)** as Milestone 0, ensuring each role’s login route works and redirects correctly to its dashboard.
+Once confirmed, move to **Admin → API Key Management** as the next milestone.
