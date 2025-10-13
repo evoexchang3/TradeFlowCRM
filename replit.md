@@ -23,6 +23,15 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Uses existing POST /api/clients/bulk-assign endpoint
   - Complete state cleanup on success (selection + form state)
 
+- **Team Overview Page** (Phase 3-3) - Architect Approved ✅
+  - GET /api/teams/:id endpoint: Fetches team with sanitized leader data (password removed)
+  - Team dashboard: 4 metric cards (total clients, members, balance, conversions)
+  - Team members section: Lists members with client distribution per agent
+  - Client distribution table: Shows agent breakdown with percentages
+  - Team clients table: Full client list with clickable names
+  - Security: Password properly sanitized from leader data
+  - Authentication: Uses default query fetcher with auth headers
+
 **Previous Phases Completed:**
 - Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
 - Phase 2: Internal Transfers System (Full Stack) - Architect Approved ✅
