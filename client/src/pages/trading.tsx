@@ -17,8 +17,10 @@ export default function Trading() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedSymbol, setSelectedSymbol] = useState("EUR/USD");
+  const [orderType, setOrderType] = useState<"market" | "limit" | "stop" | "stop_limit">("market");
   const [orderSide, setOrderSide] = useState<"buy" | "sell">("buy");
   const [quantity, setQuantity] = useState("1.0");
+  const [orderPrice, setOrderPrice] = useState("");
   const [stopLoss, setStopLoss] = useState("");
   const [takeProfit, setTakeProfit] = useState("");
 
@@ -82,13 +84,27 @@ export default function Trading() {
     
     const orderData: any = {
       symbol: selectedSymbol,
-      type: 'market',
+      type: orderType,
       side: orderSide,
       quantity: parseFloat(quantity),
-      price: currentPrice,
       stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
       takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
     };
+
+    // Add price for non-market orders
+    if (orderType !== 'market') {
+      if (!orderPrice) {
+        toast({
+          title: "Price required",
+          description: `${orderType} orders require a price`,
+          variant: "destructive",
+        });
+        return;
+      }
+      orderData.price = parseFloat(orderPrice);
+    } else {
+      orderData.price = currentPrice;
+    }
 
     // Only include accountId for admin users (clients have it derived server-side)
     if (user?.type === 'user' && account) {
@@ -220,6 +236,21 @@ export default function Trading() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Order Type</label>
+                <Select value={orderType} onValueChange={(value: any) => setOrderType(value)}>
+                  <SelectTrigger data-testid="select-order-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="market">Market</SelectItem>
+                    <SelectItem value="limit">Limit</SelectItem>
+                    <SelectItem value="stop">Stop</SelectItem>
+                    <SelectItem value="stop_limit">Stop Limit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={orderSide === 'buy' ? 'default' : 'outline'}
@@ -251,6 +282,22 @@ export default function Trading() {
                   data-testid="input-order-quantity"
                 />
               </div>
+
+              {orderType !== 'market' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    {orderType === 'limit' ? 'Limit Price' : 'Stop Price'}
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.00001"
+                    value={orderPrice}
+                    onChange={(e) => setOrderPrice(e.target.value)}
+                    placeholder={currentQuote ? currentQuote.price.toFixed(5) : "Enter price"}
+                    data-testid="input-order-price"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Stop Loss (optional)</label>

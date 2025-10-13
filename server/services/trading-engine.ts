@@ -17,6 +17,17 @@ class TradingEngine {
   async placeOrder(request: PlaceOrderRequest): Promise<Order> {
     const { accountId, symbol, type, side, quantity, price, stopLoss, takeProfit } = request;
 
+    // Validate order parameters based on type
+    if (type === 'limit' && !price) {
+      throw new Error('Limit orders require a price');
+    }
+    if (type === 'stop' && !price) {
+      throw new Error('Stop orders require a stop price');
+    }
+    if (type === 'stop_limit' && !price) {
+      throw new Error('Stop-limit orders require both stop and limit prices');
+    }
+
     // Create the order
     const order: InsertOrder = {
       accountId,
@@ -35,9 +46,17 @@ class TradingEngine {
     // If market order, execute immediately
     if (type === 'market') {
       await this.executeOrder(createdOrder);
+    } else {
+      // For pending orders, check if they can be executed immediately
+      // Re-fetch order to ensure we have the persisted state with correct data types
+      const persistedOrder = await storage.getOrder(createdOrder.id);
+      if (persistedOrder) {
+        await this.checkPendingOrder(persistedOrder);
+      }
     }
 
-    return createdOrder;
+    // Return fresh order state after potential execution
+    return await storage.getOrder(createdOrder.id) || createdOrder;
   }
 
   async executeOrder(order: Order): Promise<void> {
@@ -134,6 +153,19 @@ class TradingEngine {
     }
   }
 
+  async cancelOrder(orderId: string): Promise<Order> {
+    const order = await storage.getOrder(orderId);
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (order.status !== 'pending') {
+      throw new Error('Only pending orders can be cancelled');
+    }
+
+    return await storage.updateOrder(orderId, { status: 'cancelled' });
+  }
+
   async modifyPosition(positionId: string, updates: { stopLoss?: string; takeProfit?: string; }): Promise<Position> {
     return await storage.updatePosition(positionId, updates);
   }
@@ -168,6 +200,70 @@ class TradingEngine {
       freeMargin: freeMargin.toString(),
       marginLevel: marginLevel.toString(),
     });
+  }
+
+  async checkPendingOrder(order: Order): Promise<void> {
+    if (order.status !== 'pending') return;
+
+    const quote = await twelveDataService.getQuote(order.symbol);
+    const orderPrice = parseFloat(order.price || '0');
+
+    // Require valid bid/ask for proper execution - skip if missing
+    if (!quote.bid || !quote.ask) {
+      console.warn(`Missing bid/ask for ${order.symbol}, skipping order check`);
+      return;
+    }
+
+    let shouldExecute = false;
+
+    switch (order.type) {
+      case 'limit':
+        // Limit Buy: Execute when ask price <= limit price (can buy at or below limit)
+        // Limit Sell: Execute when bid price >= limit price (can sell at or above limit)
+        if (order.side === 'buy') {
+          shouldExecute = quote.ask <= orderPrice;
+        } else {
+          shouldExecute = quote.bid >= orderPrice;
+        }
+        break;
+
+      case 'stop':
+        // Stop Buy: Execute when ask price >= stop price (market is going up, ready to buy at ask)
+        // Stop Sell: Execute when bid price <= stop price (market is going down, ready to sell at bid)
+        if (order.side === 'buy') {
+          shouldExecute = quote.ask >= orderPrice;
+        } else {
+          shouldExecute = quote.bid <= orderPrice;
+        }
+        break;
+
+      case 'stop_limit':
+        // Stop-Limit: First check if stop is triggered (same as stop order)
+        // For simplicity, we'll treat stop_limit similar to stop for now
+        // In a full implementation, this would transition to a limit order after stop triggers
+        if (order.side === 'buy') {
+          shouldExecute = quote.ask >= orderPrice;
+        } else {
+          shouldExecute = quote.bid <= orderPrice;
+        }
+        break;
+    }
+
+    if (shouldExecute) {
+      await this.executeOrder(order);
+    }
+  }
+
+  async checkAllPendingOrders(): Promise<void> {
+    const pendingOrders = await storage.getOrders({ status: 'pending' });
+
+    for (const order of pendingOrders) {
+      try {
+        await this.checkPendingOrder(order);
+      } catch (error) {
+        console.error(`Error checking pending order ${order.id}:`, error);
+      }
+    }
   }
 
   async checkStopLossTakeProfit(): Promise<void> {
@@ -209,7 +305,10 @@ class TradingEngine {
 
 export const tradingEngine = new TradingEngine();
 
-// Run SL/TP checker every 5 seconds
+// Run order/position checkers every 5 seconds
 setInterval(() => {
-  tradingEngine.checkStopLossTakeProfit().catch(console.error);
+  Promise.all([
+    tradingEngine.checkAllPendingOrders(),
+    tradingEngine.checkStopLossTakeProfit(),
+  ]).catch(console.error);
 }, 5000);

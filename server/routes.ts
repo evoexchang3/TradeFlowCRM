@@ -267,6 +267,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/orders", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      let accountId = req.query.accountId as string;
+      
+      // For clients, only show their own orders
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        const account = await storage.getAccountByClientId(client!.id);
+        accountId = account?.id || '';
+      }
+
+      const orders = await storage.getOrders({ 
+        accountId,
+        status: (req.query.status as string) || 'pending' 
+      });
+      res.json(orders);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/orders/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Verify order ownership
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // For clients, verify they own this order
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        const account = await storage.getAccountByClientId(client!.id);
+        if (order.accountId !== account?.id) {
+          return res.status(403).json({ error: "Unauthorized to cancel this order" });
+        }
+      }
+
+      const cancelledOrder = await tradingEngine.cancelOrder(req.params.id);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        clientId: req.user?.type === 'client' ? req.user.id : undefined,
+        action: 'trade_cancel',
+        targetType: 'order',
+        targetId: cancelledOrder.id,
+        details: {},
+      });
+
+      res.json(cancelledOrder);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/positions", authMiddleware, async (req: AuthRequest, res) => {
     try {
       let accountId = req.query.accountId as string;
