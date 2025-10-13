@@ -3,10 +3,12 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import express from "express";
 import bcrypt from "bcrypt";
+import multer from "multer";
 import { storage } from "./storage";
 import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
 import { authMiddleware, optionalAuth, generateToken, verifyToken, type AuthRequest } from "./middleware/auth";
+import { previewImport, executeImport } from "./import";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -449,6 +451,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const logs = await storage.getAuditLogs();
       res.json(logs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== IMPORT/EXPORT =====
+  const upload = multer({ storage: multer.memoryStorage() });
+
+  app.post("/api/import/preview", authMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileContent = req.file.buffer.toString('utf-8');
+      const type = req.body.type || 'clients';
+      const preview = previewImport(fileContent, type);
+
+      res.json(preview);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/import/execute", authMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const fileContent = req.file.buffer.toString('utf-8');
+      const type = req.body.type || 'clients';
+      const mapping = JSON.parse(req.body.mapping || '{}');
+      
+      console.log('Import execute - mapping:', mapping);
+
+      const result = await executeImport(fileContent, type, mapping, req.user?.id);
+
+      if (result.errorCount > 0 && result.successCount === 0) {
+        return res.status(400).json({ 
+          error: "Import failed",
+          errors: result.errors,
+          successCount: result.successCount,
+          errorCount: result.errorCount,
+        });
+      }
+
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

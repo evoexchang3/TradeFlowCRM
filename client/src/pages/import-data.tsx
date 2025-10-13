@@ -27,7 +27,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 export default function ImportData() {
   const [file, setFile] = useState<File | null>(null);
   const [importType, setImportType] = useState("clients");
-  const [preview, setPreview] = useState<any[]>([]);
+  const [preview, setPreview] = useState<{ headers: string[]; rows: any[][] }>({ headers: [], rows: [] });
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<any[]>([]);
   const { toast } = useToast();
@@ -38,36 +38,75 @@ export default function ImportData() {
       formData.append('file', file);
       formData.append('type', importType);
       const response = await apiRequest('POST', '/api/import/preview', formData);
-      return response;
+      return await response.json();
     },
     onSuccess: (data) => {
-      setPreview(data.preview || []);
+      setPreview({ headers: data.headers || [], rows: data.rows || [] });
       setColumnMapping(data.suggestedMapping || {});
       toast({ title: "File uploaded successfully" });
     },
   });
 
   const importMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('POST', '/api/import/execute', {
-      file,
-      type: importType,
-      mapping: columnMapping,
-    }),
+    mutationFn: async () => {
+      if (!file) throw new Error("No file selected");
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', importType);
+      formData.append('mapping', JSON.stringify(columnMapping));
+      
+      try {
+        const response = await apiRequest('POST', '/api/import/execute', formData);
+        const data = await response.json();
+        
+        // Handle partial success (some imported, some failed)
+        if (data.errorCount > 0) {
+          setErrors(data.errors || []);
+        }
+        return data;
+      } catch (error: any) {
+        // Parse error response from apiRequest
+        const errorMessage = error.message || '';
+        const jsonMatch = errorMessage.match(/\{.*\}/);
+        if (jsonMatch) {
+          try {
+            const errorData = JSON.parse(jsonMatch[0]);
+            if (errorData.errors) {
+              setErrors(errorData.errors);
+            }
+            throw new Error(errorData.error || errorMessage);
+          } catch (parseError) {
+            // If JSON parsing fails, throw original error
+            throw error;
+          }
+        }
+        throw error;
+      }
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      toast({ 
-        title: "Import completed",
-        description: `Successfully imported ${data.successCount} records`
-      });
-      setFile(null);
-      setPreview([]);
-      setErrors([]);
+      
+      if (data.errorCount > 0) {
+        toast({ 
+          title: "Import partially completed",
+          description: `Successfully imported ${data.successCount} records, ${data.errorCount} errors`,
+          variant: "default"
+        });
+      } else {
+        toast({ 
+          title: "Import completed",
+          description: `Successfully imported ${data.successCount} records`
+        });
+        setFile(null);
+        setPreview({ headers: [], rows: [] });
+        setErrors([]);
+      }
     },
     onError: (error: any) => {
-      setErrors(error.errors || []);
+      console.error('Import error:', error);
       toast({
         title: "Import failed",
-        description: error.message,
+        description: error.message || "An error occurred during import",
         variant: "destructive",
       });
     },
@@ -90,7 +129,7 @@ export default function ImportData() {
       <div>
         <h1 className="text-2xl font-semibold" data-testid="text-import-title">Import Data</h1>
         <p className="text-sm text-muted-foreground">
-          Bulk import clients from Excel or CSV files
+          Bulk import clients from CSV files
         </p>
       </div>
 
@@ -134,7 +173,7 @@ export default function ImportData() {
                         <div>
                           <p className="text-sm font-medium">Click to upload</p>
                           <p className="text-xs text-muted-foreground">
-                            CSV or Excel file
+                            CSV file only
                           </p>
                         </div>
                       </>
@@ -143,7 +182,7 @@ export default function ImportData() {
                   <input
                     type="file"
                     className="hidden"
-                    accept=".csv,.xlsx,.xls"
+                    accept=".csv"
                     onChange={handleFileChange}
                     data-testid="input-file-upload"
                   />
@@ -151,12 +190,12 @@ export default function ImportData() {
               </div>
             </div>
 
-            {preview.length > 0 && (
+            {preview.headers.length > 0 && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-sm font-medium mb-3">Column Mapping</h3>
                   <div className="grid gap-3">
-                    {Object.keys(preview[0] || {}).map((column) => (
+                    {preview.headers.map((column) => (
                       <div key={column} className="grid grid-cols-2 gap-3 items-center">
                         <div className="text-sm text-muted-foreground">{column}</div>
                         <Select
@@ -167,7 +206,7 @@ export default function ImportData() {
                             <SelectValue placeholder="Skip" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Skip</SelectItem>
+                            <SelectItem value="skip">Skip</SelectItem>
                             {availableFields[importType]?.map((field) => (
                               <SelectItem key={field} value={field}>
                                 {field}
@@ -181,20 +220,20 @@ export default function ImportData() {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium mb-3">Preview ({preview.length} rows)</h3>
+                  <h3 className="text-sm font-medium mb-3">Preview ({preview.rows.length} rows)</h3>
                   <div className="border rounded-md max-h-64 overflow-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          {Object.keys(preview[0] || {}).map((column) => (
+                          {preview.headers.map((column) => (
                             <TableHead key={column}>{column}</TableHead>
                           ))}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {preview.slice(0, 5).map((row, idx) => (
+                        {preview.rows.slice(0, 5).map((row, idx) => (
                           <TableRow key={idx}>
-                            {Object.values(row).map((value: any, cellIdx) => (
+                            {row.map((value: any, cellIdx) => (
                               <TableCell key={cellIdx} className="text-sm">
                                 {value}
                               </TableCell>
@@ -221,12 +260,12 @@ export default function ImportData() {
                 )}
 
                 <Button
-                  onClick={() => importMutation.mutate({})}
+                  onClick={() => importMutation.mutate()}
                   disabled={importMutation.isPending || errors.length > 0}
                   className="w-full hover-elevate active-elevate-2"
                   data-testid="button-import"
                 >
-                  {importMutation.isPending ? 'Importing...' : `Import ${preview.length} Records`}
+                  {importMutation.isPending ? 'Importing...' : `Import ${preview.rows.length} Records`}
                 </Button>
               </div>
             )}
@@ -241,7 +280,7 @@ export default function ImportData() {
             <div className="space-y-2">
               <h4 className="text-sm font-medium">File Format</h4>
               <p className="text-xs text-muted-foreground">
-                Upload a CSV or Excel file with headers in the first row.
+                Upload a CSV file with headers in the first row.
               </p>
             </div>
 
