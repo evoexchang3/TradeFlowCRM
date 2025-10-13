@@ -35,6 +35,8 @@ export const auditActionEnum = pgEnum('audit_action', [
 ]);
 export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
 export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
+export const tradeInitiatorTypeEnum = pgEnum('trade_initiator_type', ['client', 'agent', 'team_leader', 'crm_manager', 'admin', 'robot', 'system']);
+export const robotStatusEnum = pgEnum('robot_status', ['active', 'paused', 'stopped']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -168,6 +170,11 @@ export const orders = pgTable("orders", {
   commission: decimal("commission", { precision: 18, scale: 2 }).default('0'),
   swap: decimal("swap", { precision: 18, scale: 2 }).default('0'),
   notes: text("notes"),
+  initiatorType: tradeInitiatorTypeEnum("initiator_type").default('client'),
+  initiatorId: varchar("initiator_id"), // User ID if agent/team_leader/admin, robot ID if robot, null if client/system
+  leverage: decimal("leverage", { precision: 5, scale: 2 }).default('1'),
+  spread: decimal("spread", { precision: 10, scale: 5 }).default('0'),
+  fees: decimal("fees", { precision: 18, scale: 2 }).default('0'),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   filledAt: timestamp("filled_at"),
   cancelledAt: timestamp("cancelled_at"),
@@ -184,6 +191,7 @@ export const positions = pgTable("positions", {
   quantity: decimal("quantity", { precision: 18, scale: 8 }).notNull(),
   openPrice: decimal("open_price", { precision: 18, scale: 8 }).notNull(),
   currentPrice: decimal("current_price", { precision: 18, scale: 8 }),
+  closePrice: decimal("close_price", { precision: 18, scale: 8 }),
   stopLoss: decimal("stop_loss", { precision: 18, scale: 8 }),
   takeProfit: decimal("take_profit", { precision: 18, scale: 8 }),
   unrealizedPnl: decimal("unrealized_pnl", { precision: 18, scale: 2 }).default('0'),
@@ -191,6 +199,11 @@ export const positions = pgTable("positions", {
   commission: decimal("commission", { precision: 18, scale: 2 }).default('0'),
   swap: decimal("swap", { precision: 18, scale: 2 }).default('0'),
   status: positionStatusEnum("status").notNull().default('open'),
+  initiatorType: tradeInitiatorTypeEnum("initiator_type").default('client'),
+  initiatorId: varchar("initiator_id"), // User ID if agent/team_leader/admin, robot ID if robot, null if client/system
+  leverage: decimal("leverage", { precision: 5, scale: 2 }).default('1'),
+  spread: decimal("spread", { precision: 10, scale: 5 }).default('0'),
+  fees: decimal("fees", { precision: 18, scale: 2 }).default('0'),
   openedAt: timestamp("opened_at").notNull().defaultNow(),
   closedAt: timestamp("closed_at"),
 });
@@ -218,6 +231,25 @@ export const candles = pgTable("candles", {
 }, (table) => ({
   symbolIntervalIdx: uniqueIndex("symbol_interval_time_idx").on(table.symbol, table.interval, table.timestamp),
 }));
+
+// Trading Robots
+export const tradingRobots = pgTable("trading_robots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  accountIds: text("account_ids").array().notNull(), // Array of account IDs this robot manages
+  status: robotStatusEnum("status").notNull().default('active'),
+  dailyProfitMin: decimal("daily_profit_min", { precision: 18, scale: 2 }).notNull(), // Min daily profit target
+  dailyProfitMax: decimal("daily_profit_max", { precision: 18, scale: 2 }).notNull(), // Max daily profit target
+  winRate: decimal("win_rate", { precision: 5, scale: 2 }).default('80'), // Target win rate percentage (default 80%)
+  maxTradesPerDay: integer("max_trades_per_day").default(10),
+  allowedSymbols: text("allowed_symbols").array(), // Specific symbols or null for all
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  lastRunAt: timestamp("last_run_at"),
+  todayProfit: decimal("today_profit", { precision: 18, scale: 2 }).default('0'),
+  todayTrades: integer("today_trades").default(0),
+});
 
 // Audit Logs
 export const auditLogs = pgTable("audit_logs", {
@@ -336,7 +368,7 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 }));
 
 export const callLogsRelations = relations(callLogs, ({ one }) => ({
-  client: one(clients, { fields: [callLogs.clientId], references: [callLogs.id] }),
+  client: one(clients, { fields: [callLogs.clientId], references: [clients.id] }),
   agent: one(users, { fields: [callLogs.agentId], references: [users.id] }),
 }));
 
@@ -419,6 +451,15 @@ export const insertClientCommentSchema = createInsertSchema(clientComments).omit
   updatedAt: true,
 });
 
+export const insertTradingRobotSchema = createInsertSchema(tradingRobots).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastRunAt: true,
+  todayProfit: true,
+  todayTrades: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -462,6 +503,9 @@ export type InsertCallLog = z.infer<typeof insertCallLogSchema>;
 
 export type ClientComment = typeof clientComments.$inferSelect;
 export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
+
+export type TradingRobot = typeof tradingRobots.$inferSelect;
+export type InsertTradingRobot = z.infer<typeof insertTradingRobotSchema>;
 
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
   id: true,

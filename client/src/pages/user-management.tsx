@@ -124,7 +124,11 @@ export default function UserManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateUserData) => {
-      const res = await apiRequest('POST', '/api/users', data);
+      const payload = {
+        ...data,
+        teamId: data.teamId === "none" || !data.teamId ? undefined : data.teamId
+      };
+      const res = await apiRequest('POST', '/api/users', payload);
       return res.json();
     },
     onSuccess: () => {
@@ -147,7 +151,11 @@ export default function UserManagement() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: EditUserData }) => {
-      const res = await apiRequest('PATCH', `/api/users/${id}`, data);
+      const payload = {
+        ...data,
+        teamId: data.teamId === "none" || !data.teamId ? undefined : data.teamId
+      };
+      const res = await apiRequest('PATCH', `/api/users/${id}`, payload);
       return res.json();
     },
     onSuccess: () => {
@@ -219,7 +227,7 @@ export default function UserManagement() {
       lastName: user.lastName,
       email: user.email,
       roleId: user.roleId,
-      teamId: user.teamId || "",
+      teamId: user.teamId || "none",
     });
     setEditDialogOpen(true);
   };
@@ -444,14 +452,14 @@ export default function UserManagement() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Team (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger data-testid="select-team">
                           <SelectValue placeholder="Select a team" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Team</SelectItem>
+                        <SelectItem value="none">No Team</SelectItem>
                         {teams.map((team) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
@@ -571,14 +579,14 @@ export default function UserManagement() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Team (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-team">
                           <SelectValue placeholder="Select a team" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Team</SelectItem>
+                        <SelectItem value="none">No Team</SelectItem>
                         {teams.map((team) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
