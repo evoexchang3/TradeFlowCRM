@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, marketData, candles,
+  users, clients, accounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, marketData, candles, apiKeys,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -13,6 +13,7 @@ import {
   type Team, type InsertTeam,
   type AuditLog, type InsertAuditLog,
   type CallLog, type InsertCallLog,
+  type ApiKey, type InsertApiKey,
   type MarketData,
   type Candle,
 } from "@shared/schema";
@@ -73,6 +74,14 @@ export interface IStorage {
   
   // Call Logs
   createCallLog(log: InsertCallLog): Promise<CallLog>;
+  
+  // API Keys
+  getApiKeys(createdBy?: string): Promise<ApiKey[]>;
+  getApiKey(id: string): Promise<ApiKey | undefined>;
+  getApiKeyByHash(keyHash: string): Promise<ApiKey | undefined>;
+  createApiKey(key: InsertApiKey & { keyHash: string; keyPrefix: string }): Promise<ApiKey>;
+  revokeApiKey(id: string): Promise<ApiKey>;
+  updateApiKeyLastUsed(id: string): Promise<void>;
   
   // Market Data
   getMarketData(symbol: string): Promise<MarketData | undefined>;
@@ -264,6 +273,43 @@ export class DatabaseStorage implements IStorage {
   async createCallLog(insertLog: InsertCallLog): Promise<CallLog> {
     const [log] = await db.insert(callLogs).values(insertLog).returning();
     return log;
+  }
+
+  // API Keys
+  async getApiKeys(createdBy?: string): Promise<ApiKey[]> {
+    if (createdBy) {
+      return await db.select().from(apiKeys).where(eq(apiKeys.createdBy, createdBy)).orderBy(desc(apiKeys.createdAt));
+    }
+    return await db.select().from(apiKeys).orderBy(desc(apiKeys.createdAt));
+  }
+
+  async getApiKey(id: string): Promise<ApiKey | undefined> {
+    const [key] = await db.select().from(apiKeys).where(eq(apiKeys.id, id));
+    return key || undefined;
+  }
+
+  async getApiKeyByHash(keyHash: string): Promise<ApiKey | undefined> {
+    const [key] = await db.select().from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
+    return key || undefined;
+  }
+
+  async createApiKey(insertKey: InsertApiKey & { keyHash: string; keyPrefix: string }): Promise<ApiKey> {
+    const [key] = await db.insert(apiKeys).values(insertKey).returning();
+    return key;
+  }
+
+  async revokeApiKey(id: string): Promise<ApiKey> {
+    const [key] = await db.update(apiKeys)
+      .set({ status: 'revoked' })
+      .where(eq(apiKeys.id, id))
+      .returning();
+    return key;
+  }
+
+  async updateApiKeyLastUsed(id: string): Promise<void> {
+    await db.update(apiKeys)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKeys.id, id));
   }
 
   // Market Data

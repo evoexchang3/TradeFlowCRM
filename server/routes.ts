@@ -590,6 +590,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== API KEY MANAGEMENT =====
+  app.post("/api/admin/api-keys", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { insertApiKeySchema } = await import("@shared/schema");
+      const { generateApiKey } = await import("./utils/api-key");
+
+      // Validate request body
+      const validated = insertApiKeySchema.parse(req.body);
+
+      // Generate API key
+      const { key, keyHash, keyPrefix } = generateApiKey();
+
+      // Create API key record
+      const apiKey = await storage.createApiKey({
+        ...validated,
+        ipWhitelist: validated.ipWhitelist || null,
+        expiresAt: validated.expiresAt ? new Date(validated.expiresAt) : null,
+        createdBy: req.user!.id,
+        status: 'active',
+        keyHash,
+        keyPrefix,
+      });
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'api_key_create',
+        targetType: 'api_key',
+        targetId: apiKey.id,
+        details: { name: validated.name, scope: validated.scope },
+      });
+
+      // Return ONLY safe fields + the plaintext key (shown once)
+      res.json({
+        id: apiKey.id,
+        name: apiKey.name,
+        keyPrefix: apiKey.keyPrefix,
+        scope: apiKey.scope,
+        ipWhitelist: apiKey.ipWhitelist,
+        status: apiKey.status,
+        expiresAt: apiKey.expiresAt,
+        createdAt: apiKey.createdAt,
+        key, // The actual API key - show only once!
+      });
+    } catch (error: any) {
+      // Handle validation errors with 400
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/api-keys", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const keys = await storage.getApiKeys(req.user!.id);
+      
+      // Remove sensitive data before sending
+      const sanitizedKeys = keys.map(({ keyHash, ...key }) => key);
+      
+      res.json(sanitizedKeys);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/admin/api-keys/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+
+      // Get the key to ensure it exists and belongs to the user
+      const existingKey = await storage.getApiKey(id);
+      if (!existingKey) {
+        return res.status(404).json({ error: "API key not found" });
+      }
+
+      if (existingKey.createdBy !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to revoke this key" });
+      }
+
+      // Revoke the key
+      const revokedKey = await storage.revokeApiKey(id);
+
+      // Log audit
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'api_key_revoke',
+        targetType: 'api_key',
+        targetId: id,
+        details: { name: existingKey.name },
+      });
+
+      // Return ONLY safe fields (exclude keyHash)
+      res.json({
+        id: revokedKey.id,
+        name: revokedKey.name,
+        keyPrefix: revokedKey.keyPrefix,
+        scope: revokedKey.scope,
+        ipWhitelist: revokedKey.ipWhitelist,
+        status: revokedKey.status,
+        expiresAt: revokedKey.expiresAt,
+        lastUsedAt: revokedKey.lastUsedAt,
+        createdAt: revokedKey.createdAt,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== WEBSOCKET FOR MARKET DATA STREAMING =====
   const httpServer = createServer(app);
   
