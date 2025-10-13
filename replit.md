@@ -6,6 +6,17 @@ This is an enterprise-grade CRM system for a trading platform, designed to manag
 
 The system is built as a customizable template that can be individually tailored for different partners and brokers, with easy replication and export capabilities.
 
+## Recent Changes
+
+**October 13, 2025 - Milestone 0 Complete: Role-Based Landing Page**
+- Created professional landing page at `/` with tab-based role selection (Administrator, CRM Manager, Team Leader, Agent)
+- Implemented role-specific post-login redirects (Admin→/admin, CRM Manager→/crm, Team Leader→/team, Agent→/agent)
+- Added auth protection to dashboard routes - unauthenticated users redirected to landing page
+- Seeded default admin account: apitwelve001@gmail.com / Admin123
+- Added logout functionality to sidebar footer with proper token cleanup
+- Fixed token race condition by setting localStorage immediately before role fetch
+- Created GET /api/roles/:id endpoint for role-based routing
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

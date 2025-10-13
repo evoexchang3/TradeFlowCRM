@@ -8,9 +8,11 @@ import {
   FileUp,
   FileDown,
   History,
-  Settings
+  Settings,
+  LogOut
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/lib/auth";
 
 import {
   Sidebar,
@@ -77,7 +79,13 @@ const managementItems = [
 ];
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    setLocation('/');
+  };
 
   return (
     <Sidebar>
@@ -151,6 +159,12 @@ export function AppSidebar() {
                 <Settings className="h-4 w-4" />
                 <span>Settings</span>
               </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleLogout} data-testid="button-logout">
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

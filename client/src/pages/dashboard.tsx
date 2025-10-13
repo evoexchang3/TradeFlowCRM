@@ -1,8 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Activity } from "lucide-react";
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
+
+  // Redirect to landing page if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLocation('/');
+    }
+  }, [isAuthenticated, setLocation]);
+
   const { data: stats } = useQuery({
     queryKey: ['/api/dashboard/stats'],
   });

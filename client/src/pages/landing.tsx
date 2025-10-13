@@ -110,19 +110,29 @@ export default function Landing() {
       return await res.json();
     },
     onSuccess: async (data) => {
+      // Set token in localStorage immediately before API calls
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user || data.client));
+      
+      // Update auth context
       login(data.token, data);
       
       // Determine redirect based on role
       if (data.user) {
-        // Fetch role to determine redirect
-        const roleRes = await apiRequest('GET', `/api/roles/${data.user.roleId}`);
-        const roleData = await roleRes.json();
-        
-        const roleRoute = roles.find(r => 
-          r.name.toLowerCase() === roleData.name.toLowerCase()
-        )?.route || '/dashboard';
-        
-        setLocation(roleRoute);
+        try {
+          // Fetch role to determine redirect
+          const roleRes = await apiRequest('GET', `/api/roles/${data.user.roleId}`);
+          const roleData = await roleRes.json();
+          
+          const roleRoute = roles.find(r => 
+            r.name.toLowerCase() === roleData.name.toLowerCase()
+          )?.route || '/dashboard';
+          
+          setLocation(roleRoute);
+        } catch (error) {
+          console.error('Failed to fetch role:', error);
+          setLocation('/dashboard');
+        }
       } else {
         setLocation('/dashboard');
       }
