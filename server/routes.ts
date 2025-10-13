@@ -303,6 +303,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CLIENT COMMENTS =====
+  app.get("/api/clients/:id/comments", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const comments = await storage.getClientComments(req.params.id);
+      res.json(comments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/:id/comments", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Only staff can add comments' });
+      }
+
+      const comment = await storage.createClientComment({
+        clientId: req.params.id,
+        userId: req.user.id,
+        comment: req.body.comment,
+      });
+
+      res.json(comment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/comments/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Only staff can edit comments' });
+      }
+
+      // Check role - only CRM Manager and Team Leader can edit
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+      
+      if (roleName !== 'crm manager' && roleName !== 'team leader' && roleName !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Only CRM Manager, Team Leader, or Administrator can edit comments' });
+      }
+
+      const comment = await storage.updateClientComment(req.params.id, {
+        comment: req.body.comment,
+      });
+
+      res.json(comment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/comments/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Only staff can delete comments' });
+      }
+
+      // Check role - only CRM Manager and Team Leader can delete
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+      
+      if (roleName !== 'crm manager' && roleName !== 'team leader' && roleName !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Only CRM Manager, Team Leader, or Administrator can delete comments' });
+      }
+
+      await storage.deleteClientComment(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== SUBACCOUNTS =====
   app.get("/api/subaccounts", authMiddleware, async (req: AuthRequest, res) => {
     try {

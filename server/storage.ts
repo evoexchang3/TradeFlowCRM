@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, marketData, candles, apiKeys,
+  users, clients, accounts, subaccounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -14,6 +14,7 @@ import {
   type Team, type InsertTeam,
   type AuditLog, type InsertAuditLog,
   type CallLog, type InsertCallLog,
+  type ClientComment, type InsertClientComment,
   type ApiKey, type InsertApiKey,
   type MarketData,
   type Candle,
@@ -81,6 +82,12 @@ export interface IStorage {
   
   // Call Logs
   createCallLog(log: InsertCallLog): Promise<CallLog>;
+  
+  // Client Comments
+  getClientComments(clientId: string): Promise<ClientComment[]>;
+  createClientComment(comment: InsertClientComment): Promise<ClientComment>;
+  updateClientComment(id: string, updates: Partial<InsertClientComment>): Promise<ClientComment>;
+  deleteClientComment(id: string): Promise<void>;
   
   // API Keys
   getApiKeys(createdBy?: string): Promise<ApiKey[]>;
@@ -300,6 +307,30 @@ export class DatabaseStorage implements IStorage {
   async createCallLog(insertLog: InsertCallLog): Promise<CallLog> {
     const [log] = await db.insert(callLogs).values(insertLog).returning();
     return log;
+  }
+
+  // Client Comments
+  async getClientComments(clientId: string): Promise<ClientComment[]> {
+    return await db.select().from(clientComments)
+      .where(eq(clientComments.clientId, clientId))
+      .orderBy(desc(clientComments.createdAt));
+  }
+
+  async createClientComment(insertComment: InsertClientComment): Promise<ClientComment> {
+    const [comment] = await db.insert(clientComments).values(insertComment).returning();
+    return comment;
+  }
+
+  async updateClientComment(id: string, updates: Partial<InsertClientComment>): Promise<ClientComment> {
+    const [comment] = await db.update(clientComments)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(clientComments.id, id))
+      .returning();
+    return comment;
+  }
+
+  async deleteClientComment(id: string): Promise<void> {
+    await db.delete(clientComments).where(eq(clientComments.id, id));
   }
 
   // API Keys

@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,14 +13,127 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+const CLIENT_STATUSES = [
+  { value: 'new', label: 'New' },
+  { value: 'reassigned', label: 'Reassigned' },
+  { value: 'potential', label: 'Potential' },
+  { value: 'low_potential', label: 'Low Potential' },
+  { value: 'mid_potential', label: 'Mid Potential' },
+  { value: 'high_potential', label: 'High Potential' },
+  { value: 'no_answer', label: 'No Answer' },
+  { value: 'voicemail', label: 'Voicemail' },
+  { value: 'callback_requested', label: 'Callback Requested' },
+  { value: 'not_interested', label: 'Not Interested' },
+  { value: 'converted', label: 'Converted' },
+  { value: 'lost', label: 'Lost' },
+];
 
 export default function ClientDetail() {
   const [, params] = useRoute("/clients/:id");
   const clientId = params?.id;
+  const [newComment, setNewComment] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['/api/clients', clientId],
     enabled: !!clientId,
+  });
+
+  const { data: comments = [] } = useQuery({
+    queryKey: ['/api/clients', clientId, 'comments'],
+    enabled: !!clientId,
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: (status: string) => 
+      apiRequest(`/api/clients/${clientId}`, 'PATCH', { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      toast({
+        title: "Status updated",
+        description: "Client status has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update client status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addCommentMutation = useMutation({
+    mutationFn: (comment: string) => 
+      apiRequest(`/api/clients/${clientId}/comments`, 'POST', { comment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
+      setNewComment('');
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add comment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateCommentMutation = useMutation({
+    mutationFn: ({ id, comment }: { id: string; comment: string }) => 
+      apiRequest(`/api/comments/${id}`, 'PATCH', { comment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
+      setEditingCommentId(null);
+      setEditingCommentText('');
+      toast({
+        title: "Comment updated",
+        description: "Comment has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update comment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/comments/${id}`, 'DELETE'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
+      toast({
+        title: "Comment deleted",
+        description: "Comment has been deleted successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete comment.",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -41,6 +154,24 @@ export default function ClientDetail() {
       </div>
     );
   }
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'converted':
+        return 'default';
+      case 'high_potential':
+        return 'default';
+      case 'mid_potential':
+        return 'secondary';
+      case 'low_potential':
+        return 'secondary';
+      case 'lost':
+      case 'not_interested':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -112,6 +243,25 @@ export default function ClientDetail() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Pipeline Status</span>
+              <Select
+                value={client.status || 'new'}
+                onValueChange={(value) => updateStatusMutation.mutate(value)}
+                disabled={updateStatusMutation.isPending}
+              >
+                <SelectTrigger className="w-[160px]" data-testid="select-client-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLIENT_STATUSES.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">KYC Status</span>
               <Badge variant={client.kycStatus === 'verified' ? 'default' : 'secondary'}>
                 {client.kycStatus}
@@ -171,6 +321,7 @@ export default function ClientDetail() {
         <TabsList>
           <TabsTrigger value="positions" data-testid="tab-positions">Positions</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="tab-transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="comments" data-testid="tab-comments">Comments</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
         </TabsList>
@@ -281,6 +432,129 @@ export default function ClientDetail() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="comments" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Client Comments</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <Textarea
+                  placeholder="Add a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={3}
+                  data-testid="input-new-comment"
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => addCommentMutation.mutate(newComment)}
+                    disabled={!newComment.trim() || addCommentMutation.isPending}
+                    data-testid="button-add-comment"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Add Comment
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                {comments.length > 0 ? (
+                  comments.map((comment: any) => (
+                    <div key={comment.id} className="p-4 border rounded-md space-y-2" data-testid={`comment-${comment.id}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          {editingCommentId === comment.id ? (
+                            <Textarea
+                              value={editingCommentText}
+                              onChange={(e) => setEditingCommentText(e.target.value)}
+                              rows={3}
+                              data-testid="input-edit-comment"
+                            />
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap" data-testid="text-comment-content">
+                              {comment.comment}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {editingCommentId === comment.id ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  updateCommentMutation.mutate({
+                                    id: comment.id,
+                                    comment: editingCommentText,
+                                  });
+                                }}
+                                disabled={updateCommentMutation.isPending}
+                                data-testid="button-save-comment"
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingCommentId(null);
+                                  setEditingCommentText('');
+                                }}
+                                data-testid="button-cancel-edit"
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEditingCommentId(comment.id);
+                                  setEditingCommentText(comment.comment);
+                                }}
+                                data-testid="button-edit-comment"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteCommentMutation.mutate(comment.id)}
+                                disabled={deleteCommentMutation.isPending}
+                                data-testid="button-delete-comment"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span data-testid="text-comment-author">{comment.user?.name || 'Unknown'}</span>
+                        <span>•</span>
+                        <span data-testid="text-comment-date">
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
+                        {comment.updatedAt !== comment.createdAt && (
+                          <>
+                            <span>•</span>
+                            <span className="italic">edited</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No comments yet</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
