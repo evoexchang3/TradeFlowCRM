@@ -16,6 +16,10 @@ import { z } from "zod";
 
 // Enums
 export const kycStatusEnum = pgEnum('kyc_status', ['pending', 'verified', 'rejected']);
+export const clientStatusEnum = pgEnum('client_status', [
+  'new', 'reassigned', 'potential', 'low_potential', 'mid_potential', 'high_potential',
+  'no_answer', 'voicemail', 'callback_requested', 'not_interested', 'converted', 'lost'
+]);
 export const orderTypeEnum = pgEnum('order_type', ['market', 'limit', 'stop', 'stop_limit']);
 export const orderSideEnum = pgEnum('order_side', ['buy', 'sell']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'filled', 'partially_filled', 'cancelled', 'rejected']);
@@ -77,6 +81,7 @@ export const clients = pgTable("clients", {
   dateOfBirth: timestamp("date_of_birth"),
   kycStatus: kycStatusEnum("kyc_status").notNull().default('pending'),
   kycDocuments: jsonb("kyc_documents").default('[]'), // Array of document URLs
+  status: clientStatusEnum("status").notNull().default('new'),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   teamId: varchar("team_id").references(() => teams.id),
   mustResetPassword: boolean("must_reset_password").notNull().default(false),
@@ -225,6 +230,16 @@ export const callLogs = pgTable("call_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Client Comments
+export const clientComments = pgTable("client_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  comment: text("comment").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // API Keys for external platform integration
 export const apiKeys = pgTable("api_keys", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -263,6 +278,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   team: one(teams, { fields: [clients.teamId], references: [teams.id] }),
   accounts: many(accounts),
   callLogs: many(callLogs),
+  comments: many(clientComments),
 }));
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
@@ -302,6 +318,11 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 export const callLogsRelations = relations(callLogs, ({ one }) => ({
   client: one(clients, { fields: [callLogs.clientId], references: [callLogs.id] }),
   agent: one(users, { fields: [callLogs.agentId], references: [users.id] }),
+}));
+
+export const clientCommentsRelations = relations(clientComments, ({ one }) => ({
+  client: one(clients, { fields: [clientComments.clientId], references: [clients.id] }),
+  user: one(users, { fields: [clientComments.userId], references: [users.id] }),
 }));
 
 export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
@@ -367,6 +388,12 @@ export const insertCallLogSchema = createInsertSchema(callLogs).omit({
   createdAt: true,
 });
 
+export const insertClientCommentSchema = createInsertSchema(clientComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -404,6 +431,9 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 export type CallLog = typeof callLogs.$inferSelect;
 export type InsertCallLog = z.infer<typeof insertCallLogSchema>;
+
+export type ClientComment = typeof clientComments.$inferSelect;
+export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
 
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
   id: true,
