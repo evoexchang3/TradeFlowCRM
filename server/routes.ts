@@ -18,7 +18,279 @@ function generateAccountNumber(): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Middleware for JSON parsing
+  // Webhook endpoint MUST come before express.json() to preserve raw body for signature verification
+  app.post("/api/webhooks/site", express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      const signature = req.headers['x-webhook-signature'] as string;
+      const webhookSecret = process.env.WEBHOOK_SECRET;
+
+      if (!webhookSecret) {
+        console.error('[Webhook] WEBHOOK_SECRET not configured');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+
+      if (!signature) {
+        console.error('[Webhook] No signature provided');
+        return res.status(401).json({ error: 'No signature provided' });
+      }
+
+      // Verify HMAC-SHA256 signature
+      const rawBody = req.body.toString('utf8');
+      const expectedSignature = crypto
+        .createHmac('sha256', webhookSecret)
+        .update(rawBody)
+        .digest('hex');
+
+      if (signature !== expectedSignature) {
+        console.error('[Webhook] Invalid signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+
+      // Parse the webhook payload
+      const payload = JSON.parse(rawBody);
+      const { event, data, timestamp } = payload;
+
+      console.log(`[Webhook] Received event: ${event}`, data);
+
+      // Handle different webhook event types
+      switch (event) {
+        case 'client.registered': {
+          // Trading Platform notifies CRM of new client registration
+          const { clientId, email, firstName, lastName, phone } = data;
+          
+          // Check if client already exists
+          const existing = await storage.getClientByEmail(email);
+          if (existing) {
+            console.log(`[Webhook] Client ${email} already exists`);
+            await storage.createAuditLog({
+              action: 'webhook_received',
+              targetType: 'client',
+              targetId: existing.id,
+              details: { event, source: 'trading_platform', status: 'duplicate' },
+            });
+            return res.json({ status: 'duplicate', clientId: existing.id });
+          }
+
+          // Create client in CRM
+          const client = await storage.createClient({
+            firstName,
+            lastName,
+            email,
+            phone,
+            kycStatus: 'pending',
+            isActive: true,
+            password: '', // No password needed - they login via Trading Platform
+          });
+
+          // Create account
+          await storage.createAccount({
+            clientId: client.id,
+            accountNumber: generateAccountNumber(),
+            currency: 'USD',
+            balance: '0',
+            equity: '0',
+            margin: '0',
+            freeMargin: '0',
+            leverage: 100,
+            isActive: true,
+          });
+
+          await storage.createAuditLog({
+            action: 'webhook_received',
+            targetType: 'client',
+            targetId: client.id,
+            details: { event, source: 'trading_platform', externalClientId: clientId },
+          });
+
+          return res.json({ status: 'created', clientId: client.id });
+        }
+
+        case 'deposit.completed': {
+          // Trading Platform notifies CRM of completed deposit
+          const { clientEmail, amount, currency, transactionId } = data;
+          
+          const client = await storage.getClientByEmail(clientEmail);
+          if (!client) {
+            console.error(`[Webhook] Client not found: ${clientEmail}`);
+            return res.status(404).json({ error: 'Client not found' });
+          }
+
+          const accounts = await storage.getAccountsByClientId(client.id);
+          if (accounts.length === 0) {
+            console.error(`[Webhook] No account found for client: ${clientEmail}`);
+            return res.status(404).json({ error: 'Account not found' });
+          }
+
+          const account = accounts[0];
+          const subaccounts = await storage.getSubaccountsByAccountId(account.id);
+          const mainSubaccount = subaccounts.find(s => s.name === 'Main') || subaccounts[0];
+
+          if (!mainSubaccount) {
+            console.error(`[Webhook] No subaccount found for account: ${account.id}`);
+            return res.status(404).json({ error: 'Subaccount not found' });
+          }
+
+          // Update subaccount balance
+          const newBalance = (parseFloat(mainSubaccount.balance) + parseFloat(amount)).toString();
+          await storage.updateSubaccount(mainSubaccount.id, { balance: newBalance });
+
+          await storage.createAuditLog({
+            action: 'webhook_received',
+            targetType: 'subaccount',
+            targetId: mainSubaccount.id,
+            details: { 
+              event, 
+              source: 'trading_platform', 
+              amount, 
+              currency, 
+              transactionId,
+              oldBalance: mainSubaccount.balance,
+              newBalance,
+            },
+          });
+
+          return res.json({ status: 'processed' });
+        }
+
+        case 'withdrawal.completed': {
+          // Trading Platform notifies CRM of completed withdrawal
+          const { clientEmail, amount, currency, transactionId } = data;
+          
+          const client = await storage.getClientByEmail(clientEmail);
+          if (!client) {
+            console.error(`[Webhook] Client not found: ${clientEmail}`);
+            return res.status(404).json({ error: 'Client not found' });
+          }
+
+          const accounts = await storage.getAccountsByClientId(client.id);
+          if (accounts.length === 0) {
+            console.error(`[Webhook] No account found for client: ${clientEmail}`);
+            return res.status(404).json({ error: 'Account not found' });
+          }
+
+          const account = accounts[0];
+          const subaccounts = await storage.getSubaccountsByAccountId(account.id);
+          const mainSubaccount = subaccounts.find(s => s.name === 'Main') || subaccounts[0];
+
+          if (!mainSubaccount) {
+            console.error(`[Webhook] No subaccount found for account: ${account.id}`);
+            return res.status(404).json({ error: 'Subaccount not found' });
+          }
+
+          // Update subaccount balance
+          const newBalance = (parseFloat(mainSubaccount.balance) - parseFloat(amount)).toString();
+          await storage.updateSubaccount(mainSubaccount.id, { balance: newBalance });
+
+          await storage.createAuditLog({
+            action: 'webhook_received',
+            targetType: 'subaccount',
+            targetId: mainSubaccount.id,
+            details: { 
+              event, 
+              source: 'trading_platform', 
+              amount, 
+              currency, 
+              transactionId,
+              oldBalance: mainSubaccount.balance,
+              newBalance,
+            },
+          });
+
+          return res.json({ status: 'processed' });
+        }
+
+        case 'kyc.updated': {
+          // Trading Platform notifies CRM of KYC status change
+          const { clientEmail, kycStatus, kycNotes } = data;
+          
+          const client = await storage.getClientByEmail(clientEmail);
+          if (!client) {
+            console.error(`[Webhook] Client not found: ${clientEmail}`);
+            return res.status(404).json({ error: 'Client not found' });
+          }
+
+          await storage.updateClient(client.id, { 
+            kycStatus: kycStatus as 'pending' | 'approved' | 'rejected',
+            kycNotes: kycNotes,
+          });
+
+          await storage.createAuditLog({
+            action: 'webhook_received',
+            targetType: 'client',
+            targetId: client.id,
+            details: { 
+              event, 
+              source: 'trading_platform', 
+              kycStatus,
+              oldKycStatus: client.kycStatus,
+            },
+          });
+
+          return res.json({ status: 'updated' });
+        }
+
+        case 'account.updated': {
+          // Trading Platform notifies CRM of account changes
+          const { clientEmail, leverage, balance, equity } = data;
+          
+          const client = await storage.getClientByEmail(clientEmail);
+          if (!client) {
+            console.error(`[Webhook] Client not found: ${clientEmail}`);
+            return res.status(404).json({ error: 'Client not found' });
+          }
+
+          const accounts = await storage.getAccountsByClientId(client.id);
+          if (accounts.length === 0) {
+            console.error(`[Webhook] No account found for client: ${clientEmail}`);
+            return res.status(404).json({ error: 'Account not found' });
+          }
+
+          const account = accounts[0];
+          const updates: any = {};
+          if (leverage !== undefined) updates.leverage = leverage;
+          if (balance !== undefined) updates.balance = balance.toString();
+          if (equity !== undefined) updates.equity = equity.toString();
+
+          await storage.updateAccount(account.id, updates);
+
+          await storage.createAuditLog({
+            action: 'webhook_received',
+            targetType: 'account',
+            targetId: account.id,
+            details: { 
+              event, 
+              source: 'trading_platform', 
+              updates,
+            },
+          });
+
+          return res.json({ status: 'updated' });
+        }
+
+        default: {
+          console.warn(`[Webhook] Unknown event type: ${event}`);
+          await storage.createAuditLog({
+            action: 'webhook_received',
+            targetType: 'system',
+            targetId: 'webhook-handler',
+            details: { event, source: 'trading_platform', status: 'unknown_event' },
+          });
+          return res.json({ status: 'unknown_event', event });
+        }
+      }
+    } catch (error: any) {
+      console.error('[Webhook] Error processing webhook:', error);
+      await storage.createAuditLog({
+        action: 'webhook_error',
+        targetType: 'system',
+        targetId: 'webhook-handler',
+        details: { error: error.message, stack: error.stack },
+      });
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Middleware for JSON parsing (AFTER webhook endpoint)
   app.use(express.json());
 
   // ===== AUTHENTICATION =====
@@ -2511,279 +2783,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Impersonation error:', error);
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  // ===== WEBHOOKS =====
-  // Webhook receiver from Trading Platform
-  app.post("/api/webhooks/site", express.raw({ type: 'application/json' }), async (req, res) => {
-    try {
-      const signature = req.headers['x-webhook-signature'] as string;
-      const webhookSecret = process.env.WEBHOOK_SECRET;
-
-      if (!webhookSecret) {
-        console.error('[Webhook] WEBHOOK_SECRET not configured');
-        return res.status(500).json({ error: 'Webhook secret not configured' });
-      }
-
-      if (!signature) {
-        console.error('[Webhook] No signature provided');
-        return res.status(401).json({ error: 'No signature provided' });
-      }
-
-      // Verify HMAC-SHA256 signature
-      const rawBody = req.body.toString('utf8');
-      const expectedSignature = crypto
-        .createHmac('sha256', webhookSecret)
-        .update(rawBody)
-        .digest('hex');
-
-      if (signature !== expectedSignature) {
-        console.error('[Webhook] Invalid signature');
-        return res.status(401).json({ error: 'Invalid signature' });
-      }
-
-      // Parse the webhook payload
-      const payload = JSON.parse(rawBody);
-      const { event, data, timestamp } = payload;
-
-      console.log(`[Webhook] Received event: ${event}`, data);
-
-      // Handle different webhook event types
-      switch (event) {
-        case 'client.registered': {
-          // Trading Platform notifies CRM of new client registration
-          const { clientId, email, firstName, lastName, phone } = data;
-          
-          // Check if client already exists
-          const existing = await storage.getClientByEmail(email);
-          if (existing) {
-            console.log(`[Webhook] Client ${email} already exists`);
-            await storage.createAuditLog({
-              action: 'webhook_received',
-              targetType: 'client',
-              targetId: existing.id,
-              details: { event, source: 'trading_platform', status: 'duplicate' },
-            });
-            return res.json({ status: 'duplicate', clientId: existing.id });
-          }
-
-          // Create client in CRM
-          const client = await storage.createClient({
-            firstName,
-            lastName,
-            email,
-            phone,
-            kycStatus: 'pending',
-            isActive: true,
-            password: '', // No password needed - they login via Trading Platform
-          });
-
-          // Create account
-          await storage.createAccount({
-            clientId: client.id,
-            accountNumber: generateAccountNumber(),
-            currency: 'USD',
-            balance: '0',
-            equity: '0',
-            margin: '0',
-            freeMargin: '0',
-            leverage: 100,
-            isActive: true,
-          });
-
-          await storage.createAuditLog({
-            action: 'webhook_received',
-            targetType: 'client',
-            targetId: client.id,
-            details: { event, source: 'trading_platform', externalClientId: clientId },
-          });
-
-          return res.json({ status: 'created', clientId: client.id });
-        }
-
-        case 'deposit.completed': {
-          // Trading Platform notifies CRM of completed deposit
-          const { clientEmail, amount, currency, transactionId } = data;
-          
-          const client = await storage.getClientByEmail(clientEmail);
-          if (!client) {
-            console.error(`[Webhook] Client not found: ${clientEmail}`);
-            return res.status(404).json({ error: 'Client not found' });
-          }
-
-          const accounts = await storage.getAccountsByClientId(client.id);
-          if (accounts.length === 0) {
-            console.error(`[Webhook] No account found for client: ${clientEmail}`);
-            return res.status(404).json({ error: 'Account not found' });
-          }
-
-          const account = accounts[0];
-          const subaccounts = await storage.getSubaccountsByAccountId(account.id);
-          const mainSubaccount = subaccounts.find(s => s.name === 'Main') || subaccounts[0];
-
-          if (!mainSubaccount) {
-            console.error(`[Webhook] No subaccount found for account: ${account.id}`);
-            return res.status(404).json({ error: 'Subaccount not found' });
-          }
-
-          // Update subaccount balance
-          const newBalance = (parseFloat(mainSubaccount.balance) + parseFloat(amount)).toString();
-          await storage.updateSubaccount(mainSubaccount.id, { balance: newBalance });
-
-          await storage.createAuditLog({
-            action: 'webhook_received',
-            targetType: 'subaccount',
-            targetId: mainSubaccount.id,
-            details: { 
-              event, 
-              source: 'trading_platform', 
-              amount, 
-              currency, 
-              transactionId,
-              oldBalance: mainSubaccount.balance,
-              newBalance,
-            },
-          });
-
-          return res.json({ status: 'processed' });
-        }
-
-        case 'withdrawal.completed': {
-          // Trading Platform notifies CRM of completed withdrawal
-          const { clientEmail, amount, currency, transactionId } = data;
-          
-          const client = await storage.getClientByEmail(clientEmail);
-          if (!client) {
-            console.error(`[Webhook] Client not found: ${clientEmail}`);
-            return res.status(404).json({ error: 'Client not found' });
-          }
-
-          const accounts = await storage.getAccountsByClientId(client.id);
-          if (accounts.length === 0) {
-            console.error(`[Webhook] No account found for client: ${clientEmail}`);
-            return res.status(404).json({ error: 'Account not found' });
-          }
-
-          const account = accounts[0];
-          const subaccounts = await storage.getSubaccountsByAccountId(account.id);
-          const mainSubaccount = subaccounts.find(s => s.name === 'Main') || subaccounts[0];
-
-          if (!mainSubaccount) {
-            console.error(`[Webhook] No subaccount found for account: ${account.id}`);
-            return res.status(404).json({ error: 'Subaccount not found' });
-          }
-
-          // Update subaccount balance
-          const newBalance = (parseFloat(mainSubaccount.balance) - parseFloat(amount)).toString();
-          await storage.updateSubaccount(mainSubaccount.id, { balance: newBalance });
-
-          await storage.createAuditLog({
-            action: 'webhook_received',
-            targetType: 'subaccount',
-            targetId: mainSubaccount.id,
-            details: { 
-              event, 
-              source: 'trading_platform', 
-              amount, 
-              currency, 
-              transactionId,
-              oldBalance: mainSubaccount.balance,
-              newBalance,
-            },
-          });
-
-          return res.json({ status: 'processed' });
-        }
-
-        case 'kyc.updated': {
-          // Trading Platform notifies CRM of KYC status change
-          const { clientEmail, kycStatus, kycNotes } = data;
-          
-          const client = await storage.getClientByEmail(clientEmail);
-          if (!client) {
-            console.error(`[Webhook] Client not found: ${clientEmail}`);
-            return res.status(404).json({ error: 'Client not found' });
-          }
-
-          await storage.updateClient(client.id, { 
-            kycStatus: kycStatus as 'pending' | 'approved' | 'rejected',
-            kycNotes: kycNotes,
-          });
-
-          await storage.createAuditLog({
-            action: 'webhook_received',
-            targetType: 'client',
-            targetId: client.id,
-            details: { 
-              event, 
-              source: 'trading_platform', 
-              kycStatus,
-              oldKycStatus: client.kycStatus,
-            },
-          });
-
-          return res.json({ status: 'updated' });
-        }
-
-        case 'account.updated': {
-          // Trading Platform notifies CRM of account changes
-          const { clientEmail, leverage, balance, equity } = data;
-          
-          const client = await storage.getClientByEmail(clientEmail);
-          if (!client) {
-            console.error(`[Webhook] Client not found: ${clientEmail}`);
-            return res.status(404).json({ error: 'Client not found' });
-          }
-
-          const accounts = await storage.getAccountsByClientId(client.id);
-          if (accounts.length === 0) {
-            console.error(`[Webhook] No account found for client: ${clientEmail}`);
-            return res.status(404).json({ error: 'Account not found' });
-          }
-
-          const account = accounts[0];
-          const updates: any = {};
-          if (leverage !== undefined) updates.leverage = leverage;
-          if (balance !== undefined) updates.balance = balance.toString();
-          if (equity !== undefined) updates.equity = equity.toString();
-
-          await storage.updateAccount(account.id, updates);
-
-          await storage.createAuditLog({
-            action: 'webhook_received',
-            targetType: 'account',
-            targetId: account.id,
-            details: { 
-              event, 
-              source: 'trading_platform', 
-              updates,
-            },
-          });
-
-          return res.json({ status: 'updated' });
-        }
-
-        default: {
-          console.warn(`[Webhook] Unknown event type: ${event}`);
-          await storage.createAuditLog({
-            action: 'webhook_received',
-            targetType: 'system',
-            targetId: 'webhook-handler',
-            details: { event, source: 'trading_platform', status: 'unknown_event' },
-          });
-          return res.json({ status: 'unknown_event', event });
-        }
-      }
-    } catch (error: any) {
-      console.error('[Webhook] Error processing webhook:', error);
-      await storage.createAuditLog({
-        action: 'webhook_error',
-        targetType: 'system',
-        targetId: 'webhook-handler',
-        details: { error: error.message, stack: error.stack },
-      });
-      return res.status(500).json({ error: 'Internal server error' });
     }
   });
 

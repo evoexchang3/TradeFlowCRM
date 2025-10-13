@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider } from "@/lib/auth";
+import { RouteGuard } from "@/components/route-guard";
 import Dashboard from "@/pages/dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
 import CRMDashboard from "@/pages/crm-dashboard";
@@ -34,28 +35,141 @@ import NotFound from "@/pages/not-found";
 function Router() {
   return (
     <Switch>
-      <Route path="/register" component={Register} />
-      <Route path="/login" component={Login} />
-      <Route path="/" component={Landing} />
-      <Route path="/admin" component={AdminDashboard} />
-      <Route path="/crm" component={CRMDashboard} />
-      <Route path="/team" component={TeamDashboard} />
-      <Route path="/agent" component={AgentDashboard} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/clients" component={Clients} />
-      <Route path="/clients/new" component={ClientForm} />
-      <Route path="/clients/:id" component={ClientDetail} />
-      <Route path="/clients/:id/edit" component={ClientForm} />
-      <Route path="/trading" component={Trading} />
-      <Route path="/transactions" component={Transactions} />
-      <Route path="/users" component={UserManagement} />
-      <Route path="/roles" component={Roles} />
-      <Route path="/teams/:id" component={TeamDetail} />
-      <Route path="/teams" component={Teams} />
-      <Route path="/api-keys" component={ApiKeys} />
-      <Route path="/import" component={ImportData} />
-      <Route path="/export" component={ExportData} />
-      <Route path="/audit" component={AuditLogs} />
+      {/* Public routes */}
+      <Route path="/register">
+        <RouteGuard requireAuth={false}>
+          <Register />
+        </RouteGuard>
+      </Route>
+      <Route path="/login">
+        <RouteGuard requireAuth={false}>
+          <Login />
+        </RouteGuard>
+      </Route>
+      <Route path="/">
+        <RouteGuard requireAuth={false}>
+          <Landing />
+        </RouteGuard>
+      </Route>
+
+      {/* Role-specific dashboards */}
+      <Route path="/admin">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <AdminDashboard />
+        </RouteGuard>
+      </Route>
+      <Route path="/crm">
+        <RouteGuard allowedRoles={['CRM Manager']}>
+          <CRMDashboard />
+        </RouteGuard>
+      </Route>
+      <Route path="/team">
+        <RouteGuard allowedRoles={['Team Leader']}>
+          <TeamDashboard />
+        </RouteGuard>
+      </Route>
+      <Route path="/agent">
+        <RouteGuard allowedRoles={['Agent']}>
+          <AgentDashboard />
+        </RouteGuard>
+      </Route>
+
+      {/* Generic dashboard (fallback) */}
+      <Route path="/dashboard">
+        <RouteGuard>
+          <Dashboard />
+        </RouteGuard>
+      </Route>
+
+      {/* Client management - all staff roles */}
+      <Route path="/clients">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <Clients />
+        </RouteGuard>
+      </Route>
+      <Route path="/clients/new">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <ClientForm />
+        </RouteGuard>
+      </Route>
+      <Route path="/clients/:id">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <ClientDetail />
+        </RouteGuard>
+      </Route>
+      <Route path="/clients/:id/edit">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <ClientForm />
+        </RouteGuard>
+      </Route>
+
+      {/* Trading - all staff roles */}
+      <Route path="/trading">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <Trading />
+        </RouteGuard>
+      </Route>
+
+      {/* Transactions - all staff roles */}
+      <Route path="/transactions">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <Transactions />
+        </RouteGuard>
+      </Route>
+
+      {/* User Management - admin only */}
+      <Route path="/users">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <UserManagement />
+        </RouteGuard>
+      </Route>
+
+      {/* Roles - admin only */}
+      <Route path="/roles">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <Roles />
+        </RouteGuard>
+      </Route>
+
+      {/* Teams - admin, CRM manager, team leader */}
+      <Route path="/teams/:id">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <TeamDetail />
+        </RouteGuard>
+      </Route>
+      <Route path="/teams">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <Teams />
+        </RouteGuard>
+      </Route>
+
+      {/* API Keys - admin only */}
+      <Route path="/api-keys">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <ApiKeys />
+        </RouteGuard>
+      </Route>
+
+      {/* Import/Export - admin, CRM manager */}
+      <Route path="/import">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <ImportData />
+        </RouteGuard>
+      </Route>
+      <Route path="/export">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <ExportData />
+        </RouteGuard>
+      </Route>
+
+      {/* Audit Logs - admin, CRM manager */}
+      <Route path="/audit">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <AuditLogs />
+        </RouteGuard>
+      </Route>
+
+      {/* 404 */}
       <Route component={NotFound} />
     </Switch>
   );
