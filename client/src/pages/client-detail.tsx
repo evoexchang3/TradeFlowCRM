@@ -68,6 +68,10 @@ export default function ClientDetail() {
   const [filterSubaccount, setFilterSubaccount] = useState<string>('all');
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [clientTransferDialogOpen, setClientTransferDialogOpen] = useState(false);
+  const [transferNewAgentId, setTransferNewAgentId] = useState<string>('');
+  const [transferNewTeamId, setTransferNewTeamId] = useState<string>('');
+  const [clientTransferReason, setClientTransferReason] = useState('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -280,6 +284,56 @@ export default function ClientDetail() {
     },
   });
 
+  const clientTransferMutation = useMutation({
+    mutationFn: (data: { newAgentId?: string; newTeamId?: string; transferReason: string }) =>
+      apiRequest(`/api/clients/${clientId}/transfer`, 'POST', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
+      setClientTransferDialogOpen(false);
+      setTransferNewAgentId('');
+      setTransferNewTeamId('');
+      setClientTransferReason('');
+      toast({
+        title: "Client transferred",
+        description: "Client has been successfully transferred and status changed to Reassigned.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Transfer failed",
+        description: error.message || "Failed to transfer client.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleClientTransfer = () => {
+    if (!clientTransferReason.trim()) {
+      toast({
+        title: "Transfer reason required",
+        description: "Please provide a reason for the transfer.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!transferNewAgentId && !transferNewTeamId) {
+      toast({
+        title: "Assignment required",
+        description: "Please select at least a new agent or team.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const data: any = { transferReason: clientTransferReason };
+    if (transferNewAgentId) data.newAgentId = transferNewAgentId;
+    if (transferNewTeamId) data.newTeamId = transferNewTeamId;
+
+    clientTransferMutation.mutate(data);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -340,6 +394,16 @@ export default function ClientDetail() {
           </Button>
           <Button variant="outline" size="sm" data-testid="button-impersonate" className="hover-elevate active-elevate-2">
             Login as Client
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setClientTransferDialogOpen(true)}
+            data-testid="button-transfer-client" 
+            className="hover-elevate active-elevate-2"
+          >
+            <ArrowRightLeft className="h-4 w-4 mr-2" />
+            Transfer Client
           </Button>
           <Button size="sm" asChild data-testid="button-edit-client" className="hover-elevate active-elevate-2">
             <Link href={`/clients/${client.id}/edit`}>Edit Client</Link>
@@ -1163,6 +1227,97 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Transfer Client Dialog */}
+      <Dialog open={clientTransferDialogOpen} onOpenChange={setClientTransferDialogOpen}>
+        <DialogContent data-testid="dialog-transfer-client">
+          <DialogHeader>
+            <DialogTitle>Transfer Client</DialogTitle>
+            <DialogDescription>
+              Transfer this client to a different agent or team. The client's status will automatically change to "Reassigned".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="transfer-agent">New Agent</Label>
+              <Select
+                value={transferNewAgentId}
+                onValueChange={setTransferNewAgentId}
+              >
+                <SelectTrigger id="transfer-agent" data-testid="select-transfer-agent">
+                  <SelectValue placeholder="Select new agent (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No change</SelectItem>
+                  {agents.map((agent: any) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="transfer-team">New Team</Label>
+              <Select
+                value={transferNewTeamId}
+                onValueChange={setTransferNewTeamId}
+              >
+                <SelectTrigger id="transfer-team" data-testid="select-transfer-team">
+                  <SelectValue placeholder="Select new team (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No change</SelectItem>
+                  {teams.map((team: any) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="transfer-reason">Transfer Reason *</Label>
+              <Textarea
+                id="transfer-reason"
+                placeholder="Explain why this client is being transferred..."
+                value={clientTransferReason}
+                onChange={(e) => setClientTransferReason(e.target.value)}
+                rows={4}
+                data-testid="textarea-transfer-reason"
+              />
+              <p className="text-xs text-muted-foreground">
+                This reason will be logged in the audit trail and added as a comment.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setClientTransferDialogOpen(false);
+                setTransferNewAgentId('');
+                setTransferNewTeamId('');
+                setClientTransferReason('');
+              }}
+              data-testid="button-cancel-transfer"
+              className="hover-elevate active-elevate-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleClientTransfer}
+              disabled={clientTransferMutation.isPending || !clientTransferReason.trim() || (!transferNewAgentId && !transferNewTeamId)}
+              data-testid="button-confirm-transfer"
+              className="hover-elevate active-elevate-2"
+            >
+              {clientTransferMutation.isPending ? "Transferring..." : "Transfer Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

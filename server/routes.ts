@@ -342,6 +342,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CLIENT TRANSFER =====
+  app.post("/api/clients/:id/transfer", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only staff can transfer clients
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      // Require client.edit permission or administrator role
+      if (!permissions.includes('client.edit') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions to transfer clients' });
+      }
+
+      const { newAgentId, newTeamId, transferReason } = req.body;
+      
+      // Validate that at least one assignment is provided
+      if (newAgentId === undefined && newTeamId === undefined) {
+        return res.status(400).json({ error: "Either newAgentId or newTeamId must be provided" });
+      }
+
+      // Validate transfer reason
+      if (!transferReason || transferReason.trim() === '') {
+        return res.status(400).json({ error: "Transfer reason is required" });
+      }
+
+      // Get current client to check previous assignment
+      const currentClient = await storage.getClient(req.params.id);
+      if (!currentClient) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      // Build updates object
+      const updates: any = {
+        status: 'reassigned', // Automatically change status to reassigned
+      };
+      
+      if (newAgentId !== undefined) updates.assignedAgentId = newAgentId || null;
+      if (newTeamId !== undefined) updates.teamId = newTeamId || null;
+
+      // Update client
+      const updatedClient = await storage.updateClient(req.params.id, updates);
+
+      // Create audit log with transfer details
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'client_transfer',
+        targetType: 'client',
+        targetId: updatedClient.id,
+        details: {
+          previousAgentId: currentClient.assignedAgentId,
+          previousTeamId: currentClient.teamId,
+          newAgentId: updates.assignedAgentId,
+          newTeamId: updates.teamId,
+          transferReason,
+          statusChangedTo: 'reassigned',
+        },
+      });
+
+      // Optional: Create a comment about the transfer
+      await storage.createClientComment({
+        clientId: updatedClient.id,
+        userId: req.user.id,
+        comment: `Client transferred. Reason: ${transferReason}`,
+      });
+
+      res.json(updatedClient);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== CLIENT COMMENTS =====
   app.get("/api/clients/:id/comments", authMiddleware, async (req: AuthRequest, res) => {
     try {
