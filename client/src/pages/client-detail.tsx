@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +60,11 @@ export default function ClientDetail() {
   const [createSubaccountOpen, setCreateSubaccountOpen] = useState(false);
   const [newSubaccountName, setNewSubaccountName] = useState('');
   const [newSubaccountCurrency, setNewSubaccountCurrency] = useState('USD');
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferFromSubaccountId, setTransferFromSubaccountId] = useState('');
+  const [transferToSubaccountId, setTransferToSubaccountId] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -173,6 +178,40 @@ export default function ClientDetail() {
       toast({
         title: "Error",
         description: "Failed to create subaccount.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const transferMutation = useMutation({
+    mutationFn: (data: { fromSubaccountId: string; toSubaccountId: string; amount: string; notes?: string }) =>
+      apiRequest('/api/subaccounts/transfer', 'POST', data),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/subaccounts', client?.account?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/internal-transfers'] });
+      setTransferDialogOpen(false);
+      setTransferFromSubaccountId('');
+      setTransferToSubaccountId('');
+      setTransferAmount('');
+      setTransferNotes('');
+      
+      if (result.status === 'rejected') {
+        toast({
+          title: "Transfer rejected",
+          description: "Insufficient balance in source subaccount.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Transfer completed",
+          description: `Successfully transferred $${result.amount} between subaccounts.`,
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Transfer failed",
+        description: error.message || "Failed to process transfer.",
         variant: "destructive",
       });
     },
@@ -429,13 +468,126 @@ export default function ClientDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <CardTitle className="text-lg">Subaccounts</CardTitle>
-              <Dialog open={createSubaccountOpen} onOpenChange={setCreateSubaccountOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" data-testid="button-create-subaccount">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Subaccount
-                  </Button>
-                </DialogTrigger>
+              <div className="flex gap-2">
+                <Dialog open={transferDialogOpen} onOpenChange={(open) => {
+                  setTransferDialogOpen(open);
+                  if (!open) {
+                    // Reset form state when dialog closes
+                    setTransferFromSubaccountId('');
+                    setTransferToSubaccountId('');
+                    setTransferAmount('');
+                    setTransferNotes('');
+                  }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" data-testid="button-internal-transfer" disabled={subaccounts.length < 2}>
+                      <ArrowRightLeft className="h-4 w-4 mr-2" />
+                      Internal Transfer
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Internal Transfer</DialogTitle>
+                      <DialogDescription>
+                        Transfer funds between subaccounts within this client's account.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="from-subaccount">From Subaccount</Label>
+                        <Select value={transferFromSubaccountId} onValueChange={setTransferFromSubaccountId}>
+                          <SelectTrigger id="from-subaccount" data-testid="select-from-subaccount">
+                            <SelectValue placeholder="Select source subaccount" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subaccounts.map((sub: any) => (
+                              <SelectItem key={sub.id} value={sub.id} disabled={sub.id === transferToSubaccountId}>
+                                {sub.name} ({sub.currency}) - ${(sub.balance || 0).toLocaleString()}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="to-subaccount">To Subaccount</Label>
+                        <Select value={transferToSubaccountId} onValueChange={setTransferToSubaccountId}>
+                          <SelectTrigger id="to-subaccount" data-testid="select-to-subaccount">
+                            <SelectValue placeholder="Select destination subaccount" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subaccounts.map((sub: any) => (
+                              <SelectItem key={sub.id} value={sub.id} disabled={sub.id === transferFromSubaccountId}>
+                                {sub.name} ({sub.currency})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="transfer-amount">Amount</Label>
+                        <Input
+                          id="transfer-amount"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={transferAmount}
+                          onChange={(e) => setTransferAmount(e.target.value)}
+                          data-testid="input-transfer-amount"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="transfer-notes">Notes (Optional)</Label>
+                        <Textarea
+                          id="transfer-notes"
+                          placeholder="Add any notes about this transfer..."
+                          value={transferNotes}
+                          onChange={(e) => setTransferNotes(e.target.value)}
+                          data-testid="textarea-transfer-notes"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setTransferDialogOpen(false)}
+                        data-testid="button-cancel-transfer"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          const amount = Number(transferAmount);
+                          if (transferFromSubaccountId && transferToSubaccountId && Number.isFinite(amount) && amount > 0) {
+                            transferMutation.mutate({
+                              fromSubaccountId: transferFromSubaccountId,
+                              toSubaccountId: transferToSubaccountId,
+                              amount: transferAmount,
+                              notes: transferNotes || undefined,
+                            });
+                          } else if (amount <= 0 || !Number.isFinite(amount)) {
+                            toast({
+                              title: "Invalid amount",
+                              description: "Please enter a valid amount greater than zero.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        disabled={!transferFromSubaccountId || !transferToSubaccountId || !transferAmount || Number(transferAmount) <= 0 || transferMutation.isPending}
+                        data-testid="button-confirm-transfer"
+                      >
+                        {transferMutation.isPending ? 'Processing...' : 'Transfer Funds'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Dialog open={createSubaccountOpen} onOpenChange={setCreateSubaccountOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" data-testid="button-create-subaccount">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Subaccount
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Create New Subaccount</DialogTitle>
@@ -495,6 +647,7 @@ export default function ClientDetail() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
