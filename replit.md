@@ -58,12 +58,29 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Role-based permissions (client.edit or administrator)
   - Real-time UI updates with cache invalidation
 
+**October 13, 2025 - Phase 4: Enhanced Dashboards (IN PROGRESS 🔄)**
+
+- **Assignment Metrics API** (Phase 4-1) - Architect Approved ✅
+  - GET /api/metrics/assignments endpoint with staff-only access guard
+  - Security: Blocks client-type users with 403 Forbidden
+  - Role-based filtering: Admin/CRM Manager see all, Team Leader sees team, Agent sees assigned
+  - Returns comprehensive metrics: total/assigned/unassigned clients, with/without team
+  - Breakdowns: byStatus (count per status), byTeam (sorted by count), byAgent (sorted by count)
+
+- **Assignment Metrics Widgets** (Phase 4-2) - Architect Approved ✅
+  - Four metric cards: Total clients, Assigned (with %), Unassigned (with %), With Teams (with %)
+  - Client Status Breakdown: Top 8 statuses with progress bars and color-coded labels
+  - Top Teams by Client Count: Top 6 teams with progress bars showing percentage
+  - Top Agents by Client Count: Top 9 agents in responsive grid with avatars and progress bars
+  - Real-time data, loading states, proper empty states, TypeScript typed responses
+
 **Previous Phases Completed:**
 - Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
 - Phase 2: Internal Transfers System (Full Stack) - Architect Approved ✅
   - Transfer API with Zod validation, atomic transactions, audit logging
   - Transfer UI with source/destination dropdowns, amount validation
   - Transfer history with subaccount/date filters and CSV export
+- Phase 3: Client Assignment System (6 sub-phases) - All Architect Approved ✅
 
 ## User Preferences
 

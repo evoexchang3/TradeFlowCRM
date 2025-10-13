@@ -1303,6 +1303,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/metrics/financials", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Block client-type users from accessing staff metrics
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      // Get user's role for filtering (same logic as assignments)
+      const user = await storage.getUser(req.user!.id);
+      let clients = await storage.getClients();
+      
+      // Apply role-based filtering
+      if (user?.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        if (roleName === 'team leader') {
+          clients = clients.filter(c => c.teamId === user.teamId);
+        } else if (roleName === 'agent') {
+          clients = clients.filter(c => c.assignedAgentId === user.id);
+        }
+      }
+
+      const teams = await storage.getTeams();
+      const users = await storage.getUsers();
+      const accounts = await storage.getAccounts();
+      const allSubaccounts = await storage.getSubaccounts();
+      const allTransactions = await storage.getTransactions();
+
+      // Get client IDs for filtering
+      const clientIds = new Set(clients.map(c => c.id));
+
+      // Filter accounts and subaccounts for these clients
+      const clientAccounts = accounts.filter(a => clientIds.has(a.clientId));
+      const accountIds = new Set(clientAccounts.map(a => a.id));
+      const subaccounts = allSubaccounts.filter(s => accountIds.has(s.accountId));
+      const subaccountIds = new Set(subaccounts.map(s => s.id));
+
+      // Filter transactions for these subaccounts
+      const transactions = allTransactions.filter(t => subaccountIds.has(t.subaccountId));
+
+      // Calculate aggregates
+      const totalBalance = clientAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+      const totalEquity = clientAccounts.reduce((sum, acc) => sum + Number(acc.equity), 0);
+      
+      const deposits = transactions
+        .filter(t => t.type === 'deposit')
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+      
+      const withdrawals = transactions
+        .filter(t => t.type === 'withdrawal')
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+
+      // Trading volume (sum of all trade amounts)
+      const tradingVolume = transactions
+        .filter(t => t.type === 'trade')
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+
+      // Breakdown by team
+      const byTeam = clients.reduce((acc: any, client: any) => {
+        if (client.teamId) {
+          const team = teams.find((t: any) => t.id === client.teamId);
+          const teamName = team?.name || 'Unknown Team';
+          
+          if (!acc[client.teamId]) {
+            acc[client.teamId] = {
+              id: client.teamId,
+              name: teamName,
+              balance: 0,
+              equity: 0,
+              deposits: 0,
+              withdrawals: 0,
+              volume: 0,
+              clientCount: 0,
+            };
+          }
+
+          // Get ALL accounts for this client (not just the first one)
+          const clientAccountsList = clientAccounts.filter(a => a.clientId === client.id);
+          
+          for (const clientAccount of clientAccountsList) {
+            acc[client.teamId].balance += Number(clientAccount.balance);
+            acc[client.teamId].equity += Number(clientAccount.equity);
+            
+            // Get subaccounts for this account
+            const clientSubaccounts = subaccounts.filter(s => s.accountId === clientAccount.id);
+            const clientSubaccountIds = new Set(clientSubaccounts.map(s => s.id));
+            
+            // Sum transactions for these subaccounts
+            const clientTransactions = transactions.filter(t => clientSubaccountIds.has(t.subaccountId));
+            
+            acc[client.teamId].deposits += clientTransactions
+              .filter(t => t.type === 'deposit')
+              .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            
+            acc[client.teamId].withdrawals += clientTransactions
+              .filter(t => t.type === 'withdrawal')
+              .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            
+            acc[client.teamId].volume += clientTransactions
+              .filter(t => t.type === 'trade')
+              .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+          }
+
+          acc[client.teamId].clientCount++;
+        }
+        return acc;
+      }, {});
+
+      // Breakdown by agent
+      const byAgent = clients.reduce((acc: any, client: any) => {
+        if (client.assignedAgentId) {
+          const agent = users.find((u: any) => u.id === client.assignedAgentId);
+          const agentName = agent?.name || 'Unknown Agent';
+          
+          if (!acc[client.assignedAgentId]) {
+            acc[client.assignedAgentId] = {
+              id: client.assignedAgentId,
+              name: agentName,
+              balance: 0,
+              equity: 0,
+              deposits: 0,
+              withdrawals: 0,
+              volume: 0,
+              clientCount: 0,
+            };
+          }
+
+          // Get ALL accounts for this client (not just the first one)
+          const clientAccountsList = clientAccounts.filter(a => a.clientId === client.id);
+          
+          for (const clientAccount of clientAccountsList) {
+            acc[client.assignedAgentId].balance += Number(clientAccount.balance);
+            acc[client.assignedAgentId].equity += Number(clientAccount.equity);
+            
+            // Get subaccounts for this account
+            const clientSubaccounts = subaccounts.filter(s => s.accountId === clientAccount.id);
+            const clientSubaccountIds = new Set(clientSubaccounts.map(s => s.id));
+            
+            // Sum transactions for these subaccounts
+            const clientTransactions = transactions.filter(t => clientSubaccountIds.has(t.subaccountId));
+            
+            acc[client.assignedAgentId].deposits += clientTransactions
+              .filter(t => t.type === 'deposit')
+              .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            
+            acc[client.assignedAgentId].withdrawals += clientTransactions
+              .filter(t => t.type === 'withdrawal')
+              .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+            
+            acc[client.assignedAgentId].volume += clientTransactions
+              .filter(t => t.type === 'trade')
+              .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+          }
+
+          acc[client.assignedAgentId].clientCount++;
+        }
+        return acc;
+      }, {});
+
+      res.json({
+        totalBalance: Math.round(totalBalance * 100) / 100,
+        totalEquity: Math.round(totalEquity * 100) / 100,
+        totalDeposits: Math.round(deposits * 100) / 100,
+        totalWithdrawals: Math.round(withdrawals * 100) / 100,
+        tradingVolume: Math.round(tradingVolume * 100) / 100,
+        netDeposits: Math.round((deposits - withdrawals) * 100) / 100,
+        byTeam: Object.values(byTeam)
+          .map((t: any) => ({
+            ...t,
+            balance: Math.round(t.balance * 100) / 100,
+            equity: Math.round(t.equity * 100) / 100,
+            deposits: Math.round(t.deposits * 100) / 100,
+            withdrawals: Math.round(t.withdrawals * 100) / 100,
+            volume: Math.round(t.volume * 100) / 100,
+          }))
+          .sort((a: any, b: any) => b.balance - a.balance),
+        byAgent: Object.values(byAgent)
+          .map((a: any) => ({
+            ...a,
+            balance: Math.round(a.balance * 100) / 100,
+            equity: Math.round(a.equity * 100) / 100,
+            deposits: Math.round(a.deposits * 100) / 100,
+            withdrawals: Math.round(a.withdrawals * 100) / 100,
+            volume: Math.round(a.volume * 100) / 100,
+          }))
+          .sort((a: any, b: any) => b.balance - a.balance),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== API KEY MANAGEMENT =====
   app.post("/api/admin/api-keys", authMiddleware, async (req: AuthRequest, res) => {
     try {
