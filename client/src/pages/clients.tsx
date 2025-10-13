@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Search, Filter, Phone, Mail, MoreVertical, Users } from "lucide-react";
+import { Plus, Search, Phone, Mail, MoreVertical, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,14 +41,17 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 
 export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterTeamId, setFilterTeamId] = useState<string>('');
+  const [filterAgentId, setFilterAgentId] = useState<string>('');
+  const [filterStatus, setFilterStatus] = useState<string>('');
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [bulkAssignAgentId, setBulkAssignAgentId] = useState<string>('');
   const [bulkAssignTeamId, setBulkAssignTeamId] = useState<string>('');
   const { toast } = useToast();
   
-  const { data: clients, isLoading } = useQuery({
-    queryKey: ['/api/clients', searchQuery],
+  const { data: allClients, isLoading } = useQuery({
+    queryKey: ['/api/clients'],
   });
 
   const { data: teams = [] } = useQuery({
@@ -60,6 +63,45 @@ export default function Clients() {
   });
 
   const agents = usersData.filter((user: any) => user.roleId);
+
+  // Apply client-side filtering
+  const clients = allClients?.filter((client: any) => {
+    // Search filter
+    if (searchQuery) {
+      const search = searchQuery.toLowerCase();
+      const matchesSearch = 
+        client.firstName?.toLowerCase().includes(search) ||
+        client.lastName?.toLowerCase().includes(search) ||
+        client.email?.toLowerCase().includes(search) ||
+        client.id?.toLowerCase().includes(search);
+      if (!matchesSearch) return false;
+    }
+
+    // Team filter
+    if (filterTeamId && filterTeamId !== 'all') {
+      if (filterTeamId === 'unassigned') {
+        if (client.teamId) return false;
+      } else {
+        if (client.teamId !== filterTeamId) return false;
+      }
+    }
+
+    // Agent filter
+    if (filterAgentId && filterAgentId !== 'all') {
+      if (filterAgentId === 'unassigned') {
+        if (client.assignedAgentId) return false;
+      } else {
+        if (client.assignedAgentId !== filterAgentId) return false;
+      }
+    }
+
+    // Status filter
+    if (filterStatus && filterStatus !== 'all') {
+      if (client.status !== filterStatus) return false;
+    }
+
+    return true;
+  });
 
   const bulkAssignMutation = useMutation({
     mutationFn: (data: { clientIds: string[]; assignedAgentId?: string | null; teamId?: string | null }) =>
@@ -136,33 +178,105 @@ export default function Clients() {
             Manage client accounts and information
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" data-testid="button-filter" className="hover-elevate active-elevate-2">
-            <Filter className="h-4 w-4 mr-2" />
-            Filter
-          </Button>
-          <Button asChild size="sm" data-testid="button-add-client" className="hover-elevate active-elevate-2">
-            <Link href="/clients/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Link>
-          </Button>
-        </div>
+        <Button asChild size="sm" data-testid="button-add-client" className="hover-elevate active-elevate-2">
+          <Link href="/clients/new">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Client
+          </Link>
+        </Button>
       </div>
 
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search clients by name, email, or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                data-testid="input-search-clients"
-              />
+          <div className="space-y-4 mb-6">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search clients by name, email, or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-clients"
+                />
+              </div>
             </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={filterTeamId} onValueChange={setFilterTeamId}>
+                <SelectTrigger className="w-[200px]" data-testid="select-filter-team">
+                  <SelectValue placeholder="All Teams" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {teams.map((team: any) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterAgentId} onValueChange={setFilterAgentId}>
+                <SelectTrigger className="w-[200px]" data-testid="select-filter-agent">
+                  <SelectValue placeholder="All Agents" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Agents</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {agents.map((agent: any) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[200px]" data-testid="select-filter-status">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="reassigned">Reassigned</SelectItem>
+                  <SelectItem value="potential">Potential</SelectItem>
+                  <SelectItem value="low_potential">Low Potential</SelectItem>
+                  <SelectItem value="mid_potential">Mid Potential</SelectItem>
+                  <SelectItem value="high_potential">High Potential</SelectItem>
+                  <SelectItem value="no_answer">No Answer</SelectItem>
+                  <SelectItem value="voicemail">Voicemail</SelectItem>
+                  <SelectItem value="callback_requested">Callback Requested</SelectItem>
+                  <SelectItem value="not_interested">Not Interested</SelectItem>
+                  <SelectItem value="converted">Converted</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(filterTeamId || filterAgentId || filterStatus || searchQuery) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterTeamId('');
+                    setFilterAgentId('');
+                    setFilterStatus('');
+                    setSearchQuery('');
+                  }}
+                  data-testid="button-clear-filters"
+                  className="hover-elevate active-elevate-2"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {clients && allClients && clients.length !== allClients.length && (
+              <p className="text-sm text-muted-foreground">
+                Showing {clients.length} of {allClients.length} clients
+              </p>
+            )}
           </div>
 
           {selectedClients.size > 0 && (
