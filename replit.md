@@ -8,6 +8,30 @@ The system is built as a customizable template that can be individually tailored
 
 ## Recent Changes
 
+**October 13, 2025 - Phase 1 & 2 Complete: Client Pipeline Status, Comments System, Subaccounts UI, Internal Transfers (Backend+Frontend)**
+- **Client Status Pipeline** (Phase 1): 12-status enum for tracking client lifecycle
+  - Statuses: new, reassigned, potential, low/mid/high_potential, no_answer, voicemail, callback_requested, not_interested, converted, lost
+  - Status dropdown in client detail page with real-time update via PATCH /api/clients/:id
+  - Status changes tracked in audit logs
+- **Client Comments System** (Phase 1): Internal collaboration tool for staff
+  - Schema: clientComments table with clientId, userId, comment, timestamps
+  - API Endpoints:
+    - GET /api/clients/:id/comments - List all comments for client
+    - POST /api/clients/:id/comments - Add comment (staff only)
+    - PATCH /api/comments/:id - Edit comment (CRM Manager/Team Leader/Admin only)
+    - DELETE /api/comments/:id - Delete comment (CRM Manager/Team Leader/Admin only)
+  - UI: Comments tab in client details with add/edit/delete, shows author, timestamp, "edited" indicator
+- **Subaccounts UI** (Phase 2): Frontend for multi-subaccount management
+  - Subaccounts tab in client details showing table with name, currency, balance, equity, margin, status, default indicator
+  - Create Subaccount dialog with name and currency (USD/EUR/GBP/JPY)
+  - Proper query with accountId parameter and cache invalidation
+- **Internal Transfers Schema** (Phase 2): Database table for subaccount-to-subaccount transfers
+  - Schema: internalTransfers table with fromSubaccountId, toSubaccountId, amount, userId, status, notes, timestamps
+  - Transfer status enum: pending, completed, rejected
+  - Proper relations to subaccounts and users
+- **Architect Approval**: All Phase 1 and Phase 2 tasks reviewed and approved
+- **Remaining Work**: Internal transfer API (phase2-4), transfer UI (phase2-5), transfer history (phase2-6), client assignment UI (phase3+), enhanced dashboards (phase4+)
+
 **October 13, 2025 - Milestone 3 Complete: Subaccount Architecture & Team-Based Client Assignment (Backend)**
 - **Subaccount Architecture**: Multi-subaccount support per trading account
   - Schema: Added `subaccounts` table with fields: accountId, name, currency, balance, equity, margin, isDefault, isActive
