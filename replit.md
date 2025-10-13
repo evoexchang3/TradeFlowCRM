@@ -48,12 +48,17 @@ Preferred communication style: Simple, everyday language.
 **Key Modules**:
 
 1. **Trading Engine** - In-house implementation handling:
-   - Order types: Market, Limit, Stop, Stop-Limit
+   - Order types: Market, Limit, Stop, Stop-Limit (all fully implemented)
    - Position management (open, close, modify, partial close)
    - Real-time P/L calculations (realized and unrealized)
    - Automatic Stop Loss/Take Profit triggers
    - Margin management and validation
    - Position ownership enforcement
+   - Order lifecycle: pending → filled/cancelled
+   - Cancel order functionality with ownership validation
+   - Pending orders checked every 5 seconds against live quotes
+   - Bid/ask discipline: Limit Buy uses ask, Limit Sell uses bid, Stop Buy uses ask, Stop Sell uses bid
+   - Missing bid/ask handling: Orders skipped if quote data incomplete (prevents erroneous execution)
 
 2. **Market Data Service** - Twelve Data integration providing:
    - WebSocket streaming for live quotes (one subscription per symbol, relay to unlimited clients)
