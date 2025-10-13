@@ -8,6 +8,23 @@ The system is built as a customizable template that can be individually tailored
 
 ## Recent Changes
 
+**October 13, 2025 - Milestone 1 Complete: API Key Management System**
+- **Backend**: Secure API key CRUD endpoints at `/api/admin/api-keys`
+  - POST /api/admin/api-keys: Generate API keys with bcrypt hashing
+  - GET /api/admin/api-keys: List all API keys (keyHash never exposed)
+  - DELETE /api/admin/api-keys/:id: Revoke API keys with ownership validation
+  - Zod validation with support for ISO datetime strings and optional fields
+  - Audit logging for all API key operations (create, revoke)
+- **Frontend**: Complete API key management UI at `/api-keys`
+  - Create dialog with proper shadcn Form + useForm + zodResolver validation
+  - Client-side validation prevents empty name submission with inline errors
+  - One-time key display card with copy-to-clipboard functionality
+  - List view with status badges (active/revoked) and scope indicators
+  - Revoke functionality with confirmation dialog
+  - Integration with TanStack Query for optimistic updates
+- **Security**: API keys use bcrypt hashing, plaintext key shown only once on creation, keyHash never exposed in responses
+- **Form Pattern**: All forms now follow required shadcn pattern (Form + useForm + zodResolver) instead of raw useState
+
 **October 13, 2025 - Milestone 0 Complete: Role-Based Landing Page**
 - Created professional landing page at `/` with tab-based role selection (Administrator, CRM Manager, Team Leader, Agent)
 - Implemented role-specific post-login redirects (Admin→/admin, CRM Manager→/crm, Team Leader→/team, Agent→/agent)
@@ -99,13 +116,14 @@ Preferred communication style: Simple, everyday language.
 **Core Entities**:
 - Users (admin/agent/team leader profiles)
 - Clients (customer accounts with KYC)
-- Accounts (trading accounts linked to clients)
+- Accounts (trading accounts linked to client)
 - Orders (pending and filled trading orders)
 - Positions (open and closed trading positions)
 - Transactions (deposits and withdrawals)
 - Roles & Permissions (dynamic access control)
 - Teams (organizational grouping)
 - Audit Logs (activity tracking)
+- API Keys (external platform integration with scope-based access)
 - Market Data (quotes and candles with caching)
 
 **Key Relationships**:
