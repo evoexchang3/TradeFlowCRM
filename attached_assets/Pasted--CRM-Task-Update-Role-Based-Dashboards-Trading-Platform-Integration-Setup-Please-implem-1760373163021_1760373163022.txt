@@ -1,0 +1,165 @@
+
+
+### 📋 CRM Task Update — Role-Based Dashboards & Trading Platform Integration Setup
+
+Please implement the following **CRM updates** and provide the required integration details so we can fully connect the CRM to our new **Trading Platform** (which is being built separately).
+
+---
+
+## 🔹 1. Role-Based Dashboards (High Priority)
+
+We need **dedicated dashboards for each user role** —
+**Admin**, **CRM Manager**, **Team Leader**, and **Agent**.
+
+### Requirements
+
+* Currently, all users see the same dashboard — this must be replaced with **distinct layouts and permissions per role**.
+* The **navigation/taskbar** must include all pages available for that role (e.g., trades, clients, teams, reports, etc.).
+* Add a **Logout button** in the taskbar.
+* **Login page** should be simplified — it must only include:
+
+  * **Email**
+  * **Password**
+  * **Forgot password** link
+* The user **should not select their role manually**.
+  After login, the system must **automatically detect the user’s role** and redirect them to:
+
+  * Admin → `/admin`
+  * CRM Manager → `/crm`
+  * Team Leader → `/team`
+  * Agent → `/agent`
+* Each dashboard must respect **role-based permissions**:
+
+  * Admin → Full system access
+  * CRM Manager → Team assignment, clients, trades
+  * Team Leader → Assigned teams and agents
+  * Agent → Assigned clients and trades
+
+---
+
+## 🔹 2. Trading Platform Integration (Provide all except Twelve Data API Key)
+
+The trading platform Replit project needs to connect to this CRM via **API, Webhooks, and SSO**.
+Please **provide all required integration details** so we can securely link both systems.
+
+You do **not** need to supply the Twelve Data API key — we will handle that separately.
+
+---
+
+### Required Information to Provide
+
+#### 🔸 A) **CRM Base URL**
+
+* Production API base (e.g. `https://crm.example.com/api`)
+* Include staging/test URL if available.
+  → This value will be stored as `CRM_BASE_URL` in the trading platform.
+
+#### 🔸 B) **CRM Service Token**
+
+* Generate a **service-level JWT or API token** for authentication between CRM and the trading site.
+* The token should:
+
+  * Have long TTL (e.g. 90 days or renewable)
+  * Be sent via `Authorization: Bearer <token>` header
+  * Be scoped for **system-level integration only**
+    → This value will be stored as `CRM_SERVICE_TOKEN`.
+
+#### 🔸 C) **Webhook Endpoint (for Site → CRM Events)**
+
+* Create a **dedicated webhook endpoint** (e.g. `POST /api/webhooks/site`) to receive events from the trading site.
+* Define and share:
+
+  * Webhook URL
+  * HMAC secret for signature verification (`SITE_WEBHOOK_SECRET`)
+  * Expected signature header (e.g. `X-Signature`)
+
+**Supported event types (default):**
+
+```
+user.created
+user.updated
+email.verified
+kyc.status_changed
+order.placed
+order.modified
+position.closed
+liquidation
+balance.updated
+deposit.requested
+withdrawal.requested
+```
+
+Provide the **exact JSON schema** or accept the default payload:
+
+```json
+{
+  "event": "order.placed",
+  "idempotencyKey": "uuid",
+  "occurredAt": "2025-10-13T12:00:00Z",
+  "user": {"externalId":"crm-123","email":"client@domain.com"},
+  "order": {"id":"ord_1","symbol":"EURUSD","side":"buy","type":"limit","qty":1.0,"price":1.0950},
+  "meta": {"source":"trading-site"}
+}
+```
+
+#### 🔸 D) **SSO Impersonation Setup**
+
+* The CRM must be able to open a client’s session directly in the trading platform (for admin review, testing, etc.).
+* The trading platform will expose:
+
+  * `POST /sso/impersonate` → CRM calls this and receives a **short-lived JWT (~2 min)**.
+  * `GET /sso/consume?token=...` → browser login endpoint for clients.
+* Generate and provide a shared secret:
+
+  * `SSO_IMPERSONATION_SECRET` (used to sign/verify tokens)
+* Example CRM payload for `/sso/impersonate`:
+
+  ```json
+  {
+    "clientId": "crm-123",
+    "adminId": "crm-admin-9",
+    "reason": "Client review"
+  }
+  ```
+
+#### 🔸 E) **Allowed IPs / Origins**
+
+* If the CRM uses IP filtering or strict CORS, please share:
+
+  * Allowed origin for trading platform (e.g. `https://trade.example.com`)
+  * Allowed IPs for incoming webhook calls
+
+---
+
+### ⚙️ Optional but Recommended
+
+* Confirm **supported HTTP methods and rate limits** for CRM API.
+* Add optional `X-Request-Id` header to all API calls for traceability.
+* If using API versioning (e.g., `/v1/`), please specify it.
+
+---
+
+### 🔹 3. Credentials Summary (to be provided to trading platform)
+
+| Key                        | Description                                   | Provided By                |
+| -------------------------- | --------------------------------------------- | -------------------------- |
+| `CRM_BASE_URL`             | CRM main API base                             | CRM                        |
+| `CRM_SERVICE_TOKEN`        | Service token for authenticated calls         | CRM                        |
+| `SITE_WEBHOOK_SECRET`      | HMAC secret for verifying site → CRM webhooks | CRM                        |
+| `SSO_IMPERSONATION_SECRET` | Shared secret for SSO impersonation           | CRM                        |
+| `TWELVEDATA_API_KEY`       | Twelve Data key for live quotes               | *Trading Platform (Jakob)* |
+
+---
+
+### 🔹 4. Acceptance Criteria
+
+✅ Each role (Admin / CRM Manager / Team Leader / Agent) has its own dashboard layout & routing.
+✅ Taskbar contains all relevant pages and includes a Logout button.
+✅ Login area shows only Email, Password, and Forgot Password.
+✅ After login, system auto-detects the user’s role and redirects correctly.
+✅ CRM provides all required integration secrets & endpoints listed above.
+✅ We can successfully connect both systems using the provided values.
+
+---
+
+Please proceed with these updates and provide the integration credentials (except the Twelve Data API key) once complete — I’ll pass them to the Trading Platform Replit project for full connection setup.
