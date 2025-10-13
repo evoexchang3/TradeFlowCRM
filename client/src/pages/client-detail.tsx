@@ -92,6 +92,17 @@ export default function ClientDetail() {
     enabled: !!client?.account?.id,
   });
 
+  const { data: teams = [] } = useQuery({
+    queryKey: ['/api/teams'],
+  });
+
+  const { data: usersData = [] } = useQuery({
+    queryKey: ['/api/users'],
+  });
+
+  // Filter users to only show agents (users with roles)
+  const agents = usersData.filter((user: any) => user.roleId);
+
   // Filter transfers based on subaccount and date range
   const filteredTransfers = internalTransfers.filter((transfer: any) => {
     // Subaccount filter
@@ -250,6 +261,25 @@ export default function ClientDetail() {
     },
   });
 
+  const assignMutation = useMutation({
+    mutationFn: (data: { assignedAgentId?: string | null; teamId?: string | null }) =>
+      apiRequest(`/api/clients/${clientId}/assign`, 'PATCH', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      toast({
+        title: "Assignment updated",
+        description: "Client assignment has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Assignment failed",
+        description: error.message || "Failed to update assignment.",
+        variant: "destructive",
+      });
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -389,11 +419,47 @@ export default function ClientDetail() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Assigned Agent</span>
-              <span className="text-sm">{client.assignedAgent?.name || 'Unassigned'}</span>
+              <Select
+                value={client.assignedAgentId || 'none'}
+                onValueChange={(value) => assignMutation.mutate({
+                  assignedAgentId: value === 'none' ? null : value
+                })}
+                disabled={assignMutation.isPending}
+              >
+                <SelectTrigger className="w-[160px]" data-testid="select-assigned-agent">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {agents.map((agent: any) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Team</span>
-              <span className="text-sm">{client.team?.name || 'N/A'}</span>
+              <span className="text-sm text-muted-foreground">Assigned Team</span>
+              <Select
+                value={client.teamId || 'none'}
+                onValueChange={(value) => assignMutation.mutate({
+                  teamId: value === 'none' ? null : value
+                })}
+                disabled={assignMutation.isPending}
+              >
+                <SelectTrigger className="w-[160px]" data-testid="select-assigned-team">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Team</SelectItem>
+                  {teams.map((team: any) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

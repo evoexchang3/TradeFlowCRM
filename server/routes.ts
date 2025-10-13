@@ -703,6 +703,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/users", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only staff can access user list
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const users = await storage.getUsers();
+      // Remove passwords from response
+      const sanitizedUsers = users.map(user => ({
+        ...user,
+        password: undefined
+      }));
+      res.json(sanitizedUsers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== TRADING =====
   app.post("/api/orders", authMiddleware, async (req: AuthRequest, res) => {
     try {
