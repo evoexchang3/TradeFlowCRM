@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +57,9 @@ export default function ClientDetail() {
   const [newComment, setNewComment] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [createSubaccountOpen, setCreateSubaccountOpen] = useState(false);
+  const [newSubaccountName, setNewSubaccountName] = useState('');
+  const [newSubaccountCurrency, setNewSubaccountCurrency] = useState('USD');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -56,6 +70,12 @@ export default function ClientDetail() {
   const { data: comments = [] } = useQuery({
     queryKey: ['/api/clients', clientId, 'comments'],
     enabled: !!clientId,
+  });
+
+  const { data: subaccounts = [] } = useQuery({
+    queryKey: ['/api/subaccounts', client?.account?.id],
+    queryFn: () => apiRequest(`/api/subaccounts?accountId=${client?.account?.id}`, 'GET'),
+    enabled: !!client?.account?.id,
   });
 
   const updateStatusMutation = useMutation({
@@ -131,6 +151,28 @@ export default function ClientDetail() {
       toast({
         title: "Error",
         description: "Failed to delete comment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createSubaccountMutation = useMutation({
+    mutationFn: (data: { accountId: string; name: string; currency: string }) =>
+      apiRequest('/api/subaccounts', 'POST', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/subaccounts', client?.account?.id] });
+      setCreateSubaccountOpen(false);
+      setNewSubaccountName('');
+      setNewSubaccountCurrency('USD');
+      toast({
+        title: "Subaccount created",
+        description: "New subaccount has been created successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create subaccount.",
         variant: "destructive",
       });
     },
@@ -320,6 +362,7 @@ export default function ClientDetail() {
       <Tabs defaultValue="positions" className="w-full">
         <TabsList>
           <TabsTrigger value="positions" data-testid="tab-positions">Positions</TabsTrigger>
+          <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">Subaccounts</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="tab-transactions">Transactions</TabsTrigger>
           <TabsTrigger value="comments" data-testid="tab-comments">Comments</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
@@ -373,6 +416,135 @@ export default function ClientDetail() {
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8">
                         <p className="text-sm text-muted-foreground">No open positions</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="subaccounts" className="mt-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <CardTitle className="text-lg">Subaccounts</CardTitle>
+              <Dialog open={createSubaccountOpen} onOpenChange={setCreateSubaccountOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" data-testid="button-create-subaccount">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Subaccount
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New Subaccount</DialogTitle>
+                    <DialogDescription>
+                      Create a new subaccount for managing separate balances and positions.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="subaccount-name">Subaccount Name</Label>
+                      <Input
+                        id="subaccount-name"
+                        placeholder="e.g., Trading Account A"
+                        value={newSubaccountName}
+                        onChange={(e) => setNewSubaccountName(e.target.value)}
+                        data-testid="input-subaccount-name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subaccount-currency">Currency</Label>
+                      <Select value={newSubaccountCurrency} onValueChange={setNewSubaccountCurrency}>
+                        <SelectTrigger id="subaccount-currency" data-testid="select-subaccount-currency">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="JPY">JPY</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCreateSubaccountOpen(false)}
+                      data-testid="button-cancel-subaccount"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (client?.account?.id) {
+                          createSubaccountMutation.mutate({
+                            accountId: client.account.id,
+                            name: newSubaccountName,
+                            currency: newSubaccountCurrency,
+                          });
+                        }
+                      }}
+                      disabled={!newSubaccountName.trim() || createSubaccountMutation.isPending}
+                      data-testid="button-confirm-create-subaccount"
+                    >
+                      Create Subaccount
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Currency</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Equity</TableHead>
+                    <TableHead>Margin</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Default</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subaccounts.length > 0 ? (
+                    subaccounts.map((subaccount: any) => (
+                      <TableRow key={subaccount.id} data-testid={`subaccount-row-${subaccount.id}`}>
+                        <TableCell className="font-medium" data-testid="text-subaccount-name">
+                          {subaccount.name}
+                        </TableCell>
+                        <TableCell className="font-mono">{subaccount.currency}</TableCell>
+                        <TableCell className="font-mono font-medium">
+                          ${(subaccount.balance || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          ${(subaccount.equity || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="font-mono">
+                          ${(subaccount.margin || 0).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={subaccount.isActive ? 'default' : 'secondary'}>
+                            {subaccount.isActive ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {subaccount.isDefault && (
+                            <Check className="h-4 w-4 text-success" data-testid="icon-default-subaccount" />
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8">
+                        <p className="text-sm text-muted-foreground">No subaccounts yet</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Create a subaccount to manage separate balances and positions
+                        </p>
                       </TableCell>
                     </TableRow>
                   )}
