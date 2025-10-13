@@ -4,6 +4,32 @@
 
 This enterprise-grade CRM system for a trading platform manages clients, accounts, and trading operations. It features an in-house trading engine with real-time market data, comprehensive client management, role-based access control, and audit logging. Designed as a customizable template, it can be tailored for various partners and brokers, supporting easy replication and export. The business vision is to provide a robust, scalable, and secure platform that streamlines trading operations and client relationship management for financial institutions.
 
+## Recent Changes
+
+**October 13, 2025 - Phase 3: Client Assignment System**
+
+- **Single Client Assignment UI** (Phase 3-1) - Architect Approved ✅
+  - GET /api/users endpoint: Returns sanitized user list for assignment dropdowns
+  - Assignment Dropdowns: Agent and Team selects in client details Account Status card
+  - Real-time updates via query cache invalidation on assignment change
+  - Proper loading states with disabled dropdowns during mutations
+  - Uses existing PATCH /api/clients/:id/assign endpoint
+
+- **Bulk Assignment UI** (Phase 3-2) - Architect Approved ✅
+  - Multi-select system with checkboxes (individual + select all)
+  - Bulk action bar: Shows selected count, clear selection, and assign buttons
+  - Bulk assign dialog with optional agent/team dropdowns
+  - State management using Set for O(1) client ID lookups
+  - Uses existing POST /api/clients/bulk-assign endpoint
+  - Complete state cleanup on success (selection + form state)
+
+**Previous Phases Completed:**
+- Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
+- Phase 2: Internal Transfers System (Full Stack) - Architect Approved ✅
+  - Transfer API with Zod validation, atomic transactions, audit logging
+  - Transfer UI with source/destination dropdowns, amount validation
+  - Transfer history with subaccount/date filters and CSV export
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
