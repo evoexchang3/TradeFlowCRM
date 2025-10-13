@@ -1,0 +1,129 @@
+
+
+### ⚠️ Current Issues
+
+1. **User Creation Bug**
+
+   * When clicking **“Create User”** in the **User Management** section, the entire page turns black.
+   * This likely indicates a frontend rendering or state-handling issue — please debug the form submission flow and error boundaries.
+
+---
+
+### 🔁 Trading Section – Needs Complete Redesign
+
+The trading section needs to be **fully rebuilt** with expanded features and proper role-based logic.
+
+#### **Core Requirements**
+
+1. **Full Market Coverage**
+
+   * Include all **forex pairs**, **cryptocurrencies**, **commodities**, **indices**, and **futures** (e.g., oil, gold, NASDAQ, S&P500, BTC/USD, EUR/USD, etc.).
+   * The market data feed should support **live prices** and **realistic P/L movement** for all instruments.
+
+2. **Multi-Client Trade Control**
+
+   * Allow agents, team leaders, and CRM managers to **select one or multiple clients** to:
+
+     * **Open trades** (buy/sell)
+     * **Close trades**
+     * **Modify positions**
+   * Each trade should include:
+
+     * Symbol (e.g., EUR/USD, BTC/USD, Oil, Gold, etc.)
+     * Opening & closing price
+     * Opening & closing date/time
+     * Volume / lot size
+     * Leverage
+     * Profit & loss
+     * Trade direction (buy/sell)
+     * Spread and fees
+
+3. **Role-Based Access**
+
+   * **Agent:** Can view and manage only their own clients’ trades.
+   * **Team Leader:** Can view and manage all trades from agents under their team.
+   * **CRM Manager:** Can view and manage all trades across all teams and clients.
+   * **Admin:** Full access to everything (including editing trades, deleting positions, etc.).
+   * Each trade record should clearly show **who opened the position** — client, agent, team leader, or system.
+
+4. **Trade Editing Capabilities**
+
+   * Allow editing of:
+
+     * Opening/closing price
+     * Opening/closing date & time
+     * Profit/loss value
+     * Volume, lot size, leverage
+   * All changes should be **logged in the audit system** with user ID, timestamp, and reason for modification.
+
+5. **Automated Trading Robot**
+
+   * Add a **“Trading Robot”** feature that authorized users (Agent / Team Leader / CRM Manager) can enable per client or for multiple clients at once.
+   * Robot behavior:
+
+     * Opens and closes trades automatically based on a preset logic.
+     * Maintains a mix of winning and losing trades to appear realistic.
+     * Example: Out of 10 trades, 8 should be profitable; total daily result should be small but positive (e.g., +$25).
+   * Each user can define **profit target ranges**:
+
+     * e.g., `$10–$20` per day, `$50–$100` per day.
+   * Robot should calculate and execute trades according to the target range and simulate realistic execution timing.
+
+---
+
+### ✅ **Additional Suggestions (Recommended Enhancements)**
+
+1. **Trade History & Export**
+
+   * Allow export of all trades to CSV/Excel.
+   * Include filters by date range, symbol, client, team, and trade initiator.
+
+2. **Visual Charts & Analytics**
+
+   * Add performance graphs for:
+
+     * Daily/weekly/monthly profit trends.
+     * Client portfolio summaries.
+     * Distribution of winning vs. losing trades.
+
+3. **Risk & Exposure Management**
+
+   * Display margin usage and exposure per client and per team.
+   * Include automatic alerts when total open volume exceeds defined thresholds.
+
+4. **Batch Actions & Templates**
+
+   * Let agents/team leaders create **predefined trade templates** (symbol, volume, TP/SL) and apply them to multiple clients simultaneously.
+
+5. **Simulation Mode / Demo Environment**
+
+   * Add a “simulation mode” for testing trades without affecting live balances.
+   * Useful for agent training or presentation purposes.
+
+6. **Audit and Logging**
+
+   * Every trade opened, modified, or closed should be logged with:
+
+     * Timestamp
+     * User role and ID
+     * Client ID(s) affected
+     * Action performed (open, edit, close)
+     * P/L impact
+
+7. **Dashboard Summary**
+
+   * Add a trading overview for each role:
+
+     * Agents: total client profit/loss today
+     * Team Leaders: team-wide performance
+     * CRM Manager: total company P/L summary
+
+---
+
+### 🧾 Summary of Actions Required
+
+1. Fix the **User Creation** issue (page crash).
+2. Completely **rebuild the trading section** with the requirements listed above.
+3. Implement **Trading Robot** logic with customizable profit range and realistic trade simulation.
+4. Apply **role-based visibility and permissions** across all trading operations.
+5. Add **logging, analytics, and batch tools** for better trade management.
