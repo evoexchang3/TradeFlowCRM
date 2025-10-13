@@ -1,0 +1,157 @@
+
+
+---
+
+# 🚀 CRM Task — Frontend Completion & Full Integration Setup for Trading Platform
+
+You need to complete the **remaining frontend work** for the CRM and configure **all system credentials, database connections, and security tokens** required for bidirectional integration with the **Trading Platform**.
+
+The integration must work **both ways**:
+
+* If a client is created on the **Trading Platform**, it must appear automatically in the **CRM**.
+* If a client is edited or verified in the **CRM**, the update must sync automatically to the **Trading Platform**.
+
+---
+
+## 📋 Remaining Work (Frontend)
+
+The backend is solid and secure.
+Next steps are **UI implementation** for the following components:
+
+### 1️⃣ Subaccount Management Interface
+
+* Create, list, and switch between subaccounts.
+* Allow internal transfers between main and subaccounts.
+* Display internal transaction history (amount, date, user, subaccount IDs).
+
+### 2️⃣ Client Assignment UI
+
+* Add dropdown menus and bulk assignment functionality.
+* Enable transferring clients between agents or teams.
+* Provide overview pages by team or agent.
+
+### 3️⃣ Visibility Controls
+
+* Add filters to view clients by team or assigned agent.
+* Restrict access based on role hierarchy:
+
+  * CRM Manager → sees all teams
+  * Team Leader → sees their team
+  * Agent → sees their clients only
+
+### 4️⃣ Dashboard Metrics
+
+* Add analytics widgets and charts showing:
+
+  * Total clients per team
+  * Active vs inactive clients
+  * Deposits, withdrawals, trading volume
+  * Assigned vs unassigned clients
+
+### 5️⃣ Admin Dashboard — User Management
+
+* Add an admin page where the Admin can:
+
+  * Create users (CRM Manager / Team Leader / Agent)
+  * Assign users to teams
+  * Manage permissions
+  * Edit, deactivate, or reset user accounts
+  * View last login, activity logs, and team hierarchy
+
+---
+
+## 🧩 Database & Configuration Setup
+
+To establish a secure and stable connection with the **Trading Platform**, you must configure or generate the following values and secrets.
+
+### 🗄️ Database (Required)
+
+* `DATABASE_URL`: PostgreSQL connection string (from Neon, Supabase, or another provider)
+
+### 🧾 File Storage (Required for KYC Documents)
+
+* `S3_ENDPOINT`: S3-compatible endpoint URL
+* `S3_BUCKET`: Bucket name for storing KYC documents
+* `S3_ACCESS_KEY`: S3 access key
+* `S3_SECRET_KEY`: S3 secret key
+
+### 🔐 Security Tokens (Required)
+
+These values are needed for authentication, webhook validation, and secure communication between systems:
+
+* `JWT_ACCESS_SECRET`: Secret for CRM access tokens
+* `JWT_REFRESH_SECRET`: Secret for CRM refresh tokens
+* `SSO_IMPERSONATION_SECRET`: Shared secret for SSO impersonation (CRM ↔ Trading Platform)
+* `SITE_WEBHOOK_SECRET`: HMAC key for verifying signed webhook requests
+* `CRM_SERVICE_TOKEN`: Service token for authenticated CRM API calls
+
+---
+
+## 🔗 Integration Logic (Bidirectional)
+
+### ✅ 1. Trading Platform → CRM
+
+* When a client registers or updates their data, a **webhook** must send the event to the CRM.
+* CRM must listen at:
+  `POST /api/webhooks/site`
+* The request must be authenticated via:
+  `X-Signature: HMAC-SHA256(<body>, SITE_WEBHOOK_SECRET)`
+* Event types:
+
+  ```
+  user.created
+  user.updated
+  email.verified
+  kyc.status_changed
+  order.placed
+  order.modified
+  position.closed
+  balance.updated
+  deposit.requested
+  withdrawal.requested
+  ```
+
+### ✅ 2. CRM → Trading Platform
+
+* When a client or account is modified in the CRM (e.g., verification status, balance, or team assignment), the CRM must call the Trading Platform API using:
+
+  ```
+  Authorization: Bearer <CRM_SERVICE_TOKEN>
+  ```
+* The connection must use the `SSO_IMPERSONATION_SECRET` for authenticated SSO login requests, enabling CRM users to open a client’s trading dashboard directly.
+
+---
+
+## ⚙️ Values You Must Provide After Completion
+
+After finishing development, provide a **complete configuration report** including **all the following values** so we can input them into the Trading Platform environment:
+
+| Key                          | Description                                                  |
+| ---------------------------- | ------------------------------------------------------------ |
+| **DATABASE_URL**             | PostgreSQL connection string for persistent data             |
+| **S3_ENDPOINT**              | S3-compatible endpoint URL                                   |
+| **S3_BUCKET**                | Storage bucket name                                          |
+| **S3_ACCESS_KEY**            | S3 access key                                                |
+| **S3_SECRET_KEY**            | S3 secret key                                                |
+| **JWT_ACCESS_SECRET**        | Secret for CRM access tokens                                 |
+| **JWT_REFRESH_SECRET**       | Secret for CRM refresh tokens                                |
+| **SSO_IMPERSONATION_SECRET** | Shared secret for SSO impersonation (CRM ↔ Trading Platform) |
+| **SITE_WEBHOOK_SECRET**      | HMAC key to verify signed webhooks from Trading Platform     |
+| **CRM_SERVICE_TOKEN**        | Service token for authenticated CRM API calls                |
+
+---
+
+## 🧭 Final Step
+
+Once you have:
+
+* Completed all UI implementations,
+* Configured all database and storage connections,
+* Generated all security tokens and API credentials,
+
+👉 **Provide me with the report** containing all listed configuration values.
+I will then pass them to the **Trading Platform Replit agent** to finalize the live connection between both systems.
+
+---
+
+Please proceed with these tasks and confirm once all credentials, UI components, and connection endpoints are ready for integration.
