@@ -1,0 +1,134 @@
+
+### **Project Description for Replit**
+
+We need to build a **CRM system for a trading platform**, designed to manage clients, accounts, and trading operations.
+This CRM will later connect to our client-facing trading website, but the first step is to create the **backend and admin CRM**.
+
+---
+
+### 🔹 **Core Requirements**
+
+* Allow **manual client creation**, **automatic creation via API** (from the website), and **bulk import from Excel/CSV** (with column mapping, validation, and preview).
+* Provide a **public registration form** (with email verification/captcha) to create client accounts manually.
+* Full **MetaTrader (MT4/MT5) integration**, including:
+
+  * Opening and closing trading positions
+  * Editing trades (price, volume, stop loss, take profit, partial close, etc.)
+  * Viewing live trading data and full history
+* The CRM should serve as a **base template/sample**, so we can:
+
+  * **Individually customize** it for different partners/brokers
+  * **Easily replicate/export** to other environments or client setups
+
+---
+
+### 🔹 **Client Management**
+
+Each client profile should include:
+
+* Name, address, email, phone, DOB, KYC status, documents
+* Account balance and equity
+* Deposit and withdrawal history
+* Trading activity and open positions
+* Linked MetaTrader account ID
+
+Admins should be able to:
+
+* **Edit client data** (including **email** and **password**; password resets must use a secure admin flow and force reset on next login)
+* Adjust balances or add funds
+* Modify or close trades directly from the CRM
+* View and export client activity
+* Manage and verify client information
+
+---
+
+### 🔹 **Roles & Permissions System**
+
+We need a **dynamic role management system**, where we can **create roles manually** and assign custom permissions.
+
+* Default roles:
+
+  * **CRM Manager** – full access
+  * **Team Leader** – access to their team’s clients
+  * **Agent** – limited access (cannot see full phone number or email)
+
+* Admin capabilities:
+
+  * Create new roles (e.g., “Compliance Officer”, “Support”, etc.)
+  * Define granular permissions (view/edit client, trade-edit, balance-adjust, impersonate, export data, etc.)
+  * Assign users to roles and manage access rights
+  * **Data masking by role** (e.g., Agents see masked email/phone/ID docs)
+
+---
+
+### 🔹 **Impersonation (“Login as Client”)**
+
+* Provide a **one-click button** in the CRM to **open the client’s dashboard in a new window** and be logged in **without entering their email or password**.
+* Implement via a **short-lived, single-use SSO token** (e.g., signed JWT) with full **audit logging** (who, when, which client, reason).
+* Restrict this action by permission (e.g., only Manager/Compliance).
+
+---
+
+### 🔹 **Communication Features**
+
+* “**Click-to-Call**” functionality inside the CRM, allowing agents to call clients directly.
+* Calls must go through a **third-party VoIP system** (e.g., Zoiper/Twilio/SIP) so the agent never sees the client’s real number.
+* Store basic call logs (and optionally recordings) linked to the client profile.
+
+---
+
+### 🔹 **Audit, Compliance & Data Ops**
+
+* **Audit log** for critical actions: logins, impersonations, client edits, role changes, balance adjustments, trade edits, imports/exports.
+* **Import/Export**:
+
+  * Bulk Excel/CSV **import** with mapping UI, validation, duplicate handling, and error preview
+  * CSV/Excel **export** for client lists, transactions, and trade history
+* Basic KYC status tracking and document upload fields.
+
+---
+
+### 🔹 **Technical & Deployment Requirements**
+
+* The entire CRM project must be **pushed to GitHub** for version control (with README, `.env.example`, and setup scripts).
+* It must be easy to **replicate and deploy** to other hosting providers (DigitalOcean, AWS, Vercel, Replit).
+* **Modular architecture** with clear separation between:
+
+  * Backend (API & integrations)
+  * Frontend (CRM dashboard)
+  * Database (e.g., PostgreSQL or MySQL)
+  * MetaTrader API connections / adapters
+* Provide **Docker** and **CI (GitHub Actions)** for lint/test/build on every push.
+* Publish **API documentation** (OpenAPI/Swagger).
+
+---
+
+### 🔹 **Security Requirements**
+
+* Server-side **RBAC** enforcement; per-role **data masking**.
+* Strong password hashing, rate-limiting, brute-force protection.
+* **Impersonation** gated by permission and **fully auditable**; short-lived SSO tokens with TTL and single-use.
+* Encrypt data in transit (TLS) and protect stored PII appropriately.
+
+---
+
+### 🔹 **Future Integration**
+
+This CRM will later connect to a **public trading website**, which will:
+
+* Register new clients via API (and feed into the CRM)
+* Sync deposits and balances with the CRM
+* Allow clients to view their portfolio, deposits, and trade history
+
+---
+
+### 🔹 **Goal**
+
+Deliver a **fully functional base CRM** for a trading platform that:
+
+* Manages clients and trades efficiently
+* Includes user roles, permissions, data masking, and call functions
+* Supports Excel/CSV import, public registration, and admin edit flows
+* Offers secure “login-as-client” impersonation
+* Can be easily customized, cloned, and exported for different clients and brokers
+* Is version-controlled on GitHub and ready for deployment anywhere

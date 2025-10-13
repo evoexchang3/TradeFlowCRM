@@ -1,0 +1,90 @@
+
+
+### 🔄 Important update — No MT4/MT5
+
+We **do not** need MT4/MT5 now or later.
+All trades must be **created, managed, and closed entirely inside our system**.
+Every trade must be **editable** (qty, SL/TP, price for pending orders, partial close, fees/commission fields, notes), with **real-time P/L** and margin calculated from our own pricing engine using **Twelve Data** live quotes.
+
+---
+
+### ✅ Provider & data architecture (Twelve Data)
+
+Use Twelve Data ([https://twelvedata.com/pricing](https://twelvedata.com/pricing)) as the **single provider** for forex, crypto, metals, and oil/energy.
+
+Cost-efficient setup:
+
+* **WebSocket streaming for live quotes** → **one subscription per symbol on the backend**.
+* **REST for historical candles**, **cached** in DB + memory.
+* Backend **relays** quotes to all connected clients (`/stream?symbols=...`) so **500 WS credits = 500 symbols to unlimited users**.
+* If WS drops, temporarily **poll REST** until reconnect.
+
+Env (add to `.env.example`):
+
+```
+TWELVEDATA_API_KEY=...
+TWELVEDATA_WS_URL=wss://ws.twelvedata.com/v1/quotes/price
+TWELVEDATA_REST_URL=https://api.twelvedata.com
+MD_WS_SYMBOLS_MAX=500
+MD_HISTORY_TTL_1M_SEC=3600
+MD_HISTORY_TTL_1H_SEC=86400
+```
+
+---
+
+### 🧮 Our in-house trading engine (real prices, simulated execution)
+
+* **Order types:** Market, Limit, Stop, Stop-Limit; attach/modify **TP/SL**; **partial close**; **close all**.
+* **Lifecycle:** create → modify → fill (by live bid/ask) → partials → close; all actions **audited**.
+* **P/L & Margin:** live floating P/L from current quotes; account currency conversions; leverage, required margin, free margin, margin level; **margin call/stop-out** rules; configurable **commission/spread** and optional **swap/rollover**.
+* **Editing:** admins/authorized roles can edit:
+
+  * pending order price/qty, SL/TP, time-in-force,
+  * position quantity (partial close), fees/commission fields,
+  * add trade notes/tags.
+* **Charts:** real candles + live price line; show entries/exits, SL/TP, and partials on chart.
+
+Standard provider interface (keep for future extensibility):
+
+```ts
+interface TradingProvider {
+  getSymbols(): Promise<SymbolSpec[]>;
+  getQuotes(symbols: string[]): Promise<Quote[]>;
+  placeOrder(req: PlaceOrder): Promise<Order>;
+  modifyOrder(id: string, patch: ModifyOrder): Promise<Order>;
+  closeOrder(id: string, qty?: number): Promise<Order>;
+  getOpenPositions(accountId: string): Promise<Position[]>;
+  getHistory(accountId: string, params): Promise<Trade[]>;
+  getAccountState(accountId: string): Promise<AccountState>;
+}
+```
+
+Implement **SimProvider (live-data simulation)** using Twelve Data quotes. No MT adapters needed.
+
+---
+
+### 👥 CRM scope (unchanged — build full version)
+
+* Client creation: admin UI, **public /register**, API, **Excel/CSV import** (mapping/validation/preview), exports.
+* Client profile: PII, KYC docs/status, balances, deposits/withdrawals, trade activity.
+* Admin edits: change **email/password** (temp + forced reset).
+* **RBAC**: dynamic roles & granular permissions; **data masking** for PII; **teams & scoping**.
+* **Impersonation (“login as client”)**: one-click SSO JWT (short-lived, single-use) → open client dashboard; permission-gated + audited.
+* **Click-to-call (Twilio)**: real integration (server-side bridge, number masking), call logs/recordings (optional).
+* **Audit & compliance**: logins, impersonations, edits, role changes, trades, imports/exports; filters + CSV.
+* **API docs**: Swagger/OpenAPI.
+* **GitHub & CI**: monorepo, Actions for lint/typecheck/tests; protected `main`.
+* Replit constraint: run plain Node/React; still include Docker files in repo for off-Replit deploys. DB on Neon/Supabase.
+
+---
+
+### 🏁 Definition of Done (no half measures)
+
+1. **Live market data** via Twelve Data WS/REST with backend relay + caching.
+2. **Full in-house trading engine**: open/modify/close, TP/SL, partials, **editable trades**, live P/L & margin, audit trail.
+3. Complete CRM features (registration, imports, roles/permissions with masking, teams, exports).
+4. **Impersonation SSO** works; all actions fully audited.
+5. **Twilio click-to-call** operational (or clean fallback if env keys missing).
+6. **Swagger docs**, **Audit UI**, repo on **GitHub** with CI green and `.env.example`.
+
+Please proceed with this **full build** (not an MVP). If any detail conflicts with Replit’s environment, apply the closest working alternative while preserving complete functionality.
