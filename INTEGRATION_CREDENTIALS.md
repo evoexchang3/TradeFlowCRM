@@ -5,44 +5,70 @@
 
 ---
 
-## 🔐 Security Tokens
+## 🔐 Security Tokens Setup
 
-These tokens must be configured in both the CRM system and the Trading Platform for secure bi-directional communication.
+⚠️ **IMPORTANT: All tokens must be configured securely via environment variables. Never commit actual secret values to version control.**
 
-### CRM Environment Variables
+### Step 1: Generate Your Tokens
 
-Add these to your CRM's environment secrets:
+Use one of these methods to generate cryptographically secure tokens:
+
+**Option A - Using Node.js:**
+```bash
+node -e "const crypto = require('crypto'); \
+  console.log('JWT_SECRET=' + crypto.randomBytes(32).toString('hex')); \
+  console.log('WEBHOOK_SECRET=' + crypto.randomBytes(32).toString('hex')); \
+  console.log('SERVICE_API_TOKEN=' + crypto.randomBytes(32).toString('hex')); \
+  console.log('SSO_SECRET=' + crypto.randomBytes(32).toString('hex'));"
+```
+
+**Option B - Using OpenSSL:**
+```bash
+echo "JWT_SECRET=$(openssl rand -hex 32)"
+echo "WEBHOOK_SECRET=$(openssl rand -hex 32)"
+echo "SERVICE_API_TOKEN=$(openssl rand -hex 32)"
+echo "SSO_SECRET=$(openssl rand -hex 32)"
+```
+
+**Option C - Using Online Generator:**
+Visit https://www.random.org/strings/ and generate 4 strings with:
+- Length: 64 characters
+- Character set: Hexadecimal (0-9, a-f)
+
+### Step 2: Configure CRM Environment Secrets
+
+Add these to your CRM's secure environment configuration (Replit Secrets, .env file, or cloud secrets manager):
 
 ```bash
 # JWT Authentication
-JWT_SECRET=21ccc9cc3606981ffacaf430c94fdc549143a61f0470995e826f49bc15e8e21a
+JWT_SECRET=<your-generated-jwt-secret>
 
 # Webhook Signature Verification
-WEBHOOK_SECRET=78c61a3b5f15221d5e6a8a84fb8276f64fd1320bfe589597167f0a1e26ceb7b9
+WEBHOOK_SECRET=<your-generated-webhook-secret>
 
 # Service API Authentication
-SERVICE_API_TOKEN=851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+SERVICE_API_TOKEN=<your-generated-service-api-token>
 
 # SSO Impersonation Token Signing
-SSO_SECRET=db10818ecf764c8f11511bf3f3b99ede799d59b2f095c3d9eb2dd1ba74ab61c7
+SSO_SECRET=<your-generated-sso-secret>
 
-# Trading Platform URL (update with your actual URL)
+# Trading Platform URL
 TRADING_PLATFORM_URL=https://trading.yourcompany.com
 ```
 
-### Trading Platform Configuration
+### Step 3: Configure Trading Platform
 
-Configure these tokens in your Trading Platform:
+Share these tokens with your Trading Platform team **via secure channel** (encrypted email, password manager, secure file transfer):
 
 ```bash
 # For Webhook Requests to CRM
-WEBHOOK_SECRET=78c61a3b5f15221d5e6a8a84fb8276f64fd1320bfe589597167f0a1e26ceb7b9
+WEBHOOK_SECRET=<same-as-crm-webhook-secret>
 
 # For Service API Calls to CRM
-CRM_SERVICE_TOKEN=851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+CRM_SERVICE_TOKEN=<same-as-crm-service-api-token>
 
 # For SSO Token Validation
-CRM_SSO_SECRET=db10818ecf764c8f11511bf3f3b99ede799d59b2f095c3d9eb2dd1ba74ab61c7
+CRM_SSO_SECRET=<same-as-crm-sso-secret>
 
 # CRM Base URL
 CRM_BASE_URL=https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev
@@ -87,11 +113,19 @@ curl -X POST https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janew
 **Signature Generation (Node.js):**
 ```javascript
 const crypto = require('crypto');
+const webhookSecret = process.env.WEBHOOK_SECRET; // Load from secure config
 const payload = JSON.stringify(webhookData);
 const signature = crypto
-  .createHmac('sha256', 'WEBHOOK_SECRET')
+  .createHmac('sha256', webhookSecret)
   .update(payload)
   .digest('hex');
+```
+
+**Signature Generation (Shell/Testing):**
+```bash
+PAYLOAD='{"event":"client.registered",...}'
+WEBHOOK_SECRET='<your-webhook-secret>'
+SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $2}')
 ```
 
 ---
@@ -100,26 +134,25 @@ const signature = crypto
 
 **Base URL:** `https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/service`  
 **Authentication:** Bearer token in `Authorization` header  
-**Token:** `851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3`
 
 #### Available Endpoints:
 
 **Get Client Info:**
 ```bash
 GET /api/service/clients/:email
-Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+Authorization: Bearer <SERVICE_API_TOKEN>
 ```
 
 **Get Account & Subaccounts:**
 ```bash
 GET /api/service/accounts/:clientEmail
-Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+Authorization: Bearer <SERVICE_API_TOKEN>
 ```
 
 **Update KYC Status:**
 ```bash
 PATCH /api/service/clients/:email/kyc
-Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+Authorization: Bearer <SERVICE_API_TOKEN>
 Content-Type: application/json
 
 {
@@ -131,7 +164,7 @@ Content-Type: application/json
 **Add Client Note:**
 ```bash
 POST /api/service/clients/:email/notes
-Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+Authorization: Bearer <SERVICE_API_TOKEN>
 Content-Type: application/json
 
 {
@@ -142,7 +175,7 @@ Content-Type: application/json
 **Get Client Activity:**
 ```bash
 GET /api/service/clients/:email/activity
-Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+Authorization: Bearer <SERVICE_API_TOKEN>
 ```
 
 ---
@@ -152,7 +185,6 @@ Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c1
 **Endpoint:** `POST /api/clients/:id/impersonate`  
 **CRM URL:** `https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/clients/:id/impersonate`  
 **Authentication:** Admin JWT token (CRM staff only)  
-**Token Secret:** `db10818ecf764c8f11511bf3f3b99ede799d59b2f095c3d9eb2dd1ba74ab61c7`
 
 **Response:**
 ```json
@@ -169,7 +201,7 @@ Your Trading Platform should validate SSO tokens at `/sso/impersonate`:
 
 ```javascript
 const jwt = require('jsonwebtoken');
-const SSO_SECRET = 'db10818ecf764c8f11511bf3f3b99ede799d59b2f095c3d9eb2dd1ba74ab61c7';
+const SSO_SECRET = process.env.CRM_SSO_SECRET; // Load from secure config
 
 app.get('/sso/impersonate', (req, res) => {
   const token = req.query.token;
@@ -197,23 +229,32 @@ app.get('/sso/impersonate', (req, res) => {
 
 1. **Token Storage:**
    - Store all secrets in secure environment variables
-   - Never commit secrets to version control
+   - Use secrets management systems (Replit Secrets, AWS Secrets Manager, etc.)
+   - **Never commit secrets to version control**
    - Rotate tokens every 90 days
 
-2. **Webhook Security:**
+2. **Token Sharing:**
+   - Share secrets via secure channels only (encrypted email, password manager)
+   - Never send secrets via Slack, regular email, or messaging apps
+   - Use one-time secret sharing services if needed
+
+3. **Webhook Security:**
    - Always verify HMAC signatures before processing
    - Reject requests with invalid signatures
    - Log all webhook attempts for audit trail
+   - Use HTTPS only
 
-3. **Service API Security:**
+4. **Service API Security:**
    - Use HTTPS for all API calls
    - Validate Bearer token on every request
    - Rate limit API calls (recommended: 100 req/min)
+   - Monitor for suspicious activity
 
-4. **SSO Security:**
+5. **SSO Security:**
    - Tokens expire after 15 minutes
    - Log all impersonation attempts
    - Require admin role for impersonation endpoint
+   - Verify token signatures
 
 ---
 
@@ -234,11 +275,16 @@ Access audit logs at: **CRM Dashboard → Audit Logs**
 
 ### Test Webhook (Development):
 ```bash
-# Generate signature
-PAYLOAD='{"event":"client.registered","data":{"clientId":"TEST001","email":"test@example.com","firstName":"Test","lastName":"User","phone":"+1234567890"},"timestamp":"2025-10-13T19:00:00Z"}'
-SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "78c61a3b5f15221d5e6a8a84fb8276f64fd1320bfe589597167f0a1e26ceb7b9" | awk '{print $2}')
+# 1. Set your webhook secret
+WEBHOOK_SECRET="<your-generated-webhook-secret>"
 
-# Send webhook
+# 2. Create test payload
+PAYLOAD='{"event":"client.registered","data":{"clientId":"TEST001","email":"test@example.com","firstName":"Test","lastName":"User","phone":"+1234567890"},"timestamp":"2025-10-13T19:00:00Z"}'
+
+# 3. Generate signature
+SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $2}')
+
+# 4. Send webhook
 curl -X POST https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/webhooks/site \
   -H "Content-Type: application/json" \
   -H "x-webhook-signature: $SIGNATURE" \
@@ -247,9 +293,27 @@ curl -X POST https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janew
 
 ### Test Service API:
 ```bash
+SERVICE_TOKEN="<your-generated-service-api-token>"
+
 curl -X GET https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/service/clients/test@example.com \
-  -H "Authorization: Bearer 851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3"
+  -H "Authorization: Bearer $SERVICE_TOKEN"
 ```
+
+---
+
+## 🔄 Token Rotation Procedure
+
+When rotating tokens (recommended every 90 days):
+
+1. Generate new tokens using the methods above
+2. Update CRM environment secrets with new values
+3. Coordinate with Trading Platform team to update their configuration
+4. **Rolling update approach:**
+   - Deploy new tokens to CRM
+   - Wait for Trading Platform to update
+   - Monitor logs for authentication failures
+5. Verify all integrations working with new tokens
+6. Securely delete old tokens from all systems
 
 ---
 
@@ -258,11 +322,31 @@ curl -X GET https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janewa
 For integration issues or questions:
 - Review audit logs for detailed error messages
 - Check webhook signature generation
-- Verify all tokens are correctly configured
+- Verify all tokens are correctly configured in environment
 - Ensure HTTPS is used for all requests
+- Confirm tokens match between CRM and Trading Platform
+
+---
+
+## 📋 Pre-Production Checklist
+
+Before going live, verify:
+
+- [ ] All 4 secrets generated using secure random method
+- [ ] Secrets configured in CRM environment (not hardcoded)
+- [ ] Secrets shared with Trading Platform team via secure channel
+- [ ] Trading Platform configured with matching secrets
+- [ ] TRADING_PLATFORM_URL configured correctly
+- [ ] Webhook endpoint tested with valid signature
+- [ ] Service API tested with Bearer token
+- [ ] SSO impersonation tested end-to-end
+- [ ] Audit logs capturing all integration events
+- [ ] Token rotation schedule established (90 days)
+- [ ] Security team review completed
+- [ ] Secrets documented in password manager
 
 ---
 
 **Document Version:** 1.0  
 **Last Updated:** October 13, 2025  
-**Integration Status:** ✅ Ready for Production
+**Integration Status:** ✅ Ready for Production (after secrets configured)

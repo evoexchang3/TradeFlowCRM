@@ -62,3 +62,50 @@ Preferred communication style: Simple, everyday language.
 **Authentication**:
 -   **jsonwebtoken**: For JWT token generation/verification.
 -   **bcrypt**: For password hashing.
+
+## Integration Status
+
+### Trading Platform Integration (COMPLETE ✅)
+
+The CRM is fully integrated with the Trading Platform via three secure communication channels:
+
+**Integration-5a: Webhook Receiver**
+- POST /api/webhooks/site with HMAC-SHA256 signature verification
+- Handles 5 event types: client.registered, deposit.completed, withdrawal.completed, kyc.updated, account.updated
+- Automatic client/account creation and balance updates
+- Comprehensive audit logging
+
+**Integration-5b: Service API**
+- 5 protected endpoints with Bearer token authentication
+- GET /api/service/clients/:email - Get client info
+- GET /api/service/accounts/:clientEmail - Get account + subaccounts
+- PATCH /api/service/clients/:email/kyc - Update KYC status
+- POST /api/service/clients/:email/notes - Add client note
+- GET /api/service/clients/:email/activity - Get activity feed
+
+**Integration-5c: SSO Impersonation**
+- POST /api/clients/:id/impersonate - Generate SSO token (admin-only)
+- 15-minute token expiry for security
+- Audit logging with impersonator details
+- Frontend "Login as Client" button
+
+**Integration-6: Security Tokens**
+- All tokens generated using crypto.randomBytes(32) - 256-bit entropy
+- JWT_SECRET, WEBHOOK_SECRET, SERVICE_API_TOKEN, SSO_SECRET configured
+- Tokens documented in INTEGRATION_CREDENTIALS.md
+
+**Integration-7: Credentials Report**
+- Comprehensive documentation in INTEGRATION_CREDENTIALS.md
+- Includes all endpoints, authentication methods, and testing examples
+- Ready for Trading Platform team implementation
+
+### Role-Based Access Control (COMPLETE ✅)
+
+- RouteGuard component enforces role-based page access
+- All routes wrapped with role-specific guards
+- Auto-redirect for unauthorized users
+- Role access matrix:
+  - Administrator: Full access to all features
+  - CRM Manager: No access to User Management, Roles, API Keys
+  - Team Leader: Team-scoped access only
+  - Agent: Assigned clients only
