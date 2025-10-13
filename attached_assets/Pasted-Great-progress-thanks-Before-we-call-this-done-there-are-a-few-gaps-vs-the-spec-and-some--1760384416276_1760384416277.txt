@@ -1,0 +1,152 @@
+Great progress — thanks! Before we call this “done,” there are a few **gaps vs. the spec** and some **integration items** still needed to connect the CRM with the Trading Platform.
+
+Please complete the items below and then send me the **final credentials report**.
+
+---
+
+## 🔧 What’s missing / to finish
+
+### 1) Landing + Role Routing (confirm / adjust)
+
+* **Login page** must show **only**: Email, Password, and **Forgot Password** link (no role selector).
+* After login, **auto-detect role** and redirect to:
+
+  * Admin → `/admin`
+  * CRM Manager → `/crm`
+  * Team Leader → `/team`
+  * Agent → `/agent`
+* Taskbar must include **role-appropriate pages** + a visible **Log Out** button.
+
+**Acceptance:** Visiting `/` shows the minimal login; authenticated users are redirected correctly by role.
+
+---
+
+### 2) Admin → User Management page
+
+* In the Admin dashboard, add a page to:
+
+  * **Create users** (CRM Manager / Team Leader / Agent)
+  * Assign teams & roles, edit/deactivate, reset password
+  * View last login + role/permissions summary
+
+**Acceptance:** Admin can create a Team Leader and assign an Agent to a team end-to-end.
+
+---
+
+### 3) Client Assignment UI polish
+
+* Bulk assign/transfer clients between agents/teams.
+* Filters to **show clients by assignment** (agent/team).
+* Confirm **visibility controls** enforce that:
+
+  * CRM Manager sees all
+  * Team Leader sees own team
+  * Agent sees own clients only
+
+**Acceptance:** Bulk transfer works; filters reflect correct scoped data.
+
+---
+
+### 4) Subaccounts UI completeness
+
+* Create / list / switch subaccounts
+* **Internal transfers** between main/subaccounts with reason + audit trail
+
+**Acceptance:** Transfer reflects immediately in balances & ledger; audit shows who/when/why.
+
+---
+
+### 5) Integration: **two-way sync** with Trading Platform
+
+We need the **CRM side** ready to integrate now.
+
+#### A) **Webhook receiver** (Trading → CRM)
+
+* **Route:** `POST /api/webhooks/site`
+* **Auth:** verify `X-Signature: HMAC-SHA256(<raw body>, SITE_WEBHOOK_SECRET)`
+* **Events (accept at minimum):**
+
+  * `user.created`, `user.updated`, `email.verified`, `kyc.status_changed`
+  * `order.placed`, `order.modified`, `position.closed`
+  * `balance.updated`, `deposit.requested`, `withdrawal.requested`
+* **Idempotency:** accept `Idempotency-Key` (header or body) and ignore duplicates.
+
+**Acceptance:** Posting a signed `user.created` to the endpoint creates the client in CRM.
+
+#### B) **Service API (CRM ← Trading Platform)**
+
+* Validate header: `Authorization: Bearer <CRM_SERVICE_TOKEN>`
+* Expose routes (examples; use existing naming if different):
+
+  * `POST /crm/users` (create/update by externalId)
+  * `PATCH /crm/users/:id` (flags, limits, team assignment)
+  * `POST /crm/password-reset`
+  * `POST /crm/force-logout`
+
+**Acceptance:** With a valid token, Trading Platform can upsert a user and set flags.
+
+#### C) **SSO Impersonation support (CRM → Trading Platform)**
+
+* Store **`SSO_IMPERSONATION_SECRET`** and add an Admin action in the client view: “Open client in Trading Platform.”
+* The Trading Platform will expose:
+
+  * `POST /sso/impersonate` → returns 2-minute, single-use token
+  * `GET /sso/consume?token=...` → logs client in
+* CRM should call `/sso/impersonate` with:
+
+  ```json
+  { "clientId": "<crm-client-id>", "adminId": "<crm-admin-id>", "reason": "Account review" }
+  ```
+* **Audit**: record adminId, clientId, IP, reason, timestamp.
+
+**Acceptance:** Clicking “Open in Trading Platform” launches the client dashboard authenticated.
+
+---
+
+### 6) Keys, tokens & storage (prepare now)
+
+Generate/configure the following and store in environment/secrets:
+
+* `DATABASE_URL`
+* `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+* `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`
+* `SSO_IMPERSONATION_SECRET`
+* `SITE_WEBHOOK_SECRET`
+* `CRM_SERVICE_TOKEN`
+
+**Acceptance:** Secrets exist; protected routes validate them; webhook HMAC verification passes.
+
+---
+
+## 📦 Final handoff — send me this **report** when done
+
+Please deliver a final report containing these **exact values/strings** (redact only if we must generate on the Trading Platform; otherwise include the actual values):
+
+| Key                          | Description                                                  |
+| ---------------------------- | ------------------------------------------------------------ |
+| **DATABASE_URL**             | PostgreSQL connection string for persistent data             |
+| **S3_ENDPOINT**              | S3-compatible endpoint URL                                   |
+| **S3_BUCKET**                | Storage bucket name                                          |
+| **S3_ACCESS_KEY**            | S3 access key                                                |
+| **S3_SECRET_KEY**            | S3 secret key                                                |
+| **JWT_ACCESS_SECRET**        | Secret for CRM access tokens                                 |
+| **JWT_REFRESH_SECRET**       | Secret for CRM refresh tokens                                |
+| **SSO_IMPERSONATION_SECRET** | Shared secret for SSO impersonation (CRM ↔ Trading Platform) |
+| **SITE_WEBHOOK_SECRET**      | HMAC key to verify signed webhooks from Trading Platform     |
+| **CRM_SERVICE_TOKEN**        | Service token for authenticated CRM API calls                |
+
+> Base URL is already confirmed: **`https://evo-crm.replit.app`**. Please include it at the top of the report.
+
+---
+
+## 🧪 Quick validation checklist (please run)
+
+* [ ] `/` shows minimal login; post-login redirects by role
+* [ ] Admin can create users/assign teams in UI
+* [ ] Bulk client assignment & filters work; visibility enforced by role
+* [ ] Subaccounts UI supports transfers with audited ledger
+* [ ] `POST /api/webhooks/site` verifies HMAC and processes `user.created`
+* [ ] Protected CRM routes require `Authorization: Bearer <CRM_SERVICE_TOKEN>`
+* [ ] SSO action opens Trading Platform client view; audited
+
+Once you’ve completed these and shared the report, I’ll plug the values into the Trading Platform and run end-to-end tests (webhooks, service API, SSO).
