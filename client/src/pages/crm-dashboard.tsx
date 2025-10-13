@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserCheck, UserX, UsersRound, TrendingUp, Target } from "lucide-react";
+import { Users, UserCheck, UserX, UsersRound, TrendingUp, Target, DollarSign, TrendingDown, ArrowUpDown, Wallet, PiggyBank } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 export default function CRMDashboard() {
@@ -18,6 +18,10 @@ export default function CRMDashboard() {
 
   const { data: assignmentMetrics, isLoading } = useQuery({
     queryKey: ['/api/metrics/assignments'],
+  });
+
+  const { data: financialMetrics, isLoading: isLoadingFinancials } = useQuery({
+    queryKey: ['/api/metrics/financials'],
   });
 
   const totalClients = assignmentMetrics?.totalClients || 0;
@@ -243,6 +247,244 @@ export default function CRMDashboard() {
               })
             ) : (
               <p className="text-sm text-muted-foreground col-span-3 text-center py-8">No agents with clients yet</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Financial Metrics Section */}
+      <div>
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          <DollarSign className="h-6 w-6" />
+          Financial Overview
+        </h2>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Balance</CardTitle>
+            <Wallet className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-balance">
+              ${isLoadingFinancials ? '...' : (financialMetrics?.totalBalance || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Client account balances</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Equity</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" data-testid="text-total-equity">
+              ${isLoadingFinancials ? '...' : (financialMetrics?.totalEquity || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Account equity values</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
+            <PiggyBank className="h-4 w-4 text-success" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success" data-testid="text-total-deposits">
+              ${isLoadingFinancials ? '...' : (financialMetrics?.totalDeposits || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">All-time deposits</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive" data-testid="text-total-withdrawals">
+              ${isLoadingFinancials ? '...' : (financialMetrics?.totalWithdrawals || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">All-time withdrawals</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Trading Volume</CardTitle>
+            <ArrowUpDown className="h-4 w-4 text-info" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-info" data-testid="text-trading-volume">
+              ${isLoadingFinancials ? '...' : (financialMetrics?.tradingVolume || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Total trade volume</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Deposits</CardTitle>
+            <Target className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${(financialMetrics?.netDeposits || 0) >= 0 ? 'text-success' : 'text-destructive'}`} data-testid="text-net-deposits">
+              ${isLoadingFinancials ? '...' : (financialMetrics?.netDeposits || 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Deposits - Withdrawals</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowUpDown className="h-5 w-5" />
+            Deposit vs Withdrawal Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <PiggyBank className="h-4 w-4 text-success" />
+                  <span className="text-sm font-medium">Total Deposits</span>
+                </div>
+                <span className="text-lg font-bold text-success" data-testid="text-breakdown-deposits">
+                  ${isLoadingFinancials ? '...' : (financialMetrics?.totalDeposits || 0).toLocaleString()}
+                </span>
+              </div>
+              <Progress 
+                value={100} 
+                className="h-3"
+                data-testid="progress-deposits"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                  <span className="text-sm font-medium">Total Withdrawals</span>
+                </div>
+                <span className="text-lg font-bold text-destructive" data-testid="text-breakdown-withdrawals">
+                  ${isLoadingFinancials ? '...' : (financialMetrics?.totalWithdrawals || 0).toLocaleString()}
+                </span>
+              </div>
+              <Progress 
+                value={financialMetrics?.totalDeposits 
+                  ? Math.round((Number(financialMetrics.totalWithdrawals) / Number(financialMetrics.totalDeposits)) * 100)
+                  : 0
+                } 
+                className="h-3"
+                data-testid="progress-withdrawals"
+              />
+            </div>
+
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4" />
+                  <span className="text-sm font-medium">Net Cash Flow</span>
+                </div>
+                <span 
+                  className={`text-xl font-bold ${(financialMetrics?.netDeposits || 0) >= 0 ? 'text-success' : 'text-destructive'}`}
+                  data-testid="text-breakdown-net"
+                >
+                  ${isLoadingFinancials ? '...' : (financialMetrics?.netDeposits || 0).toLocaleString()}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {financialMetrics?.totalDeposits && financialMetrics.totalWithdrawals
+                  ? `${Math.round((Number(financialMetrics.totalWithdrawals) / Number(financialMetrics.totalDeposits)) * 100)}% withdrawal rate`
+                  : 'No transaction data'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UsersRound className="h-5 w-5" />
+            Top Teams by Balance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {financialMetrics?.byTeam && financialMetrics.byTeam.length > 0 ? (
+              financialMetrics.byTeam.slice(0, 6).map((team: any) => {
+                const totalBalance = financialMetrics.totalBalance || 1;
+                const percentage = Math.round((team.balance / totalBalance) * 100);
+                return (
+                  <div key={team.id} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex-1">
+                        <p className="font-medium" data-testid={`text-team-name-${team.id}`}>{team.name}</p>
+                        <p className="text-xs text-muted-foreground" data-testid={`text-team-clients-${team.id}`}>{team.clientCount} clients</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-mono font-medium" data-testid={`text-team-balance-${team.id}`}>${team.balance.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground" data-testid={`text-team-percentage-${team.id}`}>({percentage}%)</p>
+                      </div>
+                    </div>
+                    <Progress value={percentage} className="h-2" data-testid={`progress-team-${team.id}`} />
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground">No team financial data yet</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserCheck className="h-5 w-5" />
+            Top Agents by Balance
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {financialMetrics?.byAgent && financialMetrics.byAgent.length > 0 ? (
+              financialMetrics.byAgent.slice(0, 9).map((agent: any) => {
+                const totalBalance = financialMetrics.totalBalance || 1;
+                const percentage = Math.round((agent.balance / totalBalance) * 100);
+                return (
+                  <Card key={agent.id} className="hover-elevate">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary">
+                            {agent.name?.split(' ').map((n: string) => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" data-testid={`text-agent-name-${agent.id}`}>{agent.name}</p>
+                          <p className="text-xs text-muted-foreground" data-testid={`text-agent-clients-${agent.id}`}>{agent.clientCount} clients</p>
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        <p className="text-lg font-bold" data-testid={`text-agent-balance-${agent.id}`}>${agent.balance.toLocaleString()}</p>
+                      </div>
+                      <Progress value={percentage} className="h-2" data-testid={`progress-agent-${agent.id}`} />
+                      <p className="text-xs text-muted-foreground mt-2 text-center" data-testid={`text-agent-percentage-${agent.id}`}>
+                        {percentage}% of total
+                      </p>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground col-span-3 text-center py-8">No agent financial data yet</p>
             )}
           </div>
         </CardContent>
