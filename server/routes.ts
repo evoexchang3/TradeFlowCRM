@@ -132,7 +132,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== CLIENTS =====
   app.get("/api/clients", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const clients = await storage.getClients();
+      // Client type users cannot access this endpoint (they have their own portal)
+      if (req.user?.type === 'client') {
+        return res.status(403).json({ error: 'Unauthorized: Client access not allowed' });
+      }
+
+      // Get user's full details to check role and team
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      let clients = await storage.getClients();
+      
+      // Apply role-based filtering
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        // Administrator and CRM Manager see all clients
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          // No filtering needed
+        }
+        // Team Leader sees only clients in their team
+        else if (roleName === 'team leader') {
+          clients = clients.filter(c => c.teamId === user.teamId);
+        }
+        // Agent sees only clients assigned to them
+        else if (roleName === 'agent') {
+          clients = clients.filter(c => c.assignedAgentId === user.id);
+        }
+        // Default: if role doesn't match known roles, show only assigned clients
+        else {
+          clients = clients.filter(c => c.assignedAgentId === user.id);
+        }
+      } else {
+        // Users without a role see only clients assigned to them
+        clients = clients.filter(c => c.assignedAgentId === user.id);
+      }
+
       res.json(clients);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
