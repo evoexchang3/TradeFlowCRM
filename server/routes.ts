@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import express from "express";
 import bcrypt from "bcrypt";
 import multer from "multer";
+import { z } from "zod";
 import { storage } from "./storage";
 import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
@@ -522,6 +523,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updated = await storage.updateSubaccount(req.params.id, allowedUpdates);
       res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Internal Transfers
+  app.post("/api/subaccounts/transfer", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Validate payload with Zod
+      const transferSchema = z.object({
+        fromSubaccountId: z.string().min(1),
+        toSubaccountId: z.string().min(1),
+        amount: z.union([z.string(), z.number()]).refine(
+          (val) => {
+            const num = Number(val);
+            return Number.isFinite(num) && num > 0;
+          },
+          { message: "Amount must be a valid number greater than zero" }
+        ),
+        notes: z.string().optional(),
+      });
+
+      const validation = transferSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      const { fromSubaccountId, toSubaccountId, amount, notes } = validation.data;
+      const transferAmount = Number(amount);
+
+      // Get both subaccounts
+      const fromSubaccount = await storage.getSubaccount(fromSubaccountId);
+      const toSubaccount = await storage.getSubaccount(toSubaccountId);
+
+      if (!fromSubaccount || !toSubaccount) {
+        return res.status(404).json({ error: "Subaccount not found" });
+      }
+
+      // Verify they belong to the same account
+      if (fromSubaccount.accountId !== toSubaccount.accountId) {
+        return res.status(400).json({ error: "Transfers can only occur between subaccounts of the same account" });
+      }
+
+      const account = await storage.getAccount(fromSubaccount.accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      // Authorization check - STAFF ONLY (no client-initiated transfers to avoid FK issues)
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Only staff members can initiate transfers' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+
+      if (!permissions.includes('balance.adjust') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const userId = user.id;
+
+      try {
+        // Create transfer and execute atomically - both success or failure are persisted
+        const transfer = await storage.createInternalTransfer({
+          fromSubaccountId,
+          toSubaccountId,
+          amount: transferAmount.toFixed(2), // Use validated amount with fixed precision
+          status: 'pending',
+          notes: notes || null,
+          userId,
+          completedAt: null,
+        });
+
+        // Execute the transfer (updates status to completed or rejected)
+        const result = await storage.executeInternalTransfer(transfer.id);
+
+        // Log audit trail for both success and failure
+        await storage.createAuditLog({
+          userId,
+          action: 'balance_adjust',
+          details: { 
+            type: 'internal_transfer',
+            transferId: result.id,
+            fromSubaccountId, 
+            toSubaccountId, 
+            amount: transferAmount.toFixed(2),
+            status: result.status
+          },
+          ipAddress: req.ip || 'unknown',
+        });
+
+        if (result.status === 'rejected') {
+          return res.status(400).json({ error: 'Insufficient balance', transfer: result });
+        }
+
+        res.json(result);
+      } catch (error: any) {
+        // Log failed transfer attempt (even if no transfer row created)
+        await storage.createAuditLog({
+          userId,
+          action: 'balance_adjust',
+          details: { 
+            type: 'internal_transfer_failed',
+            fromSubaccountId, 
+            toSubaccountId, 
+            amount: transferAmount.toFixed(2),
+            error: error.message
+          },
+          ipAddress: req.ip || 'unknown',
+        });
+        
+        res.status(400).json({ error: error.message });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/internal-transfers", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { accountId } = req.query;
+
+      if (!accountId || typeof accountId !== 'string') {
+        return res.status(400).json({ error: "accountId query parameter is required" });
+      }
+
+      // Verify account access
+      const account = await storage.getAccount(accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        if (client?.id !== account.clientId) {
+          return res.status(403).json({ error: "Unauthorized: Cannot view transfers for other clients" });
+        }
+      } else if (req.user?.type === 'user') {
+        const user = await storage.getUser(req.user.id);
+        if (!user || !user.roleId) {
+          return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+        }
+
+        const role = await storage.getRole(user.roleId);
+        const permissions = (role?.permissions as string[]) || [];
+
+        if (!permissions.includes('balance.view') && role?.name?.toLowerCase() !== 'administrator') {
+          return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+        }
+      }
+
+      const transfers = await storage.getInternalTransfers({ accountId });
+      res.json(transfers);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

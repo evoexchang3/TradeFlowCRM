@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -16,6 +16,7 @@ import {
   type CallLog, type InsertCallLog,
   type ClientComment, type InsertClientComment,
   type ApiKey, type InsertApiKey,
+  type InternalTransfer, type InsertInternalTransfer,
   type MarketData,
   type Candle,
 } from "@shared/schema";
@@ -50,6 +51,11 @@ export interface IStorage {
   getTransactions(filters?: any): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: string, updates: Partial<InsertTransaction>): Promise<Transaction>;
+  
+  // Internal Transfers
+  getInternalTransfers(filters?: any): Promise<InternalTransfer[]>;
+  createInternalTransfer(transfer: InsertInternalTransfer): Promise<InternalTransfer>;
+  executeInternalTransfer(transferId: string): Promise<InternalTransfer>;
   
   // Orders
   getOrder(id: string): Promise<Order | undefined>;
@@ -207,6 +213,94 @@ export class DatabaseStorage implements IStorage {
   async updateTransaction(id: string, updates: Partial<InsertTransaction>): Promise<Transaction> {
     const [transaction] = await db.update(transactions).set(updates).where(eq(transactions.id, id)).returning();
     return transaction;
+  }
+
+  // Internal Transfers
+  async getInternalTransfers(filters?: any): Promise<InternalTransfer[]> {
+    if (filters?.accountId) {
+      // Get transfers for subaccounts belonging to this account
+      const accountSubaccounts = await this.getSubaccountsByAccountId(filters.accountId);
+      const subaccountIds = accountSubaccounts.map(s => s.id);
+      
+      // Return empty array if account has no subaccounts (prevents data leak)
+      if (subaccountIds.length === 0) {
+        return [];
+      }
+      
+      return await db.select().from(internalTransfers).where(
+        sql`${internalTransfers.fromSubaccountId} = ANY(${subaccountIds}) OR ${internalTransfers.toSubaccountId} = ANY(${subaccountIds})`
+      ).orderBy(desc(internalTransfers.createdAt));
+    }
+    
+    return await db.select().from(internalTransfers).orderBy(desc(internalTransfers.createdAt));
+  }
+
+  async createInternalTransfer(transfer: InsertInternalTransfer): Promise<InternalTransfer> {
+    const [internalTransfer] = await db.insert(internalTransfers).values(transfer).returning();
+    return internalTransfer;
+  }
+
+  async executeInternalTransfer(transferId: string): Promise<InternalTransfer> {
+    // Get the transfer first (outside transaction)
+    const [transfer] = await db.select().from(internalTransfers).where(eq(internalTransfers.id, transferId));
+    
+    if (!transfer) {
+      throw new Error('Transfer not found');
+    }
+    
+    if (transfer.status !== 'pending') {
+      throw new Error('Transfer already processed');
+    }
+
+    // Get both subaccounts to validate
+    const [fromSubaccount] = await db.select().from(subaccounts).where(eq(subaccounts.id, transfer.fromSubaccountId));
+    const [toSubaccount] = await db.select().from(subaccounts).where(eq(subaccounts.id, transfer.toSubaccountId));
+
+    if (!fromSubaccount || !toSubaccount) {
+      throw new Error('Subaccount not found');
+    }
+
+    // Validate balance
+    const fromBalance = parseFloat(fromSubaccount.balance);
+    const transferAmount = parseFloat(transfer.amount);
+
+    if (fromBalance < transferAmount) {
+      // Mark as rejected and return (no throw, so audit logging can proceed)
+      const [rejectedTransfer] = await db.update(internalTransfers)
+        .set({ status: 'rejected' })
+        .where(eq(internalTransfers.id, transferId))
+        .returning();
+      return rejectedTransfer;
+    }
+
+    // Execute transfer with atomic balance updates
+    return await db.transaction(async (tx) => {
+      // Update balances atomically
+      await tx.update(subaccounts)
+        .set({ 
+          balance: sql`${subaccounts.balance} - ${transferAmount}`,
+          equity: sql`${subaccounts.equity} - ${transferAmount}`
+        })
+        .where(eq(subaccounts.id, transfer.fromSubaccountId));
+
+      await tx.update(subaccounts)
+        .set({ 
+          balance: sql`${subaccounts.balance} + ${transferAmount}`,
+          equity: sql`${subaccounts.equity} + ${transferAmount}`
+        })
+        .where(eq(subaccounts.id, transfer.toSubaccountId));
+
+      // Mark transfer as completed
+      const [completedTransfer] = await tx.update(internalTransfers)
+        .set({ 
+          status: 'completed',
+          completedAt: new Date()
+        })
+        .where(eq(internalTransfers.id, transferId))
+        .returning();
+
+      return completedTransfer;
+    });
   }
 
   // Orders
