@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,6 +21,7 @@ import ExportData from "@/pages/export-data";
 import AuditLogs from "@/pages/audit-logs";
 import Register from "@/pages/register";
 import Login from "@/pages/login";
+import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,7 +29,12 @@ function Router() {
     <Switch>
       <Route path="/register" component={Register} />
       <Route path="/login" component={Login} />
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Landing} />
+      <Route path="/admin" component={Dashboard} />
+      <Route path="/crm" component={Dashboard} />
+      <Route path="/team" component={Dashboard} />
+      <Route path="/agent" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/clients" component={Clients} />
       <Route path="/clients/new" component={ClientForm} />
       <Route path="/clients/:id" component={ClientDetail} />
@@ -45,31 +51,45 @@ function Router() {
   );
 }
 
-function App() {
+function AppLayout() {
+  const [location] = useLocation();
+  const isLandingPage = location === '/';
+  const isAuthPage = location === '/login' || location === '/register' || location === '/';
+
   const style = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   };
 
+  if (isAuthPage) {
+    return <Router />;
+  }
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1">
+          <header className="flex items-center justify-between h-14 px-4 border-b sticky top-0 z-10 bg-background">
+            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <ThemeToggle />
+          </header>
+          <main className="flex-1 overflow-auto bg-background">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider defaultTheme="dark">
           <TooltipProvider>
-            <SidebarProvider style={style as React.CSSProperties}>
-              <div className="flex h-screen w-full">
-                <AppSidebar />
-                <div className="flex flex-col flex-1">
-                  <header className="flex items-center justify-between h-14 px-4 border-b sticky top-0 z-10 bg-background">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <ThemeToggle />
-                  </header>
-                  <main className="flex-1 overflow-auto bg-background">
-                    <Router />
-                  </main>
-                </div>
-              </div>
-            </SidebarProvider>
+            <AppLayout />
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>

@@ -465,6 +465,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/roles/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const role = await storage.getRole(req.params.id);
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      res.json(role);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/roles", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const role = await storage.createRole(req.body);
