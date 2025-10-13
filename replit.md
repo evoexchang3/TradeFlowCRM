@@ -8,7 +8,26 @@ The system is built as a customizable template that can be individually tailored
 
 ## Recent Changes
 
-**October 13, 2025 - Phase 1 & 2 Complete: Client Pipeline Status, Comments System, Subaccounts UI, Internal Transfers (Backend+Frontend)**
+**October 13, 2025 - Phase 2 Complete: Internal Transfers System (Full Stack)**
+- **Internal Transfer API** (Phase 2): Staff-only internal transfers with comprehensive validation
+  - Endpoint: POST /api/subaccounts/transfer with Zod schema validation
+  - Validation: Amount coerced with Number.isFinite() check, rejects booleans/objects/NaN/Infinity
+  - Security: Staff-only access (balance.adjust permission), atomic transactions, comprehensive audit logging
+  - Status handling: Returns rejected status for insufficient balance (no throw), completed for successful transfers
+  - Architect approved after 4 review rounds fixing data leaks, rollback issues, NaN validation, and type coercion vulnerabilities
+- **Internal Transfer UI** (Phase 2): Complete transfer dialog with validation
+  - Transfer dialog: Source/destination dropdowns (with mutual exclusion), amount input, optional notes
+  - Validation: Frontend amount validation (> 0), form state reset on dialog close
+  - Feedback: Status-based toasts (completed/rejected/error), real-time balance updates via cache invalidation
+  - Button disabled when less than 2 subaccounts (can't transfer with only 1)
+- **Transfer History Viewer** (Phase 2): Filterable transfer list with CSV export
+  - Transfer History tab: Shows all internal transfers with date, from/to subaccounts, amount, status, notes
+  - Filters: Subaccount dropdown (all or specific), date range (from/to with inclusive end-of-day)
+  - CSV Export: Exports filtered transfers with proper filename (transfer-history-{name}-{date}.csv)
+  - Cache invalidation: Fixed to match query key ['/api/internal-transfers', accountId] for real-time updates
+  - Status badges: Color-coded (completed=green, rejected=red, pending=gray)
+
+**October 13, 2025 - Phase 1 Complete: Client Status Pipeline & Comments System**
 - **Client Status Pipeline** (Phase 1): 12-status enum for tracking client lifecycle
   - Statuses: new, reassigned, potential, low/mid/high_potential, no_answer, voicemail, callback_requested, not_interested, converted, lost
   - Status dropdown in client detail page with real-time update via PATCH /api/clients/:id
@@ -25,12 +44,8 @@ The system is built as a customizable template that can be individually tailored
   - Subaccounts tab in client details showing table with name, currency, balance, equity, margin, status, default indicator
   - Create Subaccount dialog with name and currency (USD/EUR/GBP/JPY)
   - Proper query with accountId parameter and cache invalidation
-- **Internal Transfers Schema** (Phase 2): Database table for subaccount-to-subaccount transfers
-  - Schema: internalTransfers table with fromSubaccountId, toSubaccountId, amount, userId, status, notes, timestamps
-  - Transfer status enum: pending, completed, rejected
-  - Proper relations to subaccounts and users
 - **Architect Approval**: All Phase 1 and Phase 2 tasks reviewed and approved
-- **Remaining Work**: Internal transfer API (phase2-4), transfer UI (phase2-5), transfer history (phase2-6), client assignment UI (phase3+), enhanced dashboards (phase4+)
+- **Remaining Work**: Client assignment UI (phase3+), enhanced dashboards (phase4+)
 
 **October 13, 2025 - Milestone 3 Complete: Subaccount Architecture & Team-Based Client Assignment (Backend)**
 - **Subaccount Architecture**: Multi-subaccount support per trading account
