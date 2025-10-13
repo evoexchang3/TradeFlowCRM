@@ -107,6 +107,22 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Most Active Agents: Top 9 agents in responsive grid showing comment count, status change count, total activity
   - All dynamic content with data-testid attributes for testing (text-acquisition-*, progress-acquisition-*, text-team-perf-*, text-agent-activity-*)
 
+**October 13, 2025 - Integration Phase (IN PROGRESS)**
+
+- **Integration-1: Landing + Role Routing** (COMPLETE ✅)
+  - Minimal login page at `/` with Email, Password, "Forgot Password" link
+  - Auto-detect role and redirect: Admin → `/admin`, CRM Manager → `/crm`, Team Leader → `/team`, Agent → `/agent`
+  - Visible "Logout" button in sidebar footer for all authenticated users
+
+- **Integration-2: Admin User Management** (COMPLETE ✅)
+  - Backend: Added `getUsers()` to storage interface + implementation
+  - POST /api/users: Create CRM staff (admin-only, validates email uniqueness, bcrypt hashing)
+  - PATCH /api/users/:id: Update user details, role, team (admin-only)
+  - POST /api/users/:id/reset-password: Reset password with validation (admin-only)
+  - Frontend: `/users` page with user table, create/edit/reset dialogs, toggle active/inactive
+  - Sidebar: "User Management" link for administrators
+  - Comprehensive audit logging for all user management actions
+
 **Previous Phases Completed:**
 - Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
 - Phase 2: Internal Transfers System (Full Stack) - Architect Approved ✅
@@ -114,6 +130,7 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Transfer UI with source/destination dropdowns, amount validation
   - Transfer history with subaccount/date filters and CSV export
 - Phase 3: Client Assignment System (6 sub-phases) - All Architect Approved ✅
+- Phase 4: Enhanced Dashboards (6 sub-phases) - All Architect Approved ✅
 
 ## User Preferences
 

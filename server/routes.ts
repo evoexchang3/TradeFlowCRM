@@ -839,6 +839,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/users", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only admin can create users
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      // Check role
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { firstName, lastName, email, password, roleId, teamId } = req.body;
+
+      // Validate required fields
+      if (!firstName || !lastName || !email || !password || !roleId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(email);
+      const existingClient = await storage.getClientByEmail(email);
+      if (existingUser || existingClient) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const newUser = await storage.createUser({
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
+        roleId,
+        teamId: teamId || null,
+        isActive: true,
+      });
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'client_create',
+        targetType: 'user',
+        targetId: newUser.id,
+        details: { createdBy: req.user.email, role: userRole.name },
+      });
+
+      res.json({ ...newUser, password: undefined });
+    } catch (error: any) {
+      console.error('Create user error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/users/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only admin can update users
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { id } = req.params;
+      const { firstName, lastName, email, roleId, teamId, isActive } = req.body;
+
+      // Get existing user
+      const existingUser = await storage.getUser(id);
+      if (!existingUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // If email is changing, check for duplicates
+      if (email && email !== existingUser.email) {
+        const duplicate = await storage.getUserByEmail(email);
+        if (duplicate) {
+          return res.status(400).json({ error: 'Email already in use' });
+        }
+      }
+
+      // Update user
+      const updates: any = {};
+      if (firstName !== undefined) updates.firstName = firstName;
+      if (lastName !== undefined) updates.lastName = lastName;
+      if (email !== undefined) updates.email = email;
+      if (roleId !== undefined) updates.roleId = roleId;
+      if (teamId !== undefined) updates.teamId = teamId;
+      if (isActive !== undefined) updates.isActive = isActive;
+
+      const updatedUser = await storage.updateUser(id, updates);
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'client_edit',
+        targetType: 'user',
+        targetId: id,
+        details: { changes: updates, updatedBy: req.user.email },
+      });
+
+      res.json({ ...updatedUser, password: undefined });
+    } catch (error: any) {
+      console.error('Update user error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/users/:id/reset-password", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only admin can reset passwords
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { id } = req.params;
+      const { newPassword } = req.body;
+
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update user password
+      await storage.updateUser(id, { password: hashedPassword });
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'client_edit',
+        targetType: 'user',
+        targetId: id,
+        details: { action: 'password_reset', resetBy: req.user.email },
+      });
+
+      res.json({ success: true, message: 'Password reset successfully' });
+    } catch (error: any) {
+      console.error('Reset password error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== TRADING =====
   app.post("/api/orders", authMiddleware, async (req: AuthRequest, res) => {
     try {

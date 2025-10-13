@@ -28,6 +28,7 @@ import AuditLogs from "@/pages/audit-logs";
 import Register from "@/pages/register";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
+import UserManagement from "@/pages/user-management";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/clients/:id/edit" component={ClientForm} />
       <Route path="/trading" component={Trading} />
       <Route path="/transactions" component={Transactions} />
+      <Route path="/users" component={UserManagement} />
       <Route path="/roles" component={Roles} />
       <Route path="/teams/:id" component={TeamDetail} />
       <Route path="/teams" component={Teams} />

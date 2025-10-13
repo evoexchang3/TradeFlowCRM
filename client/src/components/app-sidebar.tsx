@@ -61,6 +61,12 @@ const menuItems: MenuItem[] = [
 
 const managementItems: MenuItem[] = [
   {
+    title: "User Management",
+    url: "/users",
+    icon: Users,
+    roles: ['administrator'], // Admin only
+  },
+  {
     title: "Roles & Permissions",
     url: "/roles",
     icon: Shield,
