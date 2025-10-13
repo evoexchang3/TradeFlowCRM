@@ -1221,6 +1221,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== METRICS API =====
+  app.get("/api/metrics/assignments", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Block client-type users from accessing staff metrics
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      // Get user's role for filtering
+      const user = await storage.getUser(req.user!.id);
+      let clients = await storage.getClients();
+      
+      // Apply role-based filtering (same as GET /api/clients)
+      if (user?.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        if (roleName === 'team leader') {
+          clients = clients.filter(c => c.teamId === user.teamId);
+        } else if (roleName === 'agent') {
+          clients = clients.filter(c => c.assignedAgentId === user.id);
+        }
+      }
+
+      const teams = await storage.getTeams();
+      const users = await storage.getUsers();
+
+      // Total counts
+      const totalClients = clients.length;
+      const assignedClients = clients.filter(c => c.assignedAgentId).length;
+      const unassignedClients = totalClients - assignedClients;
+      const clientsWithTeam = clients.filter(c => c.teamId).length;
+      const clientsWithoutTeam = totalClients - clientsWithTeam;
+
+      // Breakdown by status
+      const byStatus = clients.reduce((acc: any, client: any) => {
+        const status = client.status || 'new';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Breakdown by team
+      const byTeam = clients.reduce((acc: any, client: any) => {
+        if (client.teamId) {
+          const team = teams.find((t: any) => t.id === client.teamId);
+          const teamName = team?.name || 'Unknown Team';
+          if (!acc[client.teamId]) {
+            acc[client.teamId] = { id: client.teamId, name: teamName, count: 0 };
+          }
+          acc[client.teamId].count++;
+        }
+        return acc;
+      }, {});
+
+      // Breakdown by agent
+      const byAgent = clients.reduce((acc: any, client: any) => {
+        if (client.assignedAgentId) {
+          const agent = users.find((u: any) => u.id === client.assignedAgentId);
+          const agentName = agent?.name || 'Unknown Agent';
+          if (!acc[client.assignedAgentId]) {
+            acc[client.assignedAgentId] = { id: client.assignedAgentId, name: agentName, count: 0 };
+          }
+          acc[client.assignedAgentId].count++;
+        }
+        return acc;
+      }, {});
+
+      res.json({
+        totalClients,
+        assignedClients,
+        unassignedClients,
+        clientsWithTeam,
+        clientsWithoutTeam,
+        byStatus,
+        byTeam: Object.values(byTeam).sort((a: any, b: any) => b.count - a.count),
+        byAgent: Object.values(byAgent).sort((a: any, b: any) => b.count - a.count),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== API KEY MANAGEMENT =====
   app.post("/api/admin/api-keys", authMiddleware, async (req: AuthRequest, res) => {
     try {
