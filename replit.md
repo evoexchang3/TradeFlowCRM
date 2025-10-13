@@ -74,6 +74,22 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Top Agents by Client Count: Top 9 agents in responsive grid with avatars and progress bars
   - Real-time data, loading states, proper empty states, TypeScript typed responses
 
+- **Financial Metrics API** (Phase 4-3) - Architect Approved ✅
+  - GET /api/metrics/financials endpoint with staff-only access guard
+  - Role-based filtering: Admin/CRM Manager see all, Team Leader sees team, Agent sees assigned
+  - Aggregates balance, equity, deposits, withdrawals, trading volume across all client accounts
+  - Team/agent breakdowns using `.filter()` to capture multi-account clients correctly
+  - Returns: totalBalance, totalEquity, totalDeposits, totalWithdrawals, tradingVolume, netDeposits
+  - Breakdowns: byTeam (name, balance, clientCount), byAgent (name, balance, clientCount)
+
+- **Financial Analytics Widgets** (Phase 4-4) - Architect Approved ✅
+  - Six metric cards: Total Balance, Total Equity, Total Deposits, Total Withdrawals, Trading Volume, Net Deposits
+  - Color coding: Green (deposits), Red (withdrawals), Blue (volume), Dynamic (net deposits)
+  - Deposit vs Withdrawal Breakdown: Visual comparison with progress bars, net cash flow, withdrawal rate %
+  - Top Teams by Balance: Top 6 teams with balance amounts, client counts, progress bars, percentages
+  - Top Agents by Balance: Top 9 agents in responsive grid with avatars, balances, progress bars
+  - All dynamic content with data-testid attributes for testing (text-team-*, text-agent-*, progress-*)
+
 **Previous Phases Completed:**
 - Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
 - Phase 2: Internal Transfers System (Full Stack) - Architect Approved ✅
