@@ -8,6 +8,27 @@ The system is built as a customizable template that can be individually tailored
 
 ## Recent Changes
 
+**October 13, 2025 - Milestone 2 Complete: Role-Based Dashboards & Trading Platform Integration**
+- **Simplified Login**: Removed role tabs from landing page - role auto-detected from authenticated user
+- **Role-Based Dashboards**: Created dedicated dashboard components for each role:
+  - AdminDashboard (/admin): System-wide metrics, health status, platform overview
+  - CRMDashboard (/crm): Client metrics, team performance, conversion rates
+  - TeamDashboard (/team): Team member stats, assigned clients, performance tracking
+  - AgentDashboard (/agent): Personal client list, daily tasks, individual metrics
+- **Dynamic Sidebar Navigation**: Menu items filtered by user role/permissions
+  - Admin: All pages (roles, teams, API keys, import/export, audit)
+  - CRM Manager: Teams, import/export, audit logs
+  - Team Leader: Teams only
+  - Agent: No management pages
+- **Trading Platform Integration**:
+  - Webhook endpoint: POST /api/webhooks/site with HMAC-SHA256 signature verification
+  - Supports 11 event types (order.placed, position.closed, balance.updated, etc.)
+  - SSO impersonation: POST /sso/impersonate (admin-only), GET /sso/consume
+  - Admin ID derived from authenticated session (prevents privilege escalation)
+  - Service-level API token generation via existing API key system
+  - Comprehensive integration documentation (TRADING_PLATFORM_INTEGRATION.md)
+- **Security**: All integration endpoints secured with HMAC signatures, JWT tokens, role verification, and audit logging
+
 **October 13, 2025 - Milestone 1 Complete: API Key Management System**
 - **Backend**: Secure API key CRUD endpoints at `/api/admin/api-keys`
   - POST /api/admin/api-keys: Generate API keys with bcrypt hashing
