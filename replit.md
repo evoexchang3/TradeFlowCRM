@@ -6,7 +6,7 @@ This enterprise-grade CRM system for a trading platform manages clients, account
 
 ## Recent Changes
 
-**October 13, 2025 - Phase 3: Client Assignment System**
+**October 13, 2025 - Phase 3: Client Assignment System (COMPLETE ✅)**
 
 - **Single Client Assignment UI** (Phase 3-1) - Architect Approved ✅
   - GET /api/users endpoint: Returns sanitized user list for assignment dropdowns
@@ -31,6 +31,32 @@ This enterprise-grade CRM system for a trading platform manages clients, account
   - Team clients table: Full client list with clickable names
   - Security: Password properly sanitized from leader data
   - Authentication: Uses default query fetcher with auth headers
+
+- **Role-Based Visibility Filters** (Phase 3-4) - Architect Approved ✅
+  - GET /api/clients endpoint now enforces role-based access control
+  - Administrator/CRM Manager: See all clients
+  - Team Leader: See only clients in their team (teamId filter)
+  - Agent: See only clients assigned to them (assignedAgentId filter)
+  - Client type users blocked from staff endpoints
+  - Case-insensitive role name matching, graceful fallbacks
+
+- **Visibility Filter UI** (Phase 3-5) - Architect Approved ✅
+  - Three filter dropdowns: Team, Agent, Status in client list page
+  - Real-time client-side filtering with AND logic
+  - "All", "Unassigned", and specific options for each filter
+  - Clear Filters button when any filter is active
+  - Shows "X of Y clients" count when filters are applied
+  - Combines with search functionality seamlessly
+
+- **Client Transfer Workflow** (Phase 3-6) - Architect Approved ✅
+  - POST /api/clients/:id/transfer endpoint with full validation
+  - Transfer dialog with new agent/team selection and required reason field
+  - Automatic status change to "reassigned" on transfer
+  - Comprehensive audit log with before/after values and transfer reason
+  - Auto-creates comment documenting the transfer
+  - Transfer button in client detail header
+  - Role-based permissions (client.edit or administrator)
+  - Real-time UI updates with cache invalidation
 
 **Previous Phases Completed:**
 - Phase 1: Client Status Pipeline (12 statuses) & Comments System - Architect Approved ✅
