@@ -26,6 +26,7 @@ export const orderStatusEnum = pgEnum('order_status', ['pending', 'filled', 'par
 export const positionStatusEnum = pgEnum('position_status', ['open', 'closed']);
 export const transactionTypeEnum = pgEnum('transaction_type', ['deposit', 'withdrawal']);
 export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'completed', 'rejected']);
+export const transferStatusEnum = pgEnum('transfer_status', ['pending', 'completed', 'rejected']);
 export const auditActionEnum = pgEnum('audit_action', [
   'login', 'logout', 'client_create', 'client_edit', 'client_delete',
   'trade_create', 'trade_edit', 'trade_close', 'balance_adjust',
@@ -132,6 +133,19 @@ export const transactions = pgTable("transactions", {
   method: text("method"), // e.g., bank_transfer, credit_card
   notes: text("notes"),
   processedBy: varchar("processed_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+// Internal Transfers (Between Subaccounts)
+export const internalTransfers = pgTable("internal_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromSubaccountId: varchar("from_subaccount_id").notNull().references(() => subaccounts.id),
+  toSubaccountId: varchar("to_subaccount_id").notNull().references(() => subaccounts.id),
+  amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
+  status: transferStatusEnum("status").notNull().default('pending'),
+  notes: text("notes"),
+  userId: varchar("user_id").notNull().references(() => users.id), // Staff who initiated transfer
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 });
@@ -300,6 +314,12 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   processor: one(users, { fields: [transactions.processedBy], references: [users.id] }),
 }));
 
+export const internalTransfersRelations = relations(internalTransfers, ({ one }) => ({
+  fromSubaccount: one(subaccounts, { fields: [internalTransfers.fromSubaccountId], references: [subaccounts.id] }),
+  toSubaccount: one(subaccounts, { fields: [internalTransfers.toSubaccountId], references: [subaccounts.id] }),
+  user: one(users, { fields: [internalTransfers.userId], references: [users.id] }),
+}));
+
 export const ordersRelations = relations(orders, ({ one }) => ({
   account: one(accounts, { fields: [orders.accountId], references: [accounts.id] }),
   subaccount: one(subaccounts, { fields: [orders.subaccountId], references: [subaccounts.id] }),
@@ -368,6 +388,11 @@ export const insertTransactionSchema = createInsertSchema(transactions).omit({
   createdAt: true,
 });
 
+export const insertInternalTransferSchema = createInsertSchema(internalTransfers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true,
   createdAt: true,
@@ -415,6 +440,9 @@ export type InsertSubaccount = z.infer<typeof insertSubaccountSchema>;
 
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+
+export type InternalTransfer = typeof internalTransfers.$inferSelect;
+export type InsertInternalTransfer = z.infer<typeof insertInternalTransferSchema>;
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
