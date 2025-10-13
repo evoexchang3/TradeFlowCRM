@@ -2,115 +2,7 @@
 
 ## Overview
 
-This is an enterprise-grade CRM system for a trading platform, designed to manage clients, accounts, and trading operations. The platform features an in-house trading engine with real-time market data integration, comprehensive client management, role-based access control, and audit logging capabilities.
-
-The system is built as a customizable template that can be individually tailored for different partners and brokers, with easy replication and export capabilities.
-
-## Recent Changes
-
-**October 13, 2025 - Phase 2 Complete: Internal Transfers System (Full Stack)**
-- **Internal Transfer API** (Phase 2): Staff-only internal transfers with comprehensive validation
-  - Endpoint: POST /api/subaccounts/transfer with Zod schema validation
-  - Validation: Amount coerced with Number.isFinite() check, rejects booleans/objects/NaN/Infinity
-  - Security: Staff-only access (balance.adjust permission), atomic transactions, comprehensive audit logging
-  - Status handling: Returns rejected status for insufficient balance (no throw), completed for successful transfers
-  - Architect approved after 4 review rounds fixing data leaks, rollback issues, NaN validation, and type coercion vulnerabilities
-- **Internal Transfer UI** (Phase 2): Complete transfer dialog with validation
-  - Transfer dialog: Source/destination dropdowns (with mutual exclusion), amount input, optional notes
-  - Validation: Frontend amount validation (> 0), form state reset on dialog close
-  - Feedback: Status-based toasts (completed/rejected/error), real-time balance updates via cache invalidation
-  - Button disabled when less than 2 subaccounts (can't transfer with only 1)
-- **Transfer History Viewer** (Phase 2): Filterable transfer list with CSV export
-  - Transfer History tab: Shows all internal transfers with date, from/to subaccounts, amount, status, notes
-  - Filters: Subaccount dropdown (all or specific), date range (from/to with inclusive end-of-day)
-  - CSV Export: Exports filtered transfers with proper filename (transfer-history-{name}-{date}.csv)
-  - Cache invalidation: Fixed to match query key ['/api/internal-transfers', accountId] for real-time updates
-  - Status badges: Color-coded (completed=green, rejected=red, pending=gray)
-
-**October 13, 2025 - Phase 1 Complete: Client Status Pipeline & Comments System**
-- **Client Status Pipeline** (Phase 1): 12-status enum for tracking client lifecycle
-  - Statuses: new, reassigned, potential, low/mid/high_potential, no_answer, voicemail, callback_requested, not_interested, converted, lost
-  - Status dropdown in client detail page with real-time update via PATCH /api/clients/:id
-  - Status changes tracked in audit logs
-- **Client Comments System** (Phase 1): Internal collaboration tool for staff
-  - Schema: clientComments table with clientId, userId, comment, timestamps
-  - API Endpoints:
-    - GET /api/clients/:id/comments - List all comments for client
-    - POST /api/clients/:id/comments - Add comment (staff only)
-    - PATCH /api/comments/:id - Edit comment (CRM Manager/Team Leader/Admin only)
-    - DELETE /api/comments/:id - Delete comment (CRM Manager/Team Leader/Admin only)
-  - UI: Comments tab in client details with add/edit/delete, shows author, timestamp, "edited" indicator
-- **Subaccounts UI** (Phase 2): Frontend for multi-subaccount management
-  - Subaccounts tab in client details showing table with name, currency, balance, equity, margin, status, default indicator
-  - Create Subaccount dialog with name and currency (USD/EUR/GBP/JPY)
-  - Proper query with accountId parameter and cache invalidation
-- **Architect Approval**: All Phase 1 and Phase 2 tasks reviewed and approved
-- **Remaining Work**: Client assignment UI (phase3+), enhanced dashboards (phase4+)
-
-**October 13, 2025 - Milestone 3 Complete: Subaccount Architecture & Team-Based Client Assignment (Backend)**
-- **Subaccount Architecture**: Multi-subaccount support per trading account
-  - Schema: Added `subaccounts` table with fields: accountId, name, currency, balance, equity, margin, isDefault, isActive
-  - Database Relations: orders/positions now link to subaccountId (optional, for backward compatibility)
-  - API Endpoints:
-    - GET /api/subaccounts?accountId=xxx - List subaccounts with ownership verification
-    - POST /api/subaccounts - Create subaccount (requires balance.adjust permission or ownership)
-    - PATCH /api/subaccounts/:id - Update subaccount (whitelisted fields: name, isDefault, isActive)
-  - Security: Client ownership verified, staff requires 'balance.view'/'balance.adjust' permissions, balance/accountId manipulation blocked
-- **Team-Based Client Assignment**: Assign clients to agents/teams
-  - API Endpoints:
-    - PATCH /api/clients/:id/assign - Single client assignment with partial update support
-    - POST /api/clients/bulk-assign - Bulk assignment with audit logging
-  - Authorization: Requires 'client.edit' permission or Administrator role
-  - Security: Staff-only access, proper role verification, comprehensive audit logging
-- **Security Model**: All endpoints secured with role-based permissions, ownership validation, and field whitelisting
-- **Remaining Work**: Frontend UI for subaccounts (subaccount-4/5), assignment UI (team-assignment-3/4/5)
-
-**October 13, 2025 - Milestone 2 Complete: Role-Based Dashboards & Trading Platform Integration**
-- **Simplified Login**: Removed role tabs from landing page - role auto-detected from authenticated user
-- **Role-Based Dashboards**: Created dedicated dashboard components for each role:
-  - AdminDashboard (/admin): System-wide metrics, health status, platform overview
-  - CRMDashboard (/crm): Client metrics, team performance, conversion rates
-  - TeamDashboard (/team): Team member stats, assigned clients, performance tracking
-  - AgentDashboard (/agent): Personal client list, daily tasks, individual metrics
-- **Dynamic Sidebar Navigation**: Menu items filtered by user role/permissions
-  - Admin: All pages (roles, teams, API keys, import/export, audit)
-  - CRM Manager: Teams, import/export, audit logs
-  - Team Leader: Teams only
-  - Agent: No management pages
-- **Trading Platform Integration**:
-  - Webhook endpoint: POST /api/webhooks/site with HMAC-SHA256 signature verification
-  - Supports 11 event types (order.placed, position.closed, balance.updated, etc.)
-  - SSO impersonation: POST /sso/impersonate (admin-only), GET /sso/consume
-  - Admin ID derived from authenticated session (prevents privilege escalation)
-  - Service-level API token generation via existing API key system
-  - Comprehensive integration documentation (TRADING_PLATFORM_INTEGRATION.md)
-- **Security**: All integration endpoints secured with HMAC signatures, JWT tokens, role verification, and audit logging
-
-**October 13, 2025 - Milestone 1 Complete: API Key Management System**
-- **Backend**: Secure API key CRUD endpoints at `/api/admin/api-keys`
-  - POST /api/admin/api-keys: Generate API keys with bcrypt hashing
-  - GET /api/admin/api-keys: List all API keys (keyHash never exposed)
-  - DELETE /api/admin/api-keys/:id: Revoke API keys with ownership validation
-  - Zod validation with support for ISO datetime strings and optional fields
-  - Audit logging for all API key operations (create, revoke)
-- **Frontend**: Complete API key management UI at `/api-keys`
-  - Create dialog with proper shadcn Form + useForm + zodResolver validation
-  - Client-side validation prevents empty name submission with inline errors
-  - One-time key display card with copy-to-clipboard functionality
-  - List view with status badges (active/revoked) and scope indicators
-  - Revoke functionality with confirmation dialog
-  - Integration with TanStack Query for optimistic updates
-- **Security**: API keys use bcrypt hashing, plaintext key shown only once on creation, keyHash never exposed in responses
-- **Form Pattern**: All forms now follow required shadcn pattern (Form + useForm + zodResolver) instead of raw useState
-
-**October 13, 2025 - Milestone 0 Complete: Role-Based Landing Page**
-- Created professional landing page at `/` with tab-based role selection (Administrator, CRM Manager, Team Leader, Agent)
-- Implemented role-specific post-login redirects (Admin→/admin, CRM Manager→/crm, Team Leader→/team, Agent→/agent)
-- Added auth protection to dashboard routes - unauthenticated users redirected to landing page
-- Seeded default admin account: apitwelve001@gmail.com / Admin123
-- Added logout functionality to sidebar footer with proper token cleanup
-- Fixed token race condition by setting localStorage immediately before role fetch
-- Created GET /api/roles/:id endpoint for role-based routing
+This enterprise-grade CRM system for a trading platform manages clients, accounts, and trading operations. It features an in-house trading engine with real-time market data, comprehensive client management, role-based access control, and audit logging. Designed as a customizable template, it can be tailored for various partners and brokers, supporting easy replication and export. The business vision is to provide a robust, scalable, and secure platform that streamlines trading operations and client relationship management for financial institutions.
 
 ## User Preferences
 
@@ -120,127 +12,58 @@ Preferred communication style: Simple, everyday language.
 
 ### Frontend Architecture
 
-**Framework**: React with TypeScript using Vite as the build tool
-
-**UI Components**: Shadcn UI library with Radix UI primitives, following a data-focused enterprise design approach inspired by Carbon Design System
-
-**State Management**: 
-- TanStack Query (React Query) for server state management
-- React Context for authentication state
-- Local state with React hooks
-
-**Styling**: Tailwind CSS with custom design tokens for consistent theming, supporting both dark and light modes with dark mode as the primary interface
-
-**Routing**: Wouter for client-side routing
-
-**Key Design Principles**:
-- Data clarity over decoration
-- Professional, trustworthy aesthetic optimized for high-stakes trading environments
-- Minimal cognitive load during critical operations
-- Consistent patterns across all views
+**Framework**: React with TypeScript (Vite).
+**UI Components**: Shadcn UI (Radix UI primitives) with an enterprise, data-focused design inspired by Carbon Design System.
+**State Management**: TanStack Query for server state; React Context for authentication; React hooks for local state.
+**Styling**: Tailwind CSS with custom design tokens, supporting dark (primary) and light modes.
+**Routing**: Wouter for client-side routing.
+**Key Design Principles**: Emphasizes data clarity, a professional aesthetic for high-stakes environments, minimal cognitive load, and consistent patterns.
 
 ### Backend Architecture
 
-**Runtime**: Node.js with Express.js framework
-
-**Database**: PostgreSQL via Neon serverless with connection pooling
-
-**ORM**: Drizzle ORM for type-safe database operations and schema management
-
-**API Design**: RESTful API with WebSocket support for real-time market data streaming
-
-**Authentication**: JWT-based authentication with bcrypt password hashing, token-based authorization on protected endpoints
+**Runtime**: Node.js with Express.js.
+**Database**: PostgreSQL via Neon serverless with connection pooling.
+**ORM**: Drizzle ORM for type-safe operations.
+**API Design**: RESTful API with WebSocket support for real-time market data.
+**Authentication**: JWT-based authentication with bcrypt for password hashing and token-based authorization.
 
 **Key Modules**:
 
-1. **Trading Engine** - In-house implementation handling:
-   - Order types: Market, Limit, Stop, Stop-Limit (all fully implemented)
-   - Position management (open, close, modify, partial close)
-   - Real-time P/L calculations (realized and unrealized)
-   - Automatic Stop Loss/Take Profit triggers
-   - Margin management and validation
-   - Position ownership enforcement
-   - Order lifecycle: pending → filled/cancelled
-   - Cancel order functionality with ownership validation
-   - Pending orders checked every 5 seconds against live quotes
-   - Bid/ask discipline: Limit Buy uses ask, Limit Sell uses bid, Stop Buy uses ask, Stop Sell uses bid
-   - Missing bid/ask handling: Orders skipped if quote data incomplete (prevents erroneous execution)
-
-2. **Market Data Service** - Twelve Data integration providing:
-   - WebSocket streaming for live quotes (one subscription per symbol, relay to unlimited clients)
-   - REST API for historical candle data with caching
-   - Simulation mode when API key unavailable
-   - Efficient credit usage (500 WS credits = 500 symbols to unlimited users)
-
-3. **Client Management** - Comprehensive CRM features:
-   - Manual client creation, API-based creation, bulk import from Excel/CSV
-   - Public registration with email verification
-   - KYC status tracking and document management
-   - Account balance and equity management
-   - Trading activity and position history
-
-4. **Authorization System** - Dynamic role-based access control:
-   - Custom role creation with granular permissions
-   - Team-based organization with team leaders
-   - Permission groups for client management, trading, balance operations, administration, and data operations
-
-5. **Audit System** - Comprehensive activity logging:
-   - All user actions tracked (login, client operations, trade modifications, role changes, data operations)
-   - Impersonation tracking
-   - Import/export operation logging
+1.  **Trading Engine**: Handles various order types (Market, Limit, Stop, Stop-Limit), position management, real-time P/L calculations, automatic Stop Loss/Take Profit, margin management, and order lifecycle. Includes bid/ask discipline and handles missing quote data.
+2.  **Market Data Service**: Integrates with Twelve Data for WebSocket streaming of live quotes and REST API for historical candle data with caching. Features a simulation mode and efficient credit usage.
+3.  **Client Management**: Supports manual and API-based client creation, bulk import, public registration with email verification, KYC tracking, account balance/equity management, and trading activity history.
+4.  **Authorization System**: Dynamic role-based access control with custom role creation, granular permissions, team-based organization, and permission groups for various operations.
+5.  **Audit System**: Comprehensive logging of all user actions, impersonation, and import/export operations.
 
 ### Data Schema
 
-**Core Entities**:
-- Users (admin/agent/team leader profiles)
-- Clients (customer accounts with KYC, includes assignedAgentId and teamId)
-- Accounts (trading accounts linked to client)
-- Subaccounts (multiple trading subaccounts per account with independent balances)
-- Orders (pending and filled trading orders, linked to subaccount)
-- Positions (open and closed trading positions, linked to subaccount)
-- Transactions (deposits and withdrawals)
-- Roles & Permissions (dynamic access control)
-- Teams (organizational grouping)
-- Audit Logs (activity tracking)
-- API Keys (external platform integration with scope-based access)
-- Market Data (quotes and candles with caching)
+**Core Entities**: Users, Clients (with assignedAgentId and teamId), Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams, Audit Logs, API Keys, Market Data.
+**Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams. All modifications are tracked in Audit Logs.
 
-**Key Relationships**:
-- Clients have one-to-one relationship with Accounts
-- Clients can be assigned to Agents (assignedAgentId) and Teams (teamId)
-- Accounts have one-to-many relationship with Subaccounts
-- Subaccounts have one-to-many relationships with Orders and Positions
-- Users belong to Roles and Teams
-- All modifications tracked in Audit Logs
-
-### External Dependencies
+## External Dependencies
 
 **Market Data Provider**:
-- Twelve Data (https://twelvedata.com) - Primary data source for forex, crypto, metals, and commodities
-- WebSocket API for real-time price streaming
-- REST API for historical candle data
-- Fallback to REST polling when WebSocket unavailable
+-   **Twelve Data**: Primary source for forex, crypto, metals, commodities. Uses WebSocket API for real-time streaming and REST API for historical data.
 
 **Database**:
-- Neon PostgreSQL serverless database
-- WebSocket-based connection via @neondatabase/serverless
+-   **Neon PostgreSQL**: Serverless database solution.
 
 **UI Component Libraries**:
-- Radix UI primitives for accessible components
-- Shadcn UI component collection
-- Lucide React for icons
+-   **Radix UI**: Primitives for accessible components.
+-   **Shadcn UI**: Component collection.
+-   **Lucide React**: Icons.
 
 **Development Tools**:
-- TypeScript for type safety
-- Drizzle Kit for database migrations
-- Zod for runtime validation
-- React Hook Form for form management
+-   **TypeScript**: For type safety.
+-   **Drizzle Kit**: For database migrations.
+-   **Zod**: For runtime validation.
+-   **React Hook Form**: For form management.
 
 **Authentication**:
-- jsonwebtoken for JWT token generation and verification
-- bcrypt for password hashing
+-   **jsonwebtoken**: For JWT token generation/verification.
+-   **bcrypt**: For password hashing.
 
 **Build & Dev Tools**:
-- Vite for frontend bundling and dev server
-- esbuild for backend bundling
-- tsx for TypeScript execution in development
+-   **Vite**: Frontend bundling and dev server.
+-   **esbuild**: Backend bundling.
+-   **tsx**: TypeScript execution in development.

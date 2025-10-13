@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Search, Filter, Phone, Mail, MoreVertical } from "lucide-react";
+import { Plus, Search, Filter, Phone, Mail, MoreVertical, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -20,12 +21,97 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [bulkAssignAgentId, setBulkAssignAgentId] = useState<string>('');
+  const [bulkAssignTeamId, setBulkAssignTeamId] = useState<string>('');
+  const { toast } = useToast();
+  
   const { data: clients, isLoading } = useQuery({
     queryKey: ['/api/clients', searchQuery],
   });
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ['/api/teams'],
+  });
+
+  const { data: usersData = [] } = useQuery({
+    queryKey: ['/api/users'],
+  });
+
+  const agents = usersData.filter((user: any) => user.roleId);
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: (data: { clientIds: string[]; assignedAgentId?: string | null; teamId?: string | null }) =>
+      apiRequest('/api/clients/bulk-assign', 'POST', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      setSelectedClients(new Set());
+      setBulkAssignOpen(false);
+      setBulkAssignAgentId('');
+      setBulkAssignTeamId('');
+      toast({
+        title: "Bulk assignment completed",
+        description: `Successfully assigned ${selectedClients.size} client(s).`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Bulk assignment failed",
+        description: error.message || "Failed to assign clients.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleToggleClient = (clientId: string) => {
+    const newSelected = new Set(selectedClients);
+    if (newSelected.has(clientId)) {
+      newSelected.delete(clientId);
+    } else {
+      newSelected.add(clientId);
+    }
+    setSelectedClients(newSelected);
+  };
+
+  const handleToggleAll = () => {
+    if (selectedClients.size === clients?.length) {
+      setSelectedClients(new Set());
+    } else {
+      setSelectedClients(new Set(clients?.map((c: any) => c.id) || []));
+    }
+  };
+
+  const handleBulkAssign = () => {
+    const data: any = { clientIds: Array.from(selectedClients) };
+    if (bulkAssignAgentId) {
+      data.assignedAgentId = bulkAssignAgentId === 'none' ? null : bulkAssignAgentId;
+    }
+    if (bulkAssignTeamId) {
+      data.teamId = bulkAssignTeamId === 'none' ? null : bulkAssignTeamId;
+    }
+    bulkAssignMutation.mutate(data);
+  };
 
   const getKycStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
@@ -79,6 +165,36 @@ export default function Clients() {
             </div>
           </div>
 
+          {selectedClients.size > 0 && (
+            <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 rounded-md border border-primary/20">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium" data-testid="text-selected-count">
+                  {selectedClients.size} client{selectedClients.size > 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedClients(new Set())}
+                  data-testid="button-clear-selection"
+                  className="hover-elevate active-elevate-2"
+                >
+                  Clear Selection
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setBulkAssignOpen(true)}
+                  data-testid="button-bulk-assign"
+                  className="hover-elevate active-elevate-2"
+                >
+                  Assign Clients
+                </Button>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -87,6 +203,13 @@ export default function Clients() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectedClients.size === clients?.length && clients?.length > 0}
+                      onCheckedChange={handleToggleAll}
+                      data-testid="checkbox-select-all"
+                    />
+                  </TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Account</TableHead>
@@ -99,6 +222,13 @@ export default function Clients() {
               <TableBody>
                 {clients?.map((client: any) => (
                   <TableRow key={client.id} className="hover-elevate">
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedClients.has(client.id)}
+                        onCheckedChange={() => handleToggleClient(client.id)}
+                        data-testid={`checkbox-client-${client.id}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -175,7 +305,7 @@ export default function Clients() {
                   </TableRow>
                 )) || (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={8} className="text-center py-12">
                       <p className="text-sm text-muted-foreground">No clients found</p>
                     </TableCell>
                   </TableRow>
@@ -185,6 +315,75 @@ export default function Clients() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
+        <DialogContent data-testid="dialog-bulk-assign">
+          <DialogHeader>
+            <DialogTitle>Bulk Assign Clients</DialogTitle>
+            <DialogDescription>
+              Assign {selectedClients.size} selected client{selectedClients.size > 1 ? 's' : ''} to an agent or team
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assigned Agent</label>
+              <Select
+                value={bulkAssignAgentId}
+                onValueChange={setBulkAssignAgentId}
+              >
+                <SelectTrigger data-testid="select-bulk-agent">
+                  <SelectValue placeholder="Select agent (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {agents.map((agent: any) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      {agent.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assigned Team</label>
+              <Select
+                value={bulkAssignTeamId}
+                onValueChange={setBulkAssignTeamId}
+              >
+                <SelectTrigger data-testid="select-bulk-team">
+                  <SelectValue placeholder="Select team (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Team</SelectItem>
+                  {teams.map((team: any) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkAssignOpen(false)}
+              data-testid="button-cancel-bulk-assign"
+              className="hover-elevate active-elevate-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAssign}
+              disabled={bulkAssignMutation.isPending || (!bulkAssignAgentId && !bulkAssignTeamId)}
+              data-testid="button-confirm-bulk-assign"
+              className="hover-elevate active-elevate-2"
+            >
+              {bulkAssignMutation.isPending ? "Assigning..." : "Assign Clients"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
