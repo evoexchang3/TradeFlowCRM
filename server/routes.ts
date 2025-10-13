@@ -996,6 +996,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/teams/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const team = await storage.getTeam(req.params.id);
+      if (!team) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+      
+      let teamWithLeader: any = { ...team };
+      if (team.leaderId) {
+        const leader = await storage.getUser(team.leaderId);
+        if (leader) {
+          const { password, ...sanitizedLeader } = leader;
+          teamWithLeader.leader = sanitizedLeader;
+        }
+      }
+      
+      res.json(teamWithLeader);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/teams", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const team = await storage.createTeam(req.body);

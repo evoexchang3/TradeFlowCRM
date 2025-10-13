@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Plus, UsersRound, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -140,8 +141,8 @@ export default function Teams() {
                     <span className="font-medium">{team.clientCount || 0}</span>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full" data-testid={`button-manage-team-${team.id}`}>
-                  Manage Team
+                <Button variant="outline" className="w-full" asChild data-testid={`button-manage-team-${team.id}`}>
+                  <Link href={`/teams/${team.id}`}>Manage Team</Link>
                 </Button>
               </CardContent>
             </Card>
