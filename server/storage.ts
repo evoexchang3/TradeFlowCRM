@@ -2,10 +2,11 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, marketData, candles, apiKeys,
+  users, clients, accounts, subaccounts, transactions, orders, positions, roles, teams, auditLogs, callLogs, marketData, candles, apiKeys,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
+  type Subaccount, type InsertSubaccount,
   type Transaction, type InsertTransaction,
   type Order, type InsertOrder,
   type Position, type InsertPosition,
@@ -37,6 +38,12 @@ export interface IStorage {
   getAccountByClientId(clientId: string): Promise<Account | undefined>;
   createAccount(account: InsertAccount): Promise<Account>;
   updateAccount(id: string, updates: Partial<InsertAccount>): Promise<Account>;
+  
+  // Subaccounts
+  getSubaccount(id: string): Promise<Subaccount | undefined>;
+  getSubaccountsByAccountId(accountId: string): Promise<Subaccount[]>;
+  createSubaccount(subaccount: InsertSubaccount): Promise<Subaccount>;
+  updateSubaccount(id: string, updates: Partial<InsertSubaccount>): Promise<Subaccount>;
   
   // Transactions
   getTransactions(filters?: any): Promise<Transaction[]>;
@@ -158,6 +165,26 @@ export class DatabaseStorage implements IStorage {
   async updateAccount(id: string, updates: Partial<InsertAccount>): Promise<Account> {
     const [account] = await db.update(accounts).set(updates).where(eq(accounts.id, id)).returning();
     return account;
+  }
+
+  // Subaccounts
+  async getSubaccount(id: string): Promise<Subaccount | undefined> {
+    const [subaccount] = await db.select().from(subaccounts).where(eq(subaccounts.id, id));
+    return subaccount || undefined;
+  }
+
+  async getSubaccountsByAccountId(accountId: string): Promise<Subaccount[]> {
+    return await db.select().from(subaccounts).where(eq(subaccounts.accountId, accountId)).orderBy(desc(subaccounts.createdAt));
+  }
+
+  async createSubaccount(insertSubaccount: InsertSubaccount): Promise<Subaccount> {
+    const [subaccount] = await db.insert(subaccounts).values(insertSubaccount).returning();
+    return subaccount;
+  }
+
+  async updateSubaccount(id: string, updates: Partial<InsertSubaccount>): Promise<Subaccount> {
+    const [subaccount] = await db.update(subaccounts).set(updates).where(eq(subaccounts.id, id)).returning();
+    return subaccount;
   }
 
   // Transactions

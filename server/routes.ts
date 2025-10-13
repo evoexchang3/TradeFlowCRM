@@ -214,6 +214,236 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CLIENT ASSIGNMENT =====
+  app.patch("/api/clients/:id/assign", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only admin and CRM Manager can assign clients
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('client.edit') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const { assignedAgentId, teamId } = req.body;
+      
+      // Only update fields that are provided in the request
+      const updates: any = {};
+      if (assignedAgentId !== undefined) updates.assignedAgentId = assignedAgentId || null;
+      if (teamId !== undefined) updates.teamId = teamId || null;
+
+      const client = await storage.updateClient(req.params.id, updates);
+
+      await storage.createAuditLog({
+        userId: req.user?.id,
+        action: 'client_edit',
+        targetType: 'client',
+        targetId: client.id,
+        details: { assignedAgentId, teamId },
+      });
+
+      res.json(client);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/bulk-assign", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only admin and CRM Manager can bulk assign clients
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('client.edit') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const { clientIds, assignedAgentId, teamId } = req.body;
+      
+      if (!clientIds || !Array.isArray(clientIds)) {
+        return res.status(400).json({ error: "clientIds array is required" });
+      }
+
+      const updates: any = {};
+      if (assignedAgentId !== undefined) updates.assignedAgentId = assignedAgentId || null;
+      if (teamId !== undefined) updates.teamId = teamId || null;
+
+      const results = await Promise.all(
+        clientIds.map(id => storage.updateClient(id, updates))
+      );
+
+      await storage.createAuditLog({
+        userId: req.user?.id,
+        action: 'client_edit',
+        targetType: 'bulk_assignment',
+        details: { clientIds, assignedAgentId, teamId },
+      });
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== SUBACCOUNTS =====
+  app.get("/api/subaccounts", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const accountId = req.query.accountId as string;
+      if (!accountId) {
+        return res.status(400).json({ error: "accountId query parameter required" });
+      }
+
+      // Verify account ownership or admin access
+      const account = await storage.getAccount(accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        if (client?.id !== account.clientId) {
+          return res.status(403).json({ error: "Unauthorized: Cannot access other client's subaccounts" });
+        }
+      } else if (req.user?.type === 'user') {
+        // Staff members need permission
+        const user = await storage.getUser(req.user.id);
+        if (!user || !user.roleId) {
+          return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+        }
+
+        const role = await storage.getRole(user.roleId);
+        const permissions = (role?.permissions as string[]) || [];
+        
+        if (!permissions.includes('balance.view') && role?.name?.toLowerCase() !== 'administrator') {
+          return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+        }
+      }
+      
+      const subaccounts = await storage.getSubaccountsByAccountId(accountId);
+      res.json(subaccounts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/subaccounts", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { accountId, name, currency = 'USD' } = req.body;
+      
+      if (!accountId || !name) {
+        return res.status(400).json({ error: "accountId and name are required" });
+      }
+
+      // Verify account ownership or admin access
+      const account = await storage.getAccount(accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        if (client?.id !== account.clientId) {
+          return res.status(403).json({ error: "Unauthorized: Cannot create subaccounts for other clients" });
+        }
+      } else if (req.user?.type === 'user') {
+        // Staff members need permission
+        const user = await storage.getUser(req.user.id);
+        if (!user || !user.roleId) {
+          return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+        }
+
+        const role = await storage.getRole(user.roleId);
+        const permissions = (role?.permissions as string[]) || [];
+        
+        if (!permissions.includes('balance.adjust') && role?.name?.toLowerCase() !== 'administrator') {
+          return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+        }
+      }
+
+      const subaccount = await storage.createSubaccount({
+        accountId,
+        name,
+        currency,
+        balance: '0',
+        equity: '0',
+        margin: '0',
+        freeMargin: '0',
+        marginLevel: '0',
+        isDefault: false,
+        isActive: true,
+      });
+
+      res.json(subaccount);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/subaccounts/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Get the subaccount to verify ownership
+      const subaccount = await storage.getSubaccount(req.params.id);
+      if (!subaccount) {
+        return res.status(404).json({ error: "Subaccount not found" });
+      }
+
+      const account = await storage.getAccount(subaccount.accountId);
+      if (!account) {
+        return res.status(404).json({ error: "Account not found" });
+      }
+
+      // Verify ownership or permission
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        if (client?.id !== account.clientId) {
+          return res.status(403).json({ error: "Unauthorized: Cannot modify other client's subaccounts" });
+        }
+      } else if (req.user?.type === 'user') {
+        // Staff members need permission
+        const user = await storage.getUser(req.user.id);
+        if (!user || !user.roleId) {
+          return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+        }
+
+        const role = await storage.getRole(user.roleId);
+        const permissions = (role?.permissions as string[]) || [];
+        
+        if (!permissions.includes('balance.adjust') && role?.name?.toLowerCase() !== 'administrator') {
+          return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+        }
+      }
+
+      // Whitelist allowed fields (prevent balance/accountId manipulation)
+      const allowedUpdates: any = {};
+      if (req.body.name !== undefined) allowedUpdates.name = req.body.name;
+      if (req.body.isDefault !== undefined) allowedUpdates.isDefault = req.body.isDefault;
+      if (req.body.isActive !== undefined) allowedUpdates.isActive = req.body.isActive;
+
+      const updated = await storage.updateSubaccount(req.params.id, allowedUpdates);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== USER ACCOUNT =====
   app.get("/api/me", authMiddleware, async (req: AuthRequest, res) => {
     try {
