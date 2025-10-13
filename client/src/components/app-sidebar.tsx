@@ -15,6 +15,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
+import type { Role } from "@shared/schema";
 
 import {
   Sidebar,
@@ -109,18 +110,9 @@ export function AppSidebar() {
   const { logout, user } = useAuth();
 
   // Fetch user's role to filter menu items
-  const { data: role } = useQuery({
-    queryKey: ['/api/roles', user?.roleId],
+  const { data: role } = useQuery<Role>({
+    queryKey: [`/api/roles/${user?.roleId}`],
     enabled: !!user?.roleId,
-    queryFn: async () => {
-      const res = await fetch(`/api/roles/${user?.roleId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to fetch role');
-      return res.json();
-    },
   });
 
   const roleName = role?.name?.toLowerCase() || '';

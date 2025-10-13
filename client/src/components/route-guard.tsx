@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import type { Role, User } from "@shared/schema";
 
 interface RouteGuardProps {
   children: React.ReactNode;
@@ -11,10 +12,20 @@ interface RouteGuardProps {
 export function RouteGuard({ children, allowedRoles, requireAuth = true }: RouteGuardProps) {
   const [, setLocation] = useLocation();
   
-  const { data: user, isLoading } = useQuery({
+  const { data: meData, isLoading: userLoading } = useQuery<{ user?: User; client?: any }>({
     queryKey: ['/api/me'],
     retry: false,
   });
+
+  const user = meData?.user;
+
+  // Fetch user's role if they have a roleId
+  const { data: role, isLoading: roleLoading } = useQuery<Role>({
+    queryKey: [`/api/roles/${user?.roleId}`],
+    enabled: !!user?.roleId,
+  });
+
+  const isLoading = userLoading || (!!user?.roleId && roleLoading);
 
   useEffect(() => {
     if (isLoading) return;
@@ -26,9 +37,9 @@ export function RouteGuard({ children, allowedRoles, requireAuth = true }: Route
     }
 
     // If user exists and allowedRoles specified, check permissions
-    if (user && allowedRoles && allowedRoles.length > 0) {
-      const userRole = user.role?.name.toLowerCase();
-      const hasAccess = allowedRoles.some(role => role.toLowerCase() === userRole);
+    if (user && allowedRoles && allowedRoles.length > 0 && role) {
+      const userRole = role.name.toLowerCase();
+      const hasAccess = allowedRoles.some(r => r.toLowerCase() === userRole);
       
       if (!hasAccess) {
         // Redirect to user's default dashboard based on their role
@@ -50,7 +61,7 @@ export function RouteGuard({ children, allowedRoles, requireAuth = true }: Route
         }
       }
     }
-  }, [user, isLoading, allowedRoles, requireAuth, setLocation]);
+  }, [user, role, isLoading, allowedRoles, requireAuth, setLocation]);
 
   if (isLoading) {
     return (
@@ -66,9 +77,9 @@ export function RouteGuard({ children, allowedRoles, requireAuth = true }: Route
   }
 
   // Don't render if role check failed
-  if (user && allowedRoles && allowedRoles.length > 0) {
-    const userRole = user.role?.name.toLowerCase();
-    const hasAccess = allowedRoles.some(role => role.toLowerCase() === userRole);
+  if (user && allowedRoles && allowedRoles.length > 0 && role) {
+    const userRole = role.name.toLowerCase();
+    const hasAccess = allowedRoles.some(r => r.toLowerCase() === userRole);
     if (!hasAccess) {
       return null;
     }
