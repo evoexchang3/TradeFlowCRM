@@ -5,6 +5,7 @@ import {
   DollarSign, 
   Shield, 
   UsersRound,
+  Key,
   FileUp,
   FileDown,
   History,
@@ -60,6 +61,11 @@ const managementItems = [
     title: "Teams",
     url: "/teams",
     icon: UsersRound,
+  },
+  {
+    title: "API Keys",
+    url: "/api-keys",
+    icon: Key,
   },
   {
     title: "Import Data",

@@ -595,9 +595,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { insertApiKeySchema } = await import("@shared/schema");
       const { generateApiKey } = await import("./utils/api-key");
+      const { z } = await import("zod");
+
+      // Create validation schema for user input (excludes server-set fields, accepts string dates)
+      const apiKeyInputSchema = insertApiKeySchema
+        .omit({
+          createdBy: true,
+          status: true,
+        })
+        .extend({
+          expiresAt: z.union([z.string().datetime(), z.date()]).optional(),
+          ipWhitelist: z.array(z.string()).optional(),
+        });
 
       // Validate request body
-      const validated = insertApiKeySchema.parse(req.body);
+      const validated = apiKeyInputSchema.parse(req.body);
 
       // Generate API key
       const { key, keyHash, keyPrefix } = generateApiKey();

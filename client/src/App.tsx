@@ -16,6 +16,7 @@ import Trading from "@/pages/trading";
 import Transactions from "@/pages/transactions";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
+import ApiKeys from "@/pages/api-keys";
 import ImportData from "@/pages/import-data";
 import ExportData from "@/pages/export-data";
 import AuditLogs from "@/pages/audit-logs";
@@ -43,6 +44,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/roles" component={Roles} />
       <Route path="/teams" component={Teams} />
+      <Route path="/api-keys" component={ApiKeys} />
       <Route path="/import" component={ImportData} />
       <Route path="/export" component={ExportData} />
       <Route path="/audit" component={AuditLogs} />
