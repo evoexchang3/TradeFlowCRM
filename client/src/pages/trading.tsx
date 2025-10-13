@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,35 +7,122 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, X } from "lucide-react";
+import { TrendingUp, TrendingDown, X, Search, User } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { MARKET_SYMBOLS, SYMBOLS_BY_CATEGORY, type MarketSymbol } from "@shared/market-symbols";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+type CategoryType = 'forex' | 'crypto' | 'commodities' | 'indices' | 'futures';
+
+const LEVERAGE_OPTIONS = [
+  { value: "1", label: "1:1" },
+  { value: "5", label: "1:5" },
+  { value: "10", label: "1:10" },
+  { value: "20", label: "1:20" },
+  { value: "50", label: "1:50" },
+  { value: "100", label: "1:100" },
+  { value: "200", label: "1:200" },
+  { value: "500", label: "1:500" },
+];
 
 export default function Trading() {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [selectedSymbol, setSelectedSymbol] = useState("EUR/USD");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType>('forex');
+  const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>(SYMBOLS_BY_CATEGORY.forex[0]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [orderType, setOrderType] = useState<"market" | "limit" | "stop" | "stop_limit">("market");
   const [orderSide, setOrderSide] = useState<"buy" | "sell">("buy");
   const [quantity, setQuantity] = useState("1.0");
   const [orderPrice, setOrderPrice] = useState("");
   const [stopLoss, setStopLoss] = useState("");
   const [takeProfit, setTakeProfit] = useState("");
+  const [leverage, setLeverage] = useState("100");
+  const [spread, setSpread] = useState("0.00001");
+  const [fees, setFees] = useState("0");
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
+  const [clientComboOpen, setClientComboOpen] = useState(false);
 
-  const symbols = ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF", "AUD/USD"];
-  const quotes = useMarketData(symbols);
+  // Get symbols for market data based on category
+  const categorySymbols = SYMBOLS_BY_CATEGORY[selectedCategory].map(s => s.symbol);
+  const quotes = useMarketData(categorySymbols.slice(0, 20)); // Limit to 20 for performance
 
-  const { data: account } = useQuery({
+  // Fetch user's role to determine permissions
+  const { data: userData } = useQuery<{ user?: any; client?: any }>({
     queryKey: ['/api/me'],
     enabled: !!user,
+  });
+
+  const actualUser = userData?.user;
+  const isClient = user?.type === 'client';
+
+  const { data: role } = useQuery<{ id: string; name: string; }>({
+    queryKey: [`/api/roles/${actualUser?.roleId}`],
+    enabled: !!actualUser?.roleId,
+  });
+
+  const roleName = role?.name?.toLowerCase() || '';
+  const canTradeForClients = !isClient && ['administrator', 'crm manager', 'team leader', 'agent'].includes(roleName);
+
+  // Fetch available clients based on role
+  const { data: clients = [] } = useQuery<any[]>({
+    queryKey: ['/api/clients'],
+    enabled: canTradeForClients,
+  });
+
+  // Get client's own account if they're a client
+  const { data: clientAccount } = useQuery({
+    queryKey: ['/api/me'],
+    enabled: isClient,
     select: (data: any) => data.account
   });
 
+  // Get selected account (first selected client or client's own account)
+  const selectedAccountId = isClient ? clientAccount?.id : 
+    selectedClientIds.length > 0 ? clients.find((c: any) => c.id === selectedClientIds[0])?.id : null;
+
+  // Fetch account for selected client
+  const { data: selectedClientAccounts = [] } = useQuery({
+    queryKey: ['/api/accounts', selectedClientIds[0]],
+    enabled: !isClient && selectedClientIds.length > 0,
+    queryFn: async () => {
+      const res = await fetch(`/api/clients/${selectedClientIds[0]}/accounts`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      });
+      return res.json();
+    }
+  });
+
+  const selectedAccount = isClient ? clientAccount : selectedClientAccounts[0];
+
+  // Fetch positions for selected account
   const { data: positions = [] } = useQuery({
-    queryKey: ['/api/positions', account?.id],
-    enabled: !!account,
+    queryKey: ['/api/positions', selectedAccount?.id],
+    enabled: !!selectedAccount,
+    queryFn: async () => {
+      const res = await fetch(`/api/positions?accountId=${selectedAccount.id}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      });
+      return res.json();
+    }
+  });
+
+  // Fetch initiator names for positions
+  const { data: initiatorNames = {} } = useQuery({
+    queryKey: ['/api/users'],
+    enabled: positions.length > 0 && positions.some((p: any) => p.initiatorId),
+    select: (users: any[]) => {
+      const map: Record<string, string> = {};
+      users.forEach(u => {
+        map[u.id] = u.name;
+      });
+      return map;
+    }
   });
 
   const placeOrderMutation = useMutation({
@@ -47,6 +134,7 @@ export default function Trading() {
       queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
       toast({ title: "Order placed successfully" });
       setQuantity("1.0");
+      setOrderPrice("");
       setStopLoss("");
       setTakeProfit("");
     },
@@ -71,22 +159,25 @@ export default function Trading() {
   });
 
   const handlePlaceOrder = () => {
-    if (!account && user?.type !== 'client') {
+    if (!selectedAccount) {
       toast({
-        title: "Trading not available",
-        description: "Admin users cannot place trades directly. Please select a client account.",
+        title: "No account selected",
+        description: canTradeForClients ? "Please select a client to trade for" : "No account available",
         variant: "destructive",
       });
       return;
     }
 
-    const currentPrice = quotes[selectedSymbol]?.price || parseFloat(orderSide === 'buy' ? '1.0850' : '1.0851');
+    const currentPrice = quotes[selectedSymbol.symbol]?.price || 1.0;
     
     const orderData: any = {
-      symbol: selectedSymbol,
+      symbol: selectedSymbol.symbol,
       type: orderType,
       side: orderSide,
       quantity: parseFloat(quantity),
+      leverage,
+      spread,
+      fees,
       stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
       takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
     };
@@ -106,22 +197,113 @@ export default function Trading() {
       orderData.price = currentPrice;
     }
 
-    // Only include accountId for admin users (clients have it derived server-side)
-    if (user?.type === 'user' && account) {
-      orderData.accountId = account.id;
+    // Include accountId for staff users
+    if (canTradeForClients) {
+      orderData.accountId = selectedAccount.id;
     }
     
     placeOrderMutation.mutate(orderData);
   };
 
-  const currentQuote = quotes[selectedSymbol];
+  const currentQuote = quotes[selectedSymbol.symbol];
+
+  // Filter symbols by search query
+  const filteredSymbols = SYMBOLS_BY_CATEGORY[selectedCategory].filter(symbol =>
+    symbol.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    symbol.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Auto-select first client for staff if none selected
+  useEffect(() => {
+    if (canTradeForClients && clients.length > 0 && selectedClientIds.length === 0) {
+      setSelectedClientIds([clients[0].id]);
+    }
+  }, [canTradeForClients, clients, selectedClientIds]);
+
+  const getInitiatorDisplay = (position: any) => {
+    if (!position.initiatorType) return 'Client';
+    if (position.initiatorType === 'client') return 'Client';
+    
+    const initiatorName = position.initiatorId ? (initiatorNames[position.initiatorId] || 'Unknown') : 'System';
+    const type = position.initiatorType.replace('_', ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    return `${type} (${initiatorName})`;
+  };
 
   return (
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold" data-testid="text-trading-title">Trading Terminal</h1>
-        <p className="text-sm text-muted-foreground">Real-time trading and position management</p>
+        <p className="text-sm text-muted-foreground">Multi-client trading with comprehensive market coverage</p>
       </div>
+
+      {canTradeForClients && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Client Selection</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientComboOpen}
+                    className="w-full justify-between"
+                    data-testid="button-select-client"
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      {selectedClientIds.length > 0
+                        ? `${clients.find((c: any) => c.id === selectedClientIds[0])?.firstName} ${clients.find((c: any) => c.id === selectedClientIds[0])?.lastName}`
+                        : "Select client..."}
+                    </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search clients..." data-testid="input-search-clients" />
+                    <CommandEmpty>No client found.</CommandEmpty>
+                    <CommandGroup>
+                      <ScrollArea className="h-[200px]">
+                        {clients.map((client: any) => (
+                          <CommandItem
+                            key={client.id}
+                            value={`${client.firstName} ${client.lastName}`}
+                            onSelect={() => {
+                              setSelectedClientIds([client.id]);
+                              setClientComboOpen(false);
+                            }}
+                            data-testid={`option-client-${client.id}`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span>{client.firstName} {client.lastName}</span>
+                              <span className="text-xs text-muted-foreground">{client.email}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </ScrollArea>
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {selectedAccount && (
+                <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium">Account: {selectedAccount.accountNumber}</p>
+                    <p className="text-xs text-muted-foreground">Balance: ${parseFloat(selectedAccount.balance).toFixed(2)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">Equity: ${parseFloat(selectedAccount.equity).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">Leverage: 1:{selectedAccount.leverage}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
@@ -129,29 +311,59 @@ export default function Trading() {
             <CardHeader>
               <CardTitle>Market Watch</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-2">
-                {symbols.map((symbol) => {
-                  const quote = quotes[symbol];
-                  return (
-                    <div
-                      key={symbol}
-                      className={`flex items-center justify-between p-3 rounded-lg hover-elevate active-elevate-2 cursor-pointer ${selectedSymbol === symbol ? 'bg-accent' : ''}`}
-                      onClick={() => setSelectedSymbol(symbol)}
-                    >
-                      <span className="font-medium">{symbol}</span>
-                      <div className="text-right">
-                        <p className="font-mono">{quote?.price?.toFixed(5) || '—'}</p>
-                        {quote && (
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(quote.timestamp).toLocaleTimeString()}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+            <CardContent className="space-y-4">
+              <Tabs value={selectedCategory} onValueChange={(value) => {
+                setSelectedCategory(value as CategoryType);
+                setSelectedSymbol(SYMBOLS_BY_CATEGORY[value as CategoryType][0]);
+              }}>
+                <TabsList className="grid grid-cols-5 w-full">
+                  <TabsTrigger value="forex" data-testid="tab-forex">Forex</TabsTrigger>
+                  <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
+                  <TabsTrigger value="commodities" data-testid="tab-commodities">Commodities</TabsTrigger>
+                  <TabsTrigger value="indices" data-testid="tab-indices">Indices</TabsTrigger>
+                  <TabsTrigger value="futures" data-testid="tab-futures">Futures</TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search symbols..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-symbols"
+                />
               </div>
+
+              <ScrollArea className="h-[400px]">
+                <div className="grid gap-2">
+                  {filteredSymbols.slice(0, 30).map((symbol) => {
+                    const quote = quotes[symbol.symbol];
+                    return (
+                      <div
+                        key={symbol.symbol}
+                        className={`flex items-center justify-between p-3 rounded-lg hover-elevate active-elevate-2 cursor-pointer ${selectedSymbol.symbol === symbol.symbol ? 'bg-accent' : ''}`}
+                        onClick={() => setSelectedSymbol(symbol)}
+                        data-testid={`symbol-${symbol.symbol}`}
+                      >
+                        <div>
+                          <p className="font-medium">{symbol.symbol}</p>
+                          <p className="text-xs text-muted-foreground">{symbol.name}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono">{quote?.price?.toFixed(5) || '—'}</p>
+                          {quote && (
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(quote.timestamp).toLocaleTimeString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
 
@@ -168,14 +380,16 @@ export default function Trading() {
                     <TableHead>Quantity</TableHead>
                     <TableHead>Entry</TableHead>
                     <TableHead>Current</TableHead>
+                    <TableHead>Leverage</TableHead>
                     <TableHead>P/L</TableHead>
+                    <TableHead>Initiator</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {positions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground">
                         No open positions
                       </TableCell>
                     </TableRow>
@@ -184,16 +398,22 @@ export default function Trading() {
                       <TableRow key={position.id}>
                         <TableCell className="font-medium">{position.symbol}</TableCell>
                         <TableCell>
-                          <Badge variant={position.type === 'buy' ? 'default' : 'secondary'}>
-                            {position.type.toUpperCase()}
+                          <Badge variant={position.side === 'buy' ? 'default' : 'secondary'}>
+                            {position.side.toUpperCase()}
                           </Badge>
                         </TableCell>
                         <TableCell>{position.quantity}</TableCell>
-                        <TableCell className="font-mono">{parseFloat(position.entryPrice).toFixed(5)}</TableCell>
+                        <TableCell className="font-mono">{parseFloat(position.openPrice).toFixed(5)}</TableCell>
                         <TableCell className="font-mono">{parseFloat(position.currentPrice).toFixed(5)}</TableCell>
+                        <TableCell>1:{position.leverage || '1'}</TableCell>
                         <TableCell>
                           <span className={parseFloat(position.unrealizedPnl) >= 0 ? 'text-success' : 'text-destructive'}>
                             ${parseFloat(position.unrealizedPnl).toFixed(2)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {getInitiatorDisplay(position)}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -223,17 +443,11 @@ export default function Trading() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Symbol</label>
-                <Select value={selectedSymbol} onValueChange={setSelectedSymbol}>
-                  <SelectTrigger data-testid="select-order-symbol">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {symbols.map((symbol) => (
-                      <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">Selected Symbol</label>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="font-medium">{selectedSymbol.symbol}</p>
+                  <p className="text-xs text-muted-foreground">{selectedSymbol.name}</p>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -255,7 +469,6 @@ export default function Trading() {
                 <Button
                   variant={orderSide === 'buy' ? 'default' : 'outline'}
                   onClick={() => setOrderSide('buy')}
-                  className="hover-elevate active-elevate-2"
                   data-testid="button-order-buy"
                 >
                   <TrendingUp className="h-4 w-4 mr-2" />
@@ -264,7 +477,6 @@ export default function Trading() {
                 <Button
                   variant={orderSide === 'sell' ? 'default' : 'outline'}
                   onClick={() => setOrderSide('sell')}
-                  className="hover-elevate active-elevate-2"
                   data-testid="button-order-sell"
                 >
                   <TrendingDown className="h-4 w-4 mr-2" />
@@ -272,15 +484,31 @@ export default function Trading() {
                 </Button>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Quantity (lots)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  data-testid="input-order-quantity"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Quantity (lots)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    data-testid="input-order-quantity"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Leverage</label>
+                  <Select value={leverage} onValueChange={setLeverage}>
+                    <SelectTrigger data-testid="select-leverage">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEVERAGE_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {orderType !== 'market' && (
@@ -298,6 +526,30 @@ export default function Trading() {
                   />
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Spread</label>
+                  <Input
+                    type="number"
+                    step="0.00001"
+                    value={spread}
+                    onChange={(e) => setSpread(e.target.value)}
+                    data-testid="input-spread"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Fees ($)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={fees}
+                    onChange={(e) => setFees(e.target.value)}
+                    data-testid="input-fees"
+                  />
+                </div>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Stop Loss (optional)</label>
@@ -331,9 +583,9 @@ export default function Trading() {
               )}
 
               <Button
-                className="w-full hover-elevate active-elevate-2"
+                className="w-full"
                 onClick={handlePlaceOrder}
-                disabled={placeOrderMutation.isPending || !account}
+                disabled={placeOrderMutation.isPending || !selectedAccount}
                 data-testid="button-place-order"
               >
                 {placeOrderMutation.isPending ? 'Placing Order...' : `Place ${orderSide.toUpperCase()} Order`}

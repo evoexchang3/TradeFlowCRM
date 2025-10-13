@@ -11,11 +11,16 @@ interface PlaceOrderRequest {
   price?: string;
   stopLoss?: string;
   takeProfit?: string;
+  leverage?: string;
+  spread?: string;
+  fees?: string;
+  initiatorType?: 'client' | 'agent' | 'team_leader' | 'crm_manager' | 'admin' | 'robot' | 'system';
+  initiatorId?: string;
 }
 
 class TradingEngine {
   async placeOrder(request: PlaceOrderRequest): Promise<Order> {
-    const { accountId, symbol, type, side, quantity, price, stopLoss, takeProfit } = request;
+    const { accountId, symbol, type, side, quantity, price, stopLoss, takeProfit, leverage, spread, fees, initiatorType, initiatorId } = request;
 
     // Validate order parameters based on type
     if (type === 'limit' && !price) {
@@ -38,6 +43,11 @@ class TradingEngine {
       price,
       stopLoss,
       takeProfit,
+      leverage: leverage || '1',
+      spread: spread || '0',
+      fees: fees || '0',
+      initiatorType: initiatorType || 'client',
+      initiatorId,
       status: type === 'market' ? 'filled' : 'pending',
     };
 
@@ -83,6 +93,11 @@ class TradingEngine {
       currentPrice: fillPrice.toString(),
       stopLoss: order.stopLoss,
       takeProfit: order.takeProfit,
+      leverage: order.leverage || '1',
+      spread: order.spread || '0',
+      fees: order.fees || '0',
+      initiatorType: order.initiatorType || 'client',
+      initiatorId: order.initiatorId,
       status: 'open',
     };
 

@@ -467,6 +467,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:id/accounts", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const client = await storage.getClient(req.params.id);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      const accounts = await storage.getAccountsByClientId(client.id);
+      res.json(accounts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/clients", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const data = req.body;
@@ -1271,6 +1285,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // For clients, get their account. For admin users, they can specify accountId
       let accountId = req.body.accountId;
+      let initiatorType: 'client' | 'agent' | 'team_leader' | 'crm_manager' | 'admin' = 'client';
+      let initiatorId: string | undefined;
       
       if (req.user?.type === 'client') {
         const client = await storage.getClientByEmail(req.user.email);
@@ -1279,13 +1295,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ error: "No account found for client" });
         }
         accountId = account.id;
-      } else if (!accountId) {
-        return res.status(400).json({ error: "accountId required for admin users" });
+        initiatorType = 'client';
+        initiatorId = undefined; // Client trading for themselves
+      } else {
+        // Staff user trading for a client
+        if (!accountId) {
+          return res.status(400).json({ error: "accountId required for staff users" });
+        }
+        
+        // Determine initiator type from user role
+        const user = await storage.getUser(req.user!.id);
+        if (user?.roleId) {
+          const role = await storage.getRole(user.roleId);
+          const roleName = role?.name?.toLowerCase();
+          
+          if (roleName === 'administrator') {
+            initiatorType = 'admin';
+          } else if (roleName === 'crm manager') {
+            initiatorType = 'crm_manager';
+          } else if (roleName === 'team leader') {
+            initiatorType = 'team_leader';
+          } else if (roleName === 'agent') {
+            initiatorType = 'agent';
+          }
+        }
+        initiatorId = req.user!.id;
       }
 
       const order = await tradingEngine.placeOrder({
         ...req.body,
         accountId,
+        initiatorType,
+        initiatorId,
       });
 
       await storage.createAuditLog({
