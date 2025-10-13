@@ -711,6 +711,211 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== SSO IMPERSONATION ENDPOINTS =====
+  app.post("/sso/impersonate", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const jwt = await import("jsonwebtoken");
+      const crypto = await import("crypto");
+      
+      const { clientId, reason } = req.body;
+
+      if (!clientId || !reason) {
+        return res.status(400).json({ error: 'Missing required fields: clientId, reason' });
+      }
+
+      // Derive admin ID from authenticated session (not request body)
+      const adminId = req.user!.id;
+
+      // Verify the requesting user is an admin
+      const admin = await storage.getUser(adminId);
+      if (!admin || !admin.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+      }
+
+      const role = await storage.getRole(admin.roleId);
+      if (role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator role required' });
+      }
+
+      // Verify client exists
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Get or create SSO impersonation secret
+      const ssoSecret = process.env.SSO_IMPERSONATION_SECRET || crypto.randomBytes(32).toString('hex');
+
+      // Generate short-lived impersonation token (2 minutes)
+      const impersonationToken = jwt.sign(
+        {
+          clientId,
+          adminId,
+          reason,
+          email: client.email,
+          type: 'impersonation',
+        },
+        ssoSecret,
+        { expiresIn: '2m' }
+      );
+
+      // Log the impersonation
+      await storage.createAuditLog({
+        userId: adminId,
+        action: 'sso_impersonate',
+        targetType: 'client',
+        targetId: clientId,
+        details: { reason, impersonatedBy: admin.email },
+      });
+
+      res.json({ 
+        success: true, 
+        token: impersonationToken,
+        expiresIn: 120 // seconds
+      });
+    } catch (error: any) {
+      console.error('SSO impersonation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/sso/consume", async (req, res) => {
+    try {
+      const jwt = await import("jsonwebtoken");
+      const crypto = await import("crypto");
+      
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid token' });
+      }
+
+      // Get SSO impersonation secret
+      const ssoSecret = process.env.SSO_IMPERSONATION_SECRET || crypto.randomBytes(32).toString('hex');
+
+      // Verify token
+      const decoded = jwt.verify(token, ssoSecret) as any;
+
+      if (decoded.type !== 'impersonation') {
+        return res.status(400).json({ error: 'Invalid token type' });
+      }
+
+      // Get client
+      const client = await storage.getClient(decoded.clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Generate regular session token
+      const sessionToken = generateToken({
+        id: client.id,
+        email: client.email,
+        type: 'client'
+      });
+
+      // Log the successful impersonation
+      await storage.createAuditLog({
+        userId: decoded.adminId,
+        action: 'sso_consume',
+        targetType: 'client',
+        targetId: decoded.clientId,
+        details: { 
+          reason: decoded.reason,
+          consumedAt: new Date().toISOString()
+        },
+      });
+
+      res.json({ 
+        success: true, 
+        token: sessionToken,
+        client: { ...client, password: undefined }
+      });
+    } catch (error: any) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Impersonation token expired' });
+      }
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ error: 'Invalid impersonation token' });
+      }
+      console.error('SSO consume error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== WEBHOOK ENDPOINTS =====
+  app.post("/api/webhooks/site", async (req, res) => {
+    try {
+      const { verifyWebhookSignature, getWebhookSecret } = await import("./utils/webhook");
+      const crypto = await import("crypto");
+      
+      // Get webhook secret
+      const webhookSecret = getWebhookSecret();
+      
+      // Get signature from header
+      const signature = req.headers['x-signature'] as string;
+      if (!signature) {
+        return res.status(401).json({ error: 'Missing signature header' });
+      }
+
+      // Verify signature
+      const payload = JSON.stringify(req.body);
+      if (!verifyWebhookSignature(payload, signature, webhookSecret)) {
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+
+      // Process webhook event
+      const { event, idempotencyKey, occurredAt, user, order, position, meta } = req.body;
+
+      // Create audit log entry for webhook event
+      await storage.createAuditLog({
+        action: `webhook_${event}`,
+        targetType: 'webhook',
+        targetId: idempotencyKey || crypto.randomUUID(),
+        details: {
+          event,
+          idempotencyKey,
+          occurredAt,
+          user,
+          order,
+          position,
+          meta,
+          source: meta?.source || 'trading-site',
+        },
+      });
+
+      // Handle specific event types
+      switch (event) {
+        case 'user.created':
+        case 'user.updated':
+          // Could sync user data if needed
+          break;
+
+        case 'order.placed':
+        case 'order.modified':
+          // Could update order records
+          break;
+
+        case 'position.closed':
+          // Could update position records
+          break;
+
+        case 'balance.updated':
+        case 'deposit.requested':
+        case 'withdrawal.requested':
+          // Could update balance records
+          break;
+
+        default:
+          console.log(`Unhandled webhook event: ${event}`);
+      }
+
+      res.json({ success: true, received: event });
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== WEBSOCKET FOR MARKET DATA STREAMING =====
   const httpServer = createServer(app);
   

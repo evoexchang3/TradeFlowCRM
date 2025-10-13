@@ -4,11 +4,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocation } from "wouter";
-import { TrendingUp, Shield, Users, UserCheck, User } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Form,
   FormControl,
@@ -29,44 +28,12 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-interface RoleInfo {
-  id: string;
-  name: string;
-  icon: any;
-  description: string;
-  route: string;
-}
-
-const roles: RoleInfo[] = [
-  {
-    id: 'admin',
-    name: 'Administrator',
-    icon: Shield,
-    description: 'Full system access and management',
-    route: '/admin',
-  },
-  {
-    id: 'crm',
-    name: 'CRM Manager',
-    icon: Users,
-    description: 'CRM oversight and team management',
-    route: '/crm',
-  },
-  {
-    id: 'team',
-    name: 'Team Leader',
-    icon: UserCheck,
-    description: 'Team and client management',
-    route: '/team',
-  },
-  {
-    id: 'agent',
-    name: 'Agent',
-    icon: User,
-    description: 'Client support and operations',
-    route: '/agent',
-  },
-];
+const roleRoutes: Record<string, string> = {
+  'administrator': '/admin',
+  'crm manager': '/crm',
+  'team leader': '/team',
+  'agent': '/agent',
+};
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -82,9 +49,7 @@ export default function Landing() {
           const roleRes = await apiRequest('GET', `/api/roles/${user.roleId}`);
           const roleData = await roleRes.json();
           
-          const roleRoute = roles.find(r => 
-            r.name.toLowerCase() === roleData.name.toLowerCase()
-          )?.route || '/dashboard';
+          const roleRoute = roleRoutes[roleData.name.toLowerCase()] || '/dashboard';
           
           setLocation(roleRoute);
         } catch (error) {
@@ -124,9 +89,7 @@ export default function Landing() {
           const roleRes = await apiRequest('GET', `/api/roles/${data.user.roleId}`);
           const roleData = await roleRes.json();
           
-          const roleRoute = roles.find(r => 
-            r.name.toLowerCase() === roleData.name.toLowerCase()
-          )?.route || '/dashboard';
+          const roleRoute = roleRoutes[roleData.name.toLowerCase()] || '/dashboard';
           
           setLocation(roleRoute);
         } catch (error) {
@@ -156,7 +119,7 @@ export default function Landing() {
         <ThemeToggle />
       </div>
 
-      <div className="w-full max-w-5xl">
+      <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <TrendingUp className="h-12 w-12 text-primary" />
@@ -166,7 +129,7 @@ export default function Landing() {
             </div>
           </div>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Secure access portal for administrators, managers, team leaders, and agents
+            Secure access portal for trading platform management
           </p>
         </div>
 
@@ -174,88 +137,60 @@ export default function Landing() {
           <CardHeader>
             <CardTitle>Sign In</CardTitle>
             <CardDescription>
-              Select your role and enter your credentials
+              Enter your credentials to access the platform
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="admin" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 mb-6">
-                {roles.map((role) => (
-                  <TabsTrigger 
-                    key={role.id} 
-                    value={role.id}
-                    className="flex items-center gap-2"
-                    data-testid={`tab-${role.id}`}
-                  >
-                    <role.icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{role.name}</span>
-                  </TabsTrigger>
-                ))}
-              </TabsList>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="email" 
+                          placeholder="Enter your email"
+                          {...field} 
+                          data-testid="input-email" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {roles.map((role) => (
-                <TabsContent key={role.id} value={role.id} className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg mb-6">
-                    <div className="flex items-center gap-3 mb-2">
-                      <role.icon className="h-6 w-6 text-primary" />
-                      <h3 className="font-semibold">{role.name}</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{role.description}</p>
-                  </div>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="Enter your password"
+                          {...field} 
+                          data-testid="input-password" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder={`Enter your ${role.name.toLowerCase()} email`}
-                                {...field} 
-                                data-testid={`input-email-${role.id}`} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="password"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="password" 
-                                placeholder="Enter your password"
-                                {...field} 
-                                data-testid={`input-password-${role.id}`} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <Button
-                        type="submit"
-                        className="w-full hover-elevate active-elevate-2"
-                        disabled={loginMutation.isPending}
-                        data-testid={`button-login-${role.id}`}
-                      >
-                        {loginMutation.isPending ? 'Signing in...' : `Sign in as ${role.name}`}
-                      </Button>
-                    </form>
-                  </Form>
-                </TabsContent>
-              ))}
-            </Tabs>
+                <Button
+                  type="submit"
+                  className="w-full hover-elevate active-elevate-2"
+                  disabled={loginMutation.isPending}
+                  data-testid="button-login"
+                >
+                  {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </form>
+            </Form>
 
             <div className="mt-6 text-center">
               <a 

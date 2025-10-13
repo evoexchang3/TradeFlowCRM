@@ -9,6 +9,10 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthProvider } from "@/lib/auth";
 import Dashboard from "@/pages/dashboard";
+import AdminDashboard from "@/pages/admin-dashboard";
+import CRMDashboard from "@/pages/crm-dashboard";
+import TeamDashboard from "@/pages/team-dashboard";
+import AgentDashboard from "@/pages/agent-dashboard";
 import Clients from "@/pages/clients";
 import ClientDetail from "@/pages/client-detail";
 import ClientForm from "@/pages/client-form";
@@ -31,10 +35,10 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/login" component={Login} />
       <Route path="/" component={Landing} />
-      <Route path="/admin" component={Dashboard} />
-      <Route path="/crm" component={Dashboard} />
-      <Route path="/team" component={Dashboard} />
-      <Route path="/agent" component={Dashboard} />
+      <Route path="/admin" component={AdminDashboard} />
+      <Route path="/crm" component={CRMDashboard} />
+      <Route path="/team" component={TeamDashboard} />
+      <Route path="/agent" component={AgentDashboard} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/clients" component={Clients} />
       <Route path="/clients/new" component={ClientForm} />
