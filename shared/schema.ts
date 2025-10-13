@@ -26,8 +26,10 @@ export const auditActionEnum = pgEnum('audit_action', [
   'login', 'logout', 'client_create', 'client_edit', 'client_delete',
   'trade_create', 'trade_edit', 'trade_close', 'balance_adjust',
   'role_create', 'role_edit', 'role_delete', 'permission_change',
-  'import', 'export', 'impersonation'
+  'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use'
 ]);
+export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
+export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -205,11 +207,27 @@ export const callLogs = pgTable("call_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// API Keys for external platform integration
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Friendly name for the API key
+  keyHash: text("key_hash").notNull().unique(), // Hashed API key for security
+  keyPrefix: text("key_prefix").notNull(), // First 8 chars for display (e.g., "sk_live_")
+  scope: apiKeyScopeEnum("scope").notNull().default('read'),
+  ipWhitelist: text("ip_whitelist").array(), // Array of allowed IPs
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  status: apiKeyStatusEnum("status").notNull().default('active'),
+  expiresAt: timestamp("expires_at"), // Optional expiration
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, { fields: [users.roleId], references: [roles.id] }),
   team: one(teams, { fields: [users.teamId], references: [teams.id] }),
   auditLogs: many(auditLogs),
+  apiKeys: many(apiKeys),
 }));
 
 export const rolesRelations = relations(roles, ({ many }) => ({
@@ -257,6 +275,10 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 export const callLogsRelations = relations(callLogs, ({ one }) => ({
   client: one(clients, { fields: [callLogs.clientId], references: [callLogs.id] }),
   agent: one(users, { fields: [callLogs.agentId], references: [users.id] }),
+}));
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  creator: one(users, { fields: [apiKeys.createdBy], references: [users.id] }),
 }));
 
 // Insert Schemas
@@ -348,6 +370,17 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type CallLog = typeof callLogs.$inferSelect;
 export type InsertCallLog = z.infer<typeof insertCallLogSchema>;
 
+export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
+  id: true,
+  keyHash: true,
+  keyPrefix: true,
+  createdAt: true,
+  lastUsedAt: true,
+});
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
+
 // Permission constants
 export const PERMISSIONS = {
   // Client permissions
@@ -390,4 +423,9 @@ export const PERMISSIONS = {
   
   // Call
   CLIENT_CALL: 'client.call',
+  
+  // API Key Management
+  API_KEY_VIEW: 'api_key.view',
+  API_KEY_CREATE: 'api_key.create',
+  API_KEY_REVOKE: 'api_key.revoke',
 } as const;
