@@ -65,6 +65,9 @@ export default function ClientDetail() {
   const [transferToSubaccountId, setTransferToSubaccountId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
   const [transferNotes, setTransferNotes] = useState('');
+  const [filterSubaccount, setFilterSubaccount] = useState<string>('all');
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -81,6 +84,36 @@ export default function ClientDetail() {
     queryKey: ['/api/subaccounts', client?.account?.id],
     queryFn: () => apiRequest(`/api/subaccounts?accountId=${client?.account?.id}`, 'GET'),
     enabled: !!client?.account?.id,
+  });
+
+  const { data: internalTransfers = [] } = useQuery({
+    queryKey: ['/api/internal-transfers', client?.account?.id],
+    queryFn: () => apiRequest(`/api/internal-transfers?accountId=${client?.account?.id}`, 'GET'),
+    enabled: !!client?.account?.id,
+  });
+
+  // Filter transfers based on subaccount and date range
+  const filteredTransfers = internalTransfers.filter((transfer: any) => {
+    // Subaccount filter
+    if (filterSubaccount !== 'all') {
+      if (transfer.fromSubaccountId !== filterSubaccount && transfer.toSubaccountId !== filterSubaccount) {
+        return false;
+      }
+    }
+
+    // Date range filter
+    const transferDate = new Date(transfer.createdAt);
+    if (filterDateFrom) {
+      const fromDate = new Date(filterDateFrom);
+      if (transferDate < fromDate) return false;
+    }
+    if (filterDateTo) {
+      const toDate = new Date(filterDateTo);
+      toDate.setHours(23, 59, 59, 999); // End of day
+      if (transferDate > toDate) return false;
+    }
+
+    return true;
   });
 
   const updateStatusMutation = useMutation({
@@ -188,7 +221,7 @@ export default function ClientDetail() {
       apiRequest('/api/subaccounts/transfer', 'POST', data),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/subaccounts', client?.account?.id] });
-      queryClient.invalidateQueries({ queryKey: ['/api/internal-transfers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/internal-transfers', client?.account?.id] });
       setTransferDialogOpen(false);
       setTransferFromSubaccountId('');
       setTransferToSubaccountId('');
@@ -403,6 +436,7 @@ export default function ClientDetail() {
           <TabsTrigger value="positions" data-testid="tab-positions">Positions</TabsTrigger>
           <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">Subaccounts</TabsTrigger>
           <TabsTrigger value="transactions" data-testid="tab-transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="transfers" data-testid="tab-transfers">Transfer History</TabsTrigger>
           <TabsTrigger value="comments" data-testid="tab-comments">Comments</TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
@@ -752,6 +786,149 @@ export default function ClientDetail() {
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-8">
                         <p className="text-sm text-muted-foreground">No transactions</p>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transfers" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <CardTitle className="text-lg">Internal Transfer History</CardTitle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    // Export filtered transfers to CSV
+                    const headers = ['Date', 'From Subaccount', 'To Subaccount', 'Amount', 'Status', 'Notes'];
+                    const csvData = filteredTransfers.map((transfer: any) => {
+                    const fromSub = subaccounts.find((s: any) => s.id === transfer.fromSubaccountId);
+                    const toSub = subaccounts.find((s: any) => s.id === transfer.toSubaccountId);
+                    return [
+                      new Date(transfer.createdAt).toLocaleString(),
+                      fromSub?.name || transfer.fromSubaccountId,
+                      toSub?.name || transfer.toSubaccountId,
+                      transfer.amount,
+                      transfer.status,
+                      transfer.notes || '',
+                    ].map(val => `"${val}"`).join(',');
+                  });
+                  const csv = [headers.join(','), ...csvData].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `transfer-history-${client.firstName}-${client.lastName}-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                data-testid="button-export-transfers"
+              >
+                Export to CSV
+              </Button>
+              </div>
+              <div className="flex gap-4 mt-4">
+                <div className="flex-1">
+                  <Label htmlFor="filter-subaccount" className="text-sm">Filter by Subaccount</Label>
+                  <Select value={filterSubaccount} onValueChange={setFilterSubaccount}>
+                    <SelectTrigger id="filter-subaccount" data-testid="select-filter-subaccount">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Subaccounts</SelectItem>
+                      {subaccounts.map((sub: any) => (
+                        <SelectItem key={sub.id} value={sub.id}>
+                          {sub.name} ({sub.currency})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="filter-date-from" className="text-sm">From Date</Label>
+                  <Input
+                    id="filter-date-from"
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    data-testid="input-filter-date-from"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="filter-date-to" className="text-sm">To Date</Label>
+                  <Input
+                    id="filter-date-to"
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    data-testid="input-filter-date-to"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>From</TableHead>
+                    <TableHead>To</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredTransfers.length > 0 ? (
+                    filteredTransfers.map((transfer: any) => {
+                      const fromSub = subaccounts.find((s: any) => s.id === transfer.fromSubaccountId);
+                      const toSub = subaccounts.find((s: any) => s.id === transfer.toSubaccountId);
+                      return (
+                        <TableRow key={transfer.id} data-testid={`transfer-row-${transfer.id}`}>
+                          <TableCell className="text-sm" data-testid="text-transfer-date">
+                            {new Date(transfer.createdAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <div className="font-medium">{fromSub?.name || 'Unknown'}</div>
+                            <div className="text-xs text-muted-foreground">{fromSub?.currency}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            <div className="font-medium">{toSub?.name || 'Unknown'}</div>
+                            <div className="text-xs text-muted-foreground">{toSub?.currency}</div>
+                          </TableCell>
+                          <TableCell className="font-mono font-medium" data-testid="text-transfer-amount">
+                            ${transfer.amount}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={
+                                transfer.status === 'completed' ? 'default' : 
+                                transfer.status === 'rejected' ? 'destructive' : 
+                                'secondary'
+                              }
+                              data-testid="badge-transfer-status"
+                            >
+                              {transfer.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate" data-testid="text-transfer-notes">
+                            {transfer.notes || '-'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        <p className="text-sm text-muted-foreground">No internal transfers</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Transfers between subaccounts will appear here
+                        </p>
                       </TableCell>
                     </TableRow>
                   )}
