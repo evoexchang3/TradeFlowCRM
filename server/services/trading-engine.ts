@@ -212,12 +212,23 @@ class TradingEngine {
     const equity = balance + totalUnrealizedPnl;
     const freeMargin = equity - totalMargin;
     const marginLevel = totalMargin > 0 ? (equity / totalMargin) * 100 : 0;
+    
+    // Cap margin level at 999999.99 to prevent numeric overflow (database column is numeric(8,2))
+    const cappedMarginLevel = Math.min(marginLevel, 999999.99);
+
+    console.log('[TRADING ENGINE] Account metrics:', {
+      equity,
+      margin: totalMargin,
+      freeMargin,
+      marginLevel,
+      cappedMarginLevel
+    });
 
     await storage.updateAccount(accountId, {
       equity: equity.toString(),
       margin: totalMargin.toString(),
       freeMargin: freeMargin.toString(),
-      marginLevel: marginLevel.toString(),
+      marginLevel: cappedMarginLevel.toString(),
     });
   }
 

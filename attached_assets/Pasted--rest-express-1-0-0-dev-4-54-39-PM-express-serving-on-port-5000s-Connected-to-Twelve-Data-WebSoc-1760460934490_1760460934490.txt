@@ -1,0 +1,74 @@
+
+> rest-express@1.0.0 dev
+4:54:39 PM [express] serving on port 5000s
+Connected to Twelve Data WebSocket
+Browserslist: browsers data (caniuse-lite) is 12 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+Missing bid/ask for EUR/USD, skipping order check
+4:54:45 PM [express] GET /api/me 304 in 82ms :: {"user":{"id":"716cba44-a1cc-4168-80a1-7abb36d8550f"…
+4:54:46 PM [express] GET /api/roles/632e4ffb-c1d6-467b-951b-a59ca625a3f7 304 in 77ms :: {"id":"632e4…
+4:54:46 PM [express] GET /api/roles/632e4ffb-c1d6-467b-951b-a59ca625a3f7 304 in 80ms :: {"id":"632e4…
+4:54:46 PM [express] GET /api/dashboard/stats 200 in 157ms :: {"totalClients":10,"activePositions":8…
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+4:54:58 PM [express] GET /api/symbols/forex 304 in 550ms :: [{"symbol":"AED/ARS","currency_group":"E…
+4:54:58 PM [express] GET /api/clients 304 in 567ms :: [{"id":"c526a660-63c0-40bd-bd11-9f3ada9d0888",…
+Client connected to market data stream
+4:54:58 PM [express] GET /api/clients/c526a660-63c0-40bd-bd11-9f3ada9d0888/accounts 304 in 155ms :: …
+4:54:58 PM [express] GET /api/positions 200 in 80ms :: [{"id":"24131732-9aaa-42a2-abad-6124aef3302b"…
+4:54:59 PM [express] GET /api/users 304 in 78ms :: [{"id":"4ec33425-eb2c-48f1-b6af-b256033d7c00","em…
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+[ORDER DEBUG] Received order request: {
+  "symbol": "EUR/USD",
+  "type": "market",
+  "side": "buy",
+  "quantity": 0.01,
+  "leverage": "100",
+  "spread": "0.00001",
+  "fees": "0",
+  "price": 1,
+  "accountId": "1383f139-2c7b-42fb-83c8-58308997d6ef"
+}
+[TRADING ENGINE] Creating order with data: {
+  "accountId": "1383f139-2c7b-42fb-83c8-58308997d6ef",
+  "symbol": "EUR/USD",
+  "type": "market",
+  "side": "buy",
+  "quantity": 0.01,
+  "price": 1,
+  "leverage": "100",
+  "spread": "0.00001",
+  "fees": "0",
+  "initiatorType": "admin",
+  "initiatorId": "716cba44-a1cc-4168-80a1-7abb36d8550f",
+  "status": "filled"
+}
+[TRADING ENGINE] Order created successfully: a5bbcdd3-4f44-4fda-add5-17381dd89cbd
+[TRADING ENGINE] Creating position with data: {
+  "accountId": "1383f139-2c7b-42fb-83c8-58308997d6ef",
+  "orderId": "a5bbcdd3-4f44-4fda-add5-17381dd89cbd",
+  "symbol": "EUR/USD",
+  "side": "buy",
+  "quantity": "0.01000000",
+  "openPrice": "1.1611",
+  "currentPrice": "1.1611",
+  "stopLoss": null,
+  "takeProfit": null,
+  "leverage": "100.00",
+  "spread": "0.00001",
+  "fees": "0.00",
+  "initiatorType": "admin",
+  "initiatorId": "716cba44-a1cc-4168-80a1-7abb36d8550f",
+  "status": "open"
+}
+[TRADING ENGINE] Position created successfully
+4:55:17 PM [express] POST /api/orders 500 in 1331ms :: {"error":"numeric field overflow"}
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
