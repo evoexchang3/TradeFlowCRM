@@ -30,6 +30,7 @@ const clientFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
+  password: z.string().transform(val => val === '' ? undefined : val).pipe(z.string().min(6, "Password must be at least 6 characters").optional()),
   phone: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
@@ -115,10 +116,16 @@ export default function ClientForm() {
   });
 
   const onSubmit = (data: ClientFormData) => {
+    // Remove password from payload if it's empty/undefined to keep existing password in edit mode
+    const submitData = { ...data };
+    if (!submitData.password) {
+      delete submitData.password;
+    }
+    
     if (isEdit) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(submitData);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(submitData);
     }
   };
 
@@ -202,6 +209,22 @@ export default function ClientForm() {
 
                 <FormField
                   control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password {isEdit && <span className="text-muted-foreground text-xs">(leave blank to keep current)</span>}</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} data-testid="input-password" placeholder={isEdit ? "Enter new password" : "Minimum 6 characters"} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
@@ -213,21 +236,22 @@ export default function ClientForm() {
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} data-testid="input-date-of-birth" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField
-                control={form.control}
-                name="dateOfBirth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date of Birth</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} data-testid="input-date-of-birth" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </CardContent>
           </Card>
 
