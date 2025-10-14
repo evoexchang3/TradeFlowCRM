@@ -446,8 +446,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Enrich clients with agent and team information
       const enrichedClients = await Promise.all(clients.map(async (client) => {
-        const assignedAgent = client.assignedAgentId ? await storage.getUserById(client.assignedAgentId) : null;
-        const team = client.teamId ? await storage.getTeamById(client.teamId) : null;
+        const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
+        const team = client.teamId ? await storage.getTeam(client.teamId) : null;
         return {
           ...client,
           assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
