@@ -31,7 +31,9 @@ class TwelveDataService {
     }
 
     try {
-      this.ws = new WebSocket(TWELVE_DATA_WS_URL);
+      // Twelve Data WebSocket requires API key in URL
+      const wsUrl = `${TWELVE_DATA_WS_URL}?apikey=${TWELVE_DATA_API_KEY}`;
+      this.ws = new WebSocket(wsUrl);
 
       this.ws.on('open', () => {
         console.log('Connected to Twelve Data WebSocket');
