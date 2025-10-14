@@ -254,24 +254,67 @@ class TradingEngine {
       throw new Error('Position not found');
     }
 
-    // If key values changed, recalculate P/L (unless P/L was manually overridden with a value)
-    const shouldRecalculatePnl = (updates.openPrice || updates.quantity || updates.side) && 
-                                  (!updates.unrealizedPnl || updates.unrealizedPnl === '');
-    
-    if (shouldRecalculatePnl) {
-      const quote = await twelveDataService.getQuote(position.symbol);
-      const openPrice = parseFloat(updates.openPrice || position.openPrice);
-      const quantity = parseFloat(updates.quantity || position.quantity);
-      const side = updates.side || position.side;
+    // For CLOSED positions: recalculate realized P/L if critical fields change
+    if (position.status === 'closed') {
+      const shouldRecalculateClosedPnl = (updates.openPrice || updates.closePrice || updates.quantity || updates.side) && 
+                                          (!updates.unrealizedPnl || updates.unrealizedPnl === '');
       
-      // Use the updated side value to select correct price (bid for buy, ask for sell)
-      const currentPrice = side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
-      const priceChange = side === 'buy' 
-        ? currentPrice - openPrice
-        : openPrice - currentPrice;
+      if (shouldRecalculateClosedPnl) {
+        const openPrice = parseFloat(updates.openPrice || position.openPrice);
+        const closePrice = parseFloat(updates.closePrice || position.closePrice || position.currentPrice || '0');
+        const quantity = parseFloat(updates.quantity || position.quantity);
+        const side = updates.side || position.side;
+        
+        const priceChange = side === 'buy' 
+          ? closePrice - openPrice
+          : openPrice - closePrice;
+        
+        const oldRealizedPnl = parseFloat(position.realizedPnl || '0');
+        const newRealizedPnl = priceChange * quantity;
+        const pnlDifference = newRealizedPnl - oldRealizedPnl;
+        
+        // Update the realized P/L
+        updates.unrealizedPnl = newRealizedPnl.toFixed(8);
+        
+        // Adjust account balance for the P/L difference
+        if (pnlDifference !== 0) {
+          const account = await storage.getAccount(position.accountId);
+          if (account) {
+            const currentRealBalance = parseFloat(account.realBalance || '0');
+            const newRealBalance = currentRealBalance + pnlDifference;
+            
+            await storage.updateAccount(position.accountId, {
+              realBalance: newRealBalance.toFixed(8),
+              balance: (
+                newRealBalance + 
+                parseFloat(account.demoBalance || '0') + 
+                parseFloat(account.bonusBalance || '0')
+              ).toFixed(8),
+            });
+          }
+        }
+      }
+    }
+    // For OPEN positions: recalculate unrealized P/L (unless P/L was manually overridden)
+    else {
+      const shouldRecalculatePnl = (updates.openPrice || updates.quantity || updates.side) && 
+                                    (!updates.unrealizedPnl || updates.unrealizedPnl === '');
       
-      updates.unrealizedPnl = (priceChange * quantity).toFixed(8);
-      updates.currentPrice = currentPrice.toString();
+      if (shouldRecalculatePnl) {
+        const quote = await twelveDataService.getQuote(position.symbol);
+        const openPrice = parseFloat(updates.openPrice || position.openPrice);
+        const quantity = parseFloat(updates.quantity || position.quantity);
+        const side = updates.side || position.side;
+        
+        // Use the updated side value to select correct price (bid for buy, ask for sell)
+        const currentPrice = side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
+        const priceChange = side === 'buy' 
+          ? currentPrice - openPrice
+          : openPrice - currentPrice;
+        
+        updates.unrealizedPnl = (priceChange * quantity).toFixed(8);
+        updates.currentPrice = currentPrice.toString();
+      }
     }
     
     const modifiedPosition = await storage.updatePosition(positionId, updates);
