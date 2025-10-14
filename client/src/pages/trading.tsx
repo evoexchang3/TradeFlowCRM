@@ -508,7 +508,7 @@ export default function Trading() {
                         <TableCell>1:{position.leverage || '1'}</TableCell>
                         <TableCell>
                           <span className={parseFloat(position.unrealizedPnl) >= 0 ? 'text-success' : 'text-destructive'}>
-                            ${parseFloat(position.unrealizedPnl).toFixed(4)}
+                            ${parseFloat(position.unrealizedPnl).toFixed(8).replace(/\.?0+$/, '')}
                           </span>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">

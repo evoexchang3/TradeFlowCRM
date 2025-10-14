@@ -1121,7 +1121,7 @@ export default function ClientDetail() {
                           <span className={`font-mono font-medium ${
                             (position.unrealizedPnl || 0) >= 0 ? 'text-success' : 'text-destructive'
                           }`}>
-                            ${Number(position.unrealizedPnl || 0).toFixed(4)}
+                            ${parseFloat(position.unrealizedPnl || 0).toFixed(8).replace(/\.?0+$/, '')}
                           </span>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
