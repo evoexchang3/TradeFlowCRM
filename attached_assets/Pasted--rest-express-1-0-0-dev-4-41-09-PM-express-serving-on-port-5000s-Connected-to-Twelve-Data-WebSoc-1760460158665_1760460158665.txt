@@ -1,0 +1,39 @@
+
+> rest-express@1.0.0 dev
+4:41:09 PM [express] serving on port 5000s
+Connected to Twelve Data WebSocket
+Browserslist: browsers data (caniuse-lite) is 12 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+Missing bid/ask for EUR/USD, skipping order check
+4:41:17 PM [express] GET /api/me 304 in 84ms :: {"user":{"id":"716cba44-a1cc-4168-80a1-7abb36d8550f"…
+4:41:18 PM [express] GET /api/roles/632e4ffb-c1d6-467b-951b-a59ca625a3f7 304 in 82ms :: {"id":"632e4…
+4:41:18 PM [express] GET /api/roles/632e4ffb-c1d6-467b-951b-a59ca625a3f7 304 in 76ms :: {"id":"632e4…
+4:41:18 PM [express] GET /api/dashboard/stats 304 in 162ms :: {"totalClients":10,"activePositions":2…
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+4:41:54 PM [express] GET /api/clients 304 in 607ms :: [{"id":"c526a660-63c0-40bd-bd11-9f3ada9d0888",…
+Missing bid/ask for EUR/USD, skipping order check
+4:41:55 PM [express] GET /api/clients/c526a660-63c0-40bd-bd11-9f3ada9d0888/accounts 304 in 155ms :: …
+4:41:55 PM [express] GET /api/symbols/forex 304 in 659ms :: [{"symbol":"AED/ARS","currency_group":"E…
+4:41:55 PM [express] GET /api/positions 304 in 78ms :: [{"id":"51e8e5d5-f109-4629-b110-b47729e9c858"…
+Client connected to market data stream
+Client disconnected from market data stream
+4:41:58 PM [express] GET /api/symbols/crypto 304 in 1838ms :: [{"symbol":"0xBTC/USD","available_exch…
+Client connected to market data stream
+Missing bid/ask for EUR/USD, skipping order check
+Client disconnected from market data stream
+Client connected to market data stream
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check
+Missing bid/ask for EUR/USD, skipping order check

@@ -388,7 +388,12 @@ export default function Trading() {
                       >
                         <div>
                           <p className="font-medium">{symbol.symbol}</p>
-                          <p className="text-xs text-muted-foreground">{symbol.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {symbol.name || 
+                             (symbol.currency_base && symbol.currency_quote 
+                               ? `${symbol.currency_base}/${symbol.currency_quote}` 
+                               : symbol.currency_group || symbol.type || symbol.exchange || '')}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="font-mono">{quote?.price?.toFixed(5) || '—'}</p>
@@ -486,7 +491,12 @@ export default function Trading() {
                 {selectedSymbol ? (
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="font-medium">{selectedSymbol.symbol}</p>
-                    <p className="text-xs text-muted-foreground">{selectedSymbol.name || 'Loading...'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedSymbol.name || 
+                       (selectedSymbol.currency_base && selectedSymbol.currency_quote 
+                         ? `${selectedSymbol.currency_base} / ${selectedSymbol.currency_quote}` 
+                         : selectedSymbol.currency_group || selectedSymbol.type || selectedSymbol.exchange || 'Trading Instrument')}
+                    </p>
                   </div>
                 ) : (
                   <div className="p-3 bg-muted rounded-lg">
