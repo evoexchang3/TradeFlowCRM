@@ -51,7 +51,9 @@ class TradingEngine {
       status: type === 'market' ? 'filled' : 'pending',
     };
 
+    console.log('[TRADING ENGINE] Creating order with data:', JSON.stringify(order, null, 2));
     const createdOrder = await storage.createOrder(order);
+    console.log('[TRADING ENGINE] Order created successfully:', createdOrder.id);
 
     // If market order, execute immediately
     if (type === 'market') {
@@ -101,7 +103,9 @@ class TradingEngine {
       status: 'open',
     };
 
+    console.log('[TRADING ENGINE] Creating position with data:', JSON.stringify(position, null, 2));
     await storage.createPosition(position);
+    console.log('[TRADING ENGINE] Position created successfully');
 
     // Update account equity and margin
     await this.updateAccountMetrics(order.accountId);
