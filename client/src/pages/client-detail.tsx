@@ -86,13 +86,19 @@ export default function ClientDetail() {
 
   const { data: subaccounts = [] } = useQuery({
     queryKey: ['/api/subaccounts', client?.account?.id],
-    queryFn: () => apiRequest('GET', `/api/subaccounts?accountId=${client?.account?.id}`),
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/subaccounts?accountId=${client?.account?.id}`);
+      return await res.json();
+    },
     enabled: !!client?.account?.id,
   });
 
   const { data: internalTransfers = [] } = useQuery({
     queryKey: ['/api/internal-transfers', client?.account?.id],
-    queryFn: () => apiRequest('GET', `/api/internal-transfers?accountId=${client?.account?.id}`),
+    queryFn: async () => {
+      const res = await apiRequest('GET', `/api/internal-transfers?accountId=${client?.account?.id}`);
+      return await res.json();
+    },
     enabled: !!client?.account?.id,
   });
 
