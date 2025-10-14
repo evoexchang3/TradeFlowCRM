@@ -173,6 +173,44 @@ export default function Clients() {
     },
   });
 
+  const updatePipelineStatusMutation = useMutation({
+    mutationFn: ({ clientId, pipelineStatus }: { clientId: string; pipelineStatus: string | null }) =>
+      apiRequest('PATCH', `/api/clients/${clientId}`, { pipelineStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      toast({
+        title: "Pipeline status updated",
+        description: "Client pipeline status has been updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update pipeline status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateKycStatusMutation = useMutation({
+    mutationFn: ({ clientId, kycStatus }: { clientId: string; kycStatus: string }) =>
+      apiRequest('PATCH', `/api/clients/${clientId}/kyc`, { kycStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      toast({
+        title: "KYC status updated",
+        description: "Client KYC status has been updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update KYC status.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Check if user can assign agents (Team Leader, CRM Manager, or Admin only)
   const canAssignAgents = () => {
     if (!currentUser || !currentUser.role) return false;
@@ -454,10 +492,45 @@ export default function Clients() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      {client.pipelineStatus ? getPipelineStatusBadge(client.pipelineStatus) : <span className="text-xs text-muted-foreground">-</span>}
+                      <Select
+                        value={client.pipelineStatus || 'none'}
+                        onValueChange={(value) => updatePipelineStatusMutation.mutate({
+                          clientId: client.id,
+                          pipelineStatus: value === 'none' ? null : value
+                        })}
+                      >
+                        <SelectTrigger className="w-[150px] h-8 text-xs" data-testid={`select-pipeline-${client.id}`}>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="new_lead">New Lead</SelectItem>
+                          <SelectItem value="contact_attempted">Contact Attempted</SelectItem>
+                          <SelectItem value="in_discussion">In Discussion</SelectItem>
+                          <SelectItem value="kyc_pending">KYC Pending</SelectItem>
+                          <SelectItem value="active_client">Active Client</SelectItem>
+                          <SelectItem value="cold_inactive">Cold/Inactive</SelectItem>
+                          <SelectItem value="lost">Lost</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
-                      {getKycStatusBadge(client.kycStatus)}
+                      <Select
+                        value={client.kycStatus}
+                        onValueChange={(value) => updateKycStatusMutation.mutate({
+                          clientId: client.id,
+                          kycStatus: value
+                        })}
+                      >
+                        <SelectTrigger className="w-[120px] h-8 text-xs" data-testid={`select-kyc-${client.id}`}>
+                          <SelectValue placeholder="Select KYC" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="verified">Verified</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -470,31 +543,25 @@ export default function Clients() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {canAssignAgents() ? (
-                        <Select
-                          value={client.assignedAgentId || 'unassigned'}
-                          onValueChange={(value) => assignAgentMutation.mutate({
-                            clientId: client.id,
-                            assignedAgentId: value === 'unassigned' ? null : value
-                          })}
-                        >
-                          <SelectTrigger className="w-[140px] h-8 text-xs" data-testid={`select-agent-${client.id}`}>
-                            <SelectValue placeholder="Unassigned" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
-                            {agents.map((agent: any) => (
-                              <SelectItem key={agent.id} value={agent.id}>
-                                {agent.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          {client.assignedAgent?.name || 'Unassigned'}
-                        </span>
-                      )}
+                      <Select
+                        value={client.assignedAgentId || 'unassigned'}
+                        onValueChange={(value) => assignAgentMutation.mutate({
+                          clientId: client.id,
+                          assignedAgentId: value === 'unassigned' ? null : value
+                        })}
+                      >
+                        <SelectTrigger className="w-[140px] h-8 text-xs" data-testid={`select-agent-${client.id}`}>
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          {agents.map((agent: any) => (
+                            <SelectItem key={agent.id} value={agent.id}>
+                              {agent.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
