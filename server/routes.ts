@@ -1158,8 +1158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create user
       const newUser = await storage.createUser({
-        firstName,
-        lastName,
+        name: `${firstName} ${lastName}`,
         email,
         password: hashedPassword,
         roleId,
@@ -1214,8 +1213,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update user
       const updates: any = {};
-      if (firstName !== undefined) updates.firstName = firstName;
-      if (lastName !== undefined) updates.lastName = lastName;
+      if (firstName !== undefined && lastName !== undefined) {
+        updates.name = `${firstName} ${lastName}`;
+      }
       if (email !== undefined) updates.email = email;
       if (roleId !== undefined) updates.roleId = roleId;
       if (teamId !== undefined) updates.teamId = teamId;
