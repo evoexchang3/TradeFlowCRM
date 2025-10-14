@@ -32,7 +32,7 @@ export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'c
 export const transferStatusEnum = pgEnum('transfer_status', ['pending', 'completed', 'rejected']);
 export const auditActionEnum = pgEnum('audit_action', [
   'login', 'logout', 'client_create', 'client_edit', 'client_delete',
-  'trade_create', 'trade_edit', 'trade_close', 'balance_adjust',
+  'trade_create', 'trade_edit', 'trade_close', 'trade_delete', 'balance_adjust',
   'role_create', 'role_edit', 'role_delete', 'permission_change',
   'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use'
 ]);

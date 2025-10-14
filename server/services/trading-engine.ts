@@ -252,8 +252,11 @@ class TradingEngine {
       throw new Error('Position not found');
     }
 
-    // If key values changed and P/L wasn't manually set, recalculate P/L immediately
-    if ((updates.openPrice || updates.quantity || updates.side) && !updates.unrealizedPnl) {
+    // If key values changed, recalculate P/L (unless P/L was manually overridden with a value)
+    const shouldRecalculatePnl = (updates.openPrice || updates.quantity || updates.side) && 
+                                  (!updates.unrealizedPnl || updates.unrealizedPnl === '');
+    
+    if (shouldRecalculatePnl) {
       const quote = await twelveDataService.getQuote(position.symbol);
       const openPrice = parseFloat(updates.openPrice || position.openPrice);
       const quantity = parseFloat(updates.quantity || position.quantity);

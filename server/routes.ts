@@ -540,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const account = await storage.getAccountByClientId(client.id);
-      const positions = await storage.getPositions({ accountId: account?.id });
+      const positions = await storage.getPositions({ accountId: account?.id, status: 'open' });
       const transactions = await storage.getTransactions({ accountId: account?.id });
 
       res.json({ ...client, account, positions, transactions });
