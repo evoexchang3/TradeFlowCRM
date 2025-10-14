@@ -82,6 +82,8 @@ export default function ClientDetail() {
   const [transferNewAgentId, setTransferNewAgentId] = useState<string>('');
   const [transferNewTeamId, setTransferNewTeamId] = useState<string>('');
   const [clientTransferReason, setClientTransferReason] = useState('');
+  const [quickCommentDialogOpen, setQuickCommentDialogOpen] = useState(false);
+  const [quickComment, setQuickComment] = useState('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -188,6 +190,8 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
       setNewComment('');
+      setQuickCommentDialogOpen(false);
+      setQuickComment('');
       toast({
         title: "Comment added",
         description: "Your comment has been added successfully.",
@@ -447,9 +451,36 @@ export default function ClientDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" data-testid="button-call-client" className="hover-elevate active-elevate-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.href = `tel:${client.phone}`}
+            disabled={!client.phone}
+            data-testid="button-call-client" 
+            className="hover-elevate active-elevate-2"
+          >
             <Phone className="h-4 w-4 mr-2" />
             Call
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.location.href = `mailto:${client.email}`}
+            data-testid="button-email-client" 
+            className="hover-elevate active-elevate-2"
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Email
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setQuickCommentDialogOpen(true)}
+            data-testid="button-add-comment" 
+            className="hover-elevate active-elevate-2"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Comment
           </Button>
           <Button 
             variant="outline" 
@@ -1397,6 +1428,62 @@ export default function ClientDetail() {
               className="hover-elevate active-elevate-2"
             >
               {clientTransferMutation.isPending ? "Transferring..." : "Transfer Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Comment Dialog */}
+      <Dialog open={quickCommentDialogOpen} onOpenChange={setQuickCommentDialogOpen}>
+        <DialogContent data-testid="dialog-quick-comment">
+          <DialogHeader>
+            <DialogTitle>Add Quick Comment</DialogTitle>
+            <DialogDescription>
+              Add a quick note or comment about this client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="quick-comment">Comment *</Label>
+              <Textarea
+                id="quick-comment"
+                placeholder="Enter your comment..."
+                value={quickComment}
+                onChange={(e) => setQuickComment(e.target.value)}
+                rows={4}
+                data-testid="textarea-quick-comment"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setQuickCommentDialogOpen(false);
+                setQuickComment('');
+              }}
+              data-testid="button-cancel-quick-comment"
+              className="hover-elevate active-elevate-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!quickComment.trim()) {
+                  toast({
+                    title: "Error",
+                    description: "Please enter a comment.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                addCommentMutation.mutate(quickComment);
+              }}
+              disabled={addCommentMutation.isPending}
+              data-testid="button-submit-quick-comment"
+              className="hover-elevate active-elevate-2"
+            >
+              {addCommentMutation.isPending ? "Adding..." : "Add Comment"}
             </Button>
           </DialogFooter>
         </DialogContent>
