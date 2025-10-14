@@ -453,6 +453,12 @@ export const modifyPositionSchema = z.object({
     message: "Quantity must be a positive number",
   }).optional(),
   side: z.enum(['buy', 'sell']).optional(),
+  unrealizedPnl: z.string().refine((val) => !isNaN(parseFloat(val)), {
+    message: "P/L must be a valid number",
+  }).optional(),
+  openedAt: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Opened date must be a valid date",
+  }).optional(),
 });
 
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({

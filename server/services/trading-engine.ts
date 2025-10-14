@@ -220,14 +220,15 @@ class TradingEngine {
     quantity?: string;
     side?: 'buy' | 'sell';
     unrealizedPnl?: string;
+    openedAt?: string;
   }): Promise<Position> {
     const position = await storage.getPosition(positionId);
     if (!position) {
       throw new Error('Position not found');
     }
 
-    // If key values changed, recalculate P/L immediately
-    if (updates.openPrice || updates.quantity || updates.side) {
+    // If key values changed and P/L wasn't manually set, recalculate P/L immediately
+    if ((updates.openPrice || updates.quantity || updates.side) && !updates.unrealizedPnl) {
       const quote = await twelveDataService.getQuote(position.symbol);
       const openPrice = parseFloat(updates.openPrice || position.openPrice);
       const quantity = parseFloat(updates.quantity || position.quantity);

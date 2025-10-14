@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check, ArrowRightLeft, Edit } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check, ArrowRightLeft, Edit, X } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +94,8 @@ export default function ClientDetail() {
   const [modifyOpenPrice, setModifyOpenPrice] = useState('');
   const [modifyQuantity, setModifyQuantity] = useState('');
   const [modifySide, setModifySide] = useState<'buy' | 'sell'>('buy');
+  const [modifyPnl, setModifyPnl] = useState('');
+  const [modifyOpenedAt, setModifyOpenedAt] = useState('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -397,7 +399,7 @@ export default function ClientDetail() {
   });
 
   const modifyPositionMutation = useMutation({
-    mutationFn: (data: { openPrice?: string; quantity?: string; side?: 'buy' | 'sell' }) =>
+    mutationFn: (data: { openPrice?: string; quantity?: string; side?: 'buy' | 'sell'; unrealizedPnl?: string; openedAt?: string }) =>
       apiRequest('PATCH', `/api/positions/${selectedPosition?.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
@@ -412,6 +414,44 @@ export default function ClientDetail() {
       toast({
         title: "Position modification failed",
         description: error.message || "Failed to modify position.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const closePositionMutation = useMutation({
+    mutationFn: ({ id, quantity }: { id: string; quantity: string }) =>
+      apiRequest('POST', `/api/positions/${id}/close`, { quantity }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      toast({
+        title: "Position closed",
+        description: "Position has been successfully closed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to close position",
+        description: error.message || "Failed to close position.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePositionMutation = useMutation({
+    mutationFn: (id: string) =>
+      apiRequest('DELETE', `/api/positions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      toast({
+        title: "Position deleted",
+        description: "Position has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to delete position",
+        description: error.message || "Failed to delete position.",
         variant: "destructive",
       });
     },
@@ -932,15 +972,41 @@ export default function ClientDetail() {
                       data-testid="input-modify-open-price"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="modify-pnl">P/L ($)</Label>
+                    <Input
+                      id="modify-pnl"
+                      type="number"
+                      step="0.0001"
+                      placeholder="0.0000"
+                      value={modifyPnl}
+                      onChange={(e) => setModifyPnl(e.target.value)}
+                      data-testid="input-modify-pnl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="modify-opened-at">Opened Date/Time</Label>
+                    <Input
+                      id="modify-opened-at"
+                      type="datetime-local"
+                      value={modifyOpenedAt}
+                      onChange={(e) => setModifyOpenedAt(e.target.value)}
+                      data-testid="input-modify-opened-at"
+                    />
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button
                     onClick={() => {
-                      modifyPositionMutation.mutate({
+                      const updates: any = {
                         side: modifySide,
                         quantity: modifyQuantity,
                         openPrice: modifyOpenPrice,
-                      });
+                      };
+                      if (modifyPnl) updates.unrealizedPnl = modifyPnl;
+                      if (modifyOpenedAt) updates.openedAt = new Date(modifyOpenedAt).toISOString();
+                      
+                      modifyPositionMutation.mutate(updates);
                     }}
                     disabled={modifyPositionMutation.isPending}
                     data-testid="button-save-position"
@@ -1062,21 +1128,55 @@ export default function ClientDetail() {
                           {position.openedAt ? format(new Date(position.openedAt), 'MMM d, HH:mm') : '-'}
                         </TableCell>
                         <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              setSelectedPosition(position);
-                              setModifyOpenPrice(position.openPrice);
-                              setModifyQuantity(position.quantity);
-                              setModifySide(position.side);
-                              setModifyPositionDialogOpen(true);
-                            }}
-                            data-testid={`button-modify-position-${position.id}`}
-                          >
-                            <Edit className="h-3 w-3 mr-1" />
-                            Modify
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPosition(position);
+                                setModifyOpenPrice(position.openPrice);
+                                setModifyQuantity(position.quantity);
+                                setModifySide(position.side);
+                                setModifyPnl(position.unrealizedPnl || '');
+                                // Format datetime for datetime-local input
+                                if (position.openedAt) {
+                                  const date = new Date(position.openedAt);
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  const hours = String(date.getHours()).padStart(2, '0');
+                                  const minutes = String(date.getMinutes()).padStart(2, '0');
+                                  setModifyOpenedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+                                }
+                                setModifyPositionDialogOpen(true);
+                              }}
+                              data-testid={`button-modify-position-${position.id}`}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => closePositionMutation.mutate({ id: position.id, quantity: position.quantity })}
+                              disabled={closePositionMutation.isPending}
+                              data-testid={`button-close-position-${position.id}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete position ${position.symbol}?`)) {
+                                  deletePositionMutation.mutate(position.id);
+                                }
+                              }}
+                              disabled={deletePositionMutation.isPending}
+                              data-testid={`button-delete-position-${position.id}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

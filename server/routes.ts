@@ -1662,6 +1662,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/positions/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Verify position ownership
+      const position = await storage.getPosition(req.params.id);
+      if (!position) {
+        return res.status(404).json({ error: "Position not found" });
+      }
+
+      // For clients, verify they own this position
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        const account = await storage.getAccountByClientId(client!.id);
+        if (position.accountId !== account?.id) {
+          return res.status(403).json({ error: "Unauthorized to delete this position" });
+        }
+      }
+
+      // Delete the position
+      await storage.deletePosition(req.params.id);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        clientId: req.user?.type === 'client' ? req.user.id : undefined,
+        action: 'trade_delete',
+        targetType: 'position',
+        targetId: req.params.id,
+        details: { position },
+      });
+
+      res.json({ success: true, message: "Position deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== MARKET DATA =====
   app.get("/api/market-data/:symbol", async (req, res) => {
     try {
