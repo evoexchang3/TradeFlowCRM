@@ -96,6 +96,7 @@ export default function ClientDetail() {
   const [modifySide, setModifySide] = useState<'buy' | 'sell'>('buy');
   const [modifyPnl, setModifyPnl] = useState('');
   const [modifyOpenedAt, setModifyOpenedAt] = useState('');
+  const [modifyClosedAt, setModifyClosedAt] = useState('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -999,6 +1000,18 @@ export default function ClientDetail() {
                       data-testid="input-modify-opened-at"
                     />
                   </div>
+                  {selectedPosition?.status === 'closed' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="modify-closed-at">Closed Date/Time</Label>
+                      <Input
+                        id="modify-closed-at"
+                        type="datetime-local"
+                        value={modifyClosedAt}
+                        onChange={(e) => setModifyClosedAt(e.target.value)}
+                        data-testid="input-modify-closed-at"
+                      />
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button
@@ -1010,6 +1023,7 @@ export default function ClientDetail() {
                       };
                       if (modifyPnl) updates.unrealizedPnl = modifyPnl;
                       if (modifyOpenedAt) updates.openedAt = new Date(modifyOpenedAt).toISOString();
+                      if (modifyClosedAt) updates.closedAt = new Date(modifyClosedAt).toISOString();
                       
                       modifyPositionMutation.mutate(updates);
                     }}
@@ -1505,6 +1519,17 @@ export default function ClientDetail() {
                                   const hours = String(date.getHours()).padStart(2, '0');
                                   const minutes = String(date.getMinutes()).padStart(2, '0');
                                   setModifyOpenedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+                                }
+                                if (position.closedAt) {
+                                  const date = new Date(position.closedAt);
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  const hours = String(date.getHours()).padStart(2, '0');
+                                  const minutes = String(date.getMinutes()).padStart(2, '0');
+                                  setModifyClosedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+                                } else {
+                                  setModifyClosedAt('');
                                 }
                                 setModifyPositionDialogOpen(true);
                               }}

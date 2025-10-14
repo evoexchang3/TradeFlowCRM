@@ -246,6 +246,7 @@ class TradingEngine {
     side?: 'buy' | 'sell';
     unrealizedPnl?: string;
     openedAt?: Date | string;
+    closedAt?: Date | string;
   }): Promise<Position> {
     const position = await storage.getPosition(positionId);
     if (!position) {

@@ -1646,10 +1646,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         side: position.side,
       };
 
-      // Convert openedAt string to Date if provided
+      // Convert openedAt and closedAt strings to Date if provided
       const updates: any = { ...validatedData };
       if (updates.openedAt) {
         updates.openedAt = new Date(updates.openedAt);
+      }
+      if (updates.closedAt) {
+        updates.closedAt = new Date(updates.closedAt);
       }
 
       const modifiedPosition = await tradingEngine.modifyPosition(req.params.id, updates);

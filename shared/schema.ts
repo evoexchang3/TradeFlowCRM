@@ -459,6 +459,9 @@ export const modifyPositionSchema = z.object({
   openedAt: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Opened date must be a valid date",
   }).optional(),
+  closedAt: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Closed date must be a valid date",
+  }).optional(),
 });
 
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
