@@ -1546,7 +1546,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accountId,
         status: (req.query.status as string) || 'open' 
       });
-      res.json(positions);
+
+      // Update P/L with current market prices for open positions
+      const updatedPositions = await Promise.all(
+        positions.map(async (position) => {
+          if (position.status === 'open') {
+            try {
+              return await tradingEngine.updatePositionPnL(position);
+            } catch (error) {
+              console.error(`Failed to update P/L for position ${position.id}:`, error);
+              return position; // Return original if update fails
+            }
+          }
+          return position;
+        })
+      );
+
+      res.json(updatedPositions);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

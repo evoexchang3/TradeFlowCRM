@@ -154,7 +154,7 @@ export default function Trading() {
   // Get symbols for market data: include category symbols AND position symbols
   const categorySymbolsList = categorySymbols.slice(0, 20).map((s: TwelveDataSymbol) => s.symbol);
   const positionSymbols = positions?.map((p: any) => p.symbol) || [];
-  const uniqueSymbols = categorySymbolsList.concat(positionSymbols.filter(s => !categorySymbolsList.includes(s)));
+  const uniqueSymbols = categorySymbolsList.concat(positionSymbols.filter((s: string) => !categorySymbolsList.includes(s)));
   const quotes = useMarketData(uniqueSymbols);
 
   const placeOrderMutation = useMutation({
