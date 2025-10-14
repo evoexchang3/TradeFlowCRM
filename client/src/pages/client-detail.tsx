@@ -134,6 +134,11 @@ export default function ClientDetail() {
     queryKey: ['/api/users/agents'],
   });
 
+  const { data: closedPositions = [] } = useQuery({
+    queryKey: ['/api/clients', clientId, 'closed-positions'],
+    enabled: !!clientId,
+  });
+
   // Filter transfers based on subaccount and date range
   const filteredTransfers = internalTransfers.filter((transfer: any) => {
     // Subaccount filter
@@ -1076,12 +1081,11 @@ export default function ClientDetail() {
 
       <Tabs defaultValue="positions" className="w-full">
         <TabsList>
-          <TabsTrigger value="positions" data-testid="tab-positions">Positions</TabsTrigger>
+          <TabsTrigger value="positions" data-testid="tab-positions">Open Positions</TabsTrigger>
+          <TabsTrigger value="trade-history" data-testid="tab-trade-history">Trade History</TabsTrigger>
           <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">Subaccounts</TabsTrigger>
-          <TabsTrigger value="transactions" data-testid="tab-transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="transfers" data-testid="tab-transfers">Transfer History</TabsTrigger>
+          <TabsTrigger value="transfers" data-testid="tab-transfers">Transfers</TabsTrigger>
           <TabsTrigger value="comments" data-testid="tab-comments">Comments</TabsTrigger>
-          <TabsTrigger value="history" data-testid="tab-history">History</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
         </TabsList>
 
@@ -1436,67 +1440,112 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="transactions" className="mt-6">
+        <TabsContent value="trade-history" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Transaction History</CardTitle>
+              <CardTitle className="text-lg">Trade History (Closed Positions)</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Fund Type</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Method</TableHead>
+                    <TableHead>Symbol</TableHead>
+                    <TableHead>Side</TableHead>
+                    <TableHead>Volume</TableHead>
+                    <TableHead>Open Price</TableHead>
+                    <TableHead>Close Price</TableHead>
+                    <TableHead>P/L</TableHead>
+                    <TableHead>Opened</TableHead>
+                    <TableHead>Closed</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {client.transactions?.length > 0 ? (
-                    client.transactions.map((transaction: any) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell className="text-sm">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
-                        </TableCell>
+                  {closedPositions.length > 0 ? (
+                    closedPositions.map((position: any) => (
+                      <TableRow key={position.id}>
+                        <TableCell className="font-medium">{position.symbol}</TableCell>
                         <TableCell>
-                          <Badge variant={transaction.type === 'deposit' ? 'default' : 'secondary'}>
-                            {transaction.type}
+                          <Badge variant={position.side === 'buy' ? 'default' : 'destructive'}>
+                            {position.side}
                           </Badge>
                         </TableCell>
+                        <TableCell className="font-mono">{position.quantity}</TableCell>
+                        <TableCell className="font-mono">{position.openPrice}</TableCell>
+                        <TableCell className="font-mono">{position.closePrice || '-'}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              transaction.fundType === 'real'
-                                ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border-green-500/20'
-                                : transaction.fundType === 'demo'
-                                ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20'
-                                : 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border-yellow-500/20'
-                            }
-                            data-testid={`badge-fundtype-${transaction.id}`}
-                          >
-                            {transaction.fundType ? transaction.fundType.charAt(0).toUpperCase() + transaction.fundType.slice(1) : 'N/A'}
-                          </Badge>
+                          <span className={`font-mono font-medium ${
+                            (position.unrealizedPnl || 0) >= 0 ? 'text-success' : 'text-destructive'
+                          }`}>
+                            ${parseFloat(position.unrealizedPnl || 0).toFixed(8).replace(/\.?0+$/, '')}
+                          </span>
                         </TableCell>
-                        <TableCell className="font-mono font-medium">
-                          ${transaction.amount}
+                        <TableCell className="text-xs text-muted-foreground">
+                          {position.openedAt ? format(new Date(position.openedAt), 'MMM d, HH:mm') : '-'}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {position.closedAt ? format(new Date(position.closedAt), 'MMM d, HH:mm') : '-'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={transaction.status === 'completed' ? 'default' : 'secondary'}>
-                            {transaction.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {transaction.method || 'N/A'}
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setSelectedPosition(position);
+                                setModifyOpenPrice(position.openPrice);
+                                setModifyQuantity(position.quantity);
+                                setModifySide(position.side);
+                                setModifyPnl(position.unrealizedPnl || '');
+                                if (position.openedAt) {
+                                  const date = new Date(position.openedAt);
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  const hours = String(date.getHours()).padStart(2, '0');
+                                  const minutes = String(date.getMinutes()).padStart(2, '0');
+                                  setModifyOpenedAt(`${year}-${month}-${day}T${hours}:${minutes}`);
+                                }
+                                setModifyPositionDialogOpen(true);
+                              }}
+                              data-testid={`button-modify-closed-position-${position.id}`}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={async () => {
+                                if (confirm('Are you sure you want to delete this trade? This action cannot be undone.')) {
+                                  try {
+                                    await apiRequest('DELETE', `/api/positions/${position.id}`);
+                                    toast({
+                                      title: "Success",
+                                      description: "Trade deleted successfully",
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'closed-positions'] });
+                                    queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+                                  } catch (error) {
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to delete trade",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }
+                              }}
+                              data-testid={`button-delete-closed-position-${position.id}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8">
-                        <p className="text-sm text-muted-foreground">No transactions</p>
+                      <TableCell colSpan={9} className="text-center py-8">
+                        <p className="text-sm text-muted-foreground">No closed trades</p>
                       </TableCell>
                     </TableRow>
                   )}
@@ -1784,111 +1833,6 @@ export default function ClientDetail() {
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-8">No comments yet</p>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Activity Timeline</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {(() => {
-                  // Combine all activities
-                  const activities: any[] = [];
-                  
-                  // Add comments
-                  comments.forEach((comment: any) => {
-                    activities.push({
-                      type: 'comment',
-                      timestamp: new Date(comment.createdAt),
-                      data: comment,
-                    });
-                  });
-                  
-                  // Add positions
-                  client.positions?.forEach((position: any) => {
-                    activities.push({
-                      type: 'position',
-                      timestamp: new Date(position.openTime),
-                      data: position,
-                    });
-                  });
-                  
-                  // Add transactions
-                  client.transactions?.forEach((transaction: any) => {
-                    activities.push({
-                      type: 'transaction',
-                      timestamp: new Date(transaction.createdAt),
-                      data: transaction,
-                    });
-                  });
-                  
-                  // Sort by timestamp (newest first)
-                  activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-                  
-                  if (activities.length === 0) {
-                    return <p className="text-sm text-muted-foreground">No activity yet</p>;
-                  }
-                  
-                  return activities.map((activity, index) => (
-                    <div key={index} className="flex gap-4 pb-4 border-b last:border-b-0" data-testid={`activity-${activity.type}-${index}`}>
-                      <div className="flex flex-col items-center">
-                        <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                          activity.type === 'comment' ? 'bg-blue-100 dark:bg-blue-900' :
-                          activity.type === 'position' ? 'bg-green-100 dark:bg-green-900' :
-                          'bg-purple-100 dark:bg-purple-900'
-                        }`}>
-                          {activity.type === 'comment' && <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />}
-                          {activity.type === 'position' && <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-300" />}
-                          {activity.type === 'transaction' && <DollarSign className="h-4 w-4 text-purple-600 dark:text-purple-300" />}
-                        </div>
-                        {index < activities.length - 1 && (
-                          <div className="w-px h-full bg-border mt-2" />
-                        )}
-                      </div>
-                      <div className="flex-1 pt-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-sm font-medium">
-                            {activity.type === 'comment' && 'Comment Added'}
-                            {activity.type === 'position' && `${activity.data.type === 'buy' ? 'Opened Long' : 'Opened Short'} Position`}
-                            {activity.type === 'transaction' && `${activity.data.type === 'deposit' ? 'Deposit' : 'Withdrawal'}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {activity.timestamp.toLocaleString()}
-                          </p>
-                        </div>
-                        {activity.type === 'comment' && (
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-1">
-                              by {activity.data.user?.name || 'Unknown User'}
-                            </p>
-                            <p className="text-sm">{activity.data.comment}</p>
-                          </div>
-                        )}
-                        {activity.type === 'position' && (
-                          <div className="text-sm space-y-1">
-                            <p><span className="text-muted-foreground">Symbol:</span> {activity.data.symbol}</p>
-                            <p><span className="text-muted-foreground">Volume:</span> {activity.data.volume}</p>
-                            <p><span className="text-muted-foreground">Entry Price:</span> ${activity.data.openPrice}</p>
-                            {activity.data.status === 'closed' && (
-                              <p><span className="text-muted-foreground">P/L:</span> ${activity.data.profitLoss}</p>
-                            )}
-                          </div>
-                        )}
-                        {activity.type === 'transaction' && (
-                          <div className="text-sm space-y-1">
-                            <p><span className="text-muted-foreground">Amount:</span> ${activity.data.amount}</p>
-                            <p><span className="text-muted-foreground">Status:</span> <Badge variant={activity.data.status === 'completed' ? 'default' : 'secondary'}>{activity.data.status}</Badge></p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ));
-                })()}
               </div>
             </CardContent>
           </Card>
