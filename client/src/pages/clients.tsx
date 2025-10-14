@@ -328,6 +328,7 @@ export default function Clients() {
                   <TableHead>KYC Status</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Agent</TableHead>
+                  <TableHead className="w-[100px]">Actions</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -396,6 +397,37 @@ export default function Clients() {
                       </span>
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          disabled={!client.phone}
+                          asChild={!!client.phone}
+                          data-testid={`button-call-${client.id}`}
+                        >
+                          {client.phone ? (
+                            <a href={`tel:${client.phone}`}>
+                              <Phone className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            <Phone className="h-3 w-3" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          asChild
+                          data-testid={`button-email-${client.id}`}
+                        >
+                          <a href={`mailto:${client.email}`}>
+                            <Mail className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-actions-${client.id}`}>
@@ -417,7 +449,7 @@ export default function Clients() {
                   </TableRow>
                 )) || (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
+                    <TableCell colSpan={9} className="text-center py-12">
                       <p className="text-sm text-muted-foreground">No clients found</p>
                     </TableCell>
                   </TableRow>
