@@ -1631,7 +1631,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         side: position.side,
       };
 
-      const modifiedPosition = await tradingEngine.modifyPosition(req.params.id, validatedData);
+      // Convert openedAt string to Date if provided
+      const updates: any = { ...validatedData };
+      if (updates.openedAt) {
+        updates.openedAt = new Date(updates.openedAt);
+      }
+
+      const modifiedPosition = await tradingEngine.modifyPosition(req.params.id, updates);
 
       // Capture after state for audit trail
       const afterState = {

@@ -367,6 +367,10 @@ export class DatabaseStorage implements IStorage {
     return position;
   }
 
+  async deletePosition(id: string): Promise<void> {
+    await db.delete(positions).where(eq(positions.id, id));
+  }
+
   // Roles
   async getRoles(): Promise<Role[]> {
     return await db.select().from(roles).orderBy(roles.name);
