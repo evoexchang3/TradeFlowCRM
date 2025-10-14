@@ -84,6 +84,10 @@ export default function ClientDetail() {
   const [clientTransferReason, setClientTransferReason] = useState('');
   const [quickCommentDialogOpen, setQuickCommentDialogOpen] = useState(false);
   const [quickComment, setQuickComment] = useState('');
+  const [adjustBalanceDialogOpen, setAdjustBalanceDialogOpen] = useState(false);
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustFundType, setAdjustFundType] = useState<'real' | 'demo' | 'bonus'>('real');
+  const [adjustNotes, setAdjustNotes] = useState('');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -358,6 +362,48 @@ export default function ClientDetail() {
       toast({
         title: "Impersonation failed",
         description: error.message || "Failed to generate SSO token.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const adjustBalanceMutation = useMutation({
+    mutationFn: (data: { amount: string; fundType: 'real' | 'demo' | 'bonus'; notes?: string }) =>
+      apiRequest('POST', `/api/accounts/${client?.account?.id}/adjust-balance`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      setAdjustBalanceDialogOpen(false);
+      setAdjustAmount('');
+      setAdjustFundType('real');
+      setAdjustNotes('');
+      toast({
+        title: "Balance adjusted",
+        description: "Account balance has been successfully adjusted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Balance adjustment failed",
+        description: error.message || "Failed to adjust balance.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateLeverageMutation = useMutation({
+    mutationFn: (leverage: number) =>
+      apiRequest('PATCH', `/api/accounts/${client?.account?.id}/leverage`, { leverage }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      toast({
+        title: "Leverage updated",
+        description: "Account leverage has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Leverage update failed",
+        description: error.message || "Failed to update leverage.",
         variant: "destructive",
       });
     },
@@ -723,8 +769,91 @@ export default function ClientDetail() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between gap-4">
             <CardTitle className="text-sm font-medium text-muted-foreground">Account Summary</CardTitle>
+            <Dialog open={adjustBalanceDialogOpen} onOpenChange={(open) => {
+              setAdjustBalanceDialogOpen(open);
+              if (!open) {
+                setAdjustAmount('');
+                setAdjustFundType('real');
+                setAdjustNotes('');
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" data-testid="button-adjust-balance" className="hover-elevate active-elevate-2">
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Adjust Balance
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adjust Account Balance</DialogTitle>
+                  <DialogDescription>
+                    Adjust account balance by fund type. Positive amount for credit, negative for debit.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="adjust-amount">Amount</Label>
+                    <Input
+                      id="adjust-amount"
+                      type="number"
+                      step="0.01"
+                      placeholder="100.00 or -50.00"
+                      value={adjustAmount}
+                      onChange={(e) => setAdjustAmount(e.target.value)}
+                      data-testid="input-adjust-amount"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fund-type">Fund Type</Label>
+                    <Select value={adjustFundType} onValueChange={(value: 'real' | 'demo' | 'bonus') => setAdjustFundType(value)}>
+                      <SelectTrigger id="fund-type" data-testid="select-fund-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="real">Real</SelectItem>
+                        <SelectItem value="demo">Demo</SelectItem>
+                        <SelectItem value="bonus">Bonus</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="adjust-notes">Notes/Reason</Label>
+                    <Textarea
+                      id="adjust-notes"
+                      placeholder="Enter reason for balance adjustment..."
+                      value={adjustNotes}
+                      onChange={(e) => setAdjustNotes(e.target.value)}
+                      data-testid="textarea-adjust-notes"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={() => {
+                      if (!adjustAmount || parseFloat(adjustAmount) === 0) {
+                        toast({
+                          title: "Invalid amount",
+                          description: "Please enter a valid amount.",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      adjustBalanceMutation.mutate({
+                        amount: adjustAmount,
+                        fundType: adjustFundType,
+                        notes: adjustNotes,
+                      });
+                    }}
+                    disabled={adjustBalanceMutation.isPending}
+                    data-testid="button-save-adjustment"
+                  >
+                    {adjustBalanceMutation.isPending ? "Saving..." : "Save"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
@@ -732,6 +861,19 @@ export default function ClientDetail() {
               <span className="text-sm font-mono font-medium" data-testid="text-account-balance">
                 ${(client.account?.balance || 0).toLocaleString()}
               </span>
+            </div>
+            <div className="flex flex-wrap gap-1 items-center" data-testid="fund-breakdown">
+              <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                Real: ${(client.account?.realBalance || 0).toLocaleString()}
+              </Badge>
+              <span className="text-muted-foreground">|</span>
+              <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                Demo: ${(client.account?.demoBalance || 0).toLocaleString()}
+              </Badge>
+              <span className="text-muted-foreground">|</span>
+              <Badge variant="default" className="bg-yellow-600 hover:bg-yellow-700">
+                Bonus: ${(client.account?.bonusBalance || 0).toLocaleString()}
+              </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Equity</span>
@@ -747,9 +889,24 @@ export default function ClientDetail() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Leverage</span>
-              <span className="text-sm font-mono">
-                1:{client.account?.leverage || 100}
-              </span>
+              <Select
+                value={client.account?.leverage?.toString() || '100'}
+                onValueChange={(value) => updateLeverageMutation.mutate(parseInt(value))}
+                disabled={updateLeverageMutation.isPending}
+              >
+                <SelectTrigger className="w-[100px]" data-testid="select-leverage">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1:1</SelectItem>
+                  <SelectItem value="10">1:10</SelectItem>
+                  <SelectItem value="20">1:20</SelectItem>
+                  <SelectItem value="50">1:50</SelectItem>
+                  <SelectItem value="100">1:100</SelectItem>
+                  <SelectItem value="200">1:200</SelectItem>
+                  <SelectItem value="500">1:500</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

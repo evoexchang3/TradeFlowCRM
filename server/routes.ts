@@ -444,14 +444,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clients = clients.filter(c => c.assignedAgentId === user.id);
       }
 
-      // Enrich clients with agent and team information
+      // Enrich clients with agent, team, and account information
       const enrichedClients = await Promise.all(clients.map(async (client) => {
         const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
         const team = client.teamId ? await storage.getTeam(client.teamId) : null;
+        const account = await storage.getAccountByClientId(client.id);
         return {
           ...client,
           assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
           team: team ? { id: team.id, name: team.name } : null,
+          account: account || null,
         };
       }));
 
@@ -2882,6 +2884,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('Impersonation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Adjust account balance (Admin only)
+  app.post("/api/accounts/:id/adjust-balance", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const accountId = req.params.id;
+      const { amount, fundType, notes } = req.body;
+
+      // Admin-only access check
+      if (req.user?.type !== 'user') {
+        await storage.createAuditLog({
+          action: 'balance_adjust',
+          targetType: 'account',
+          targetId: accountId,
+          details: { 
+            error: 'Unauthorized: User access required',
+            attemptedBy: req.user?.id,
+            attemptedByType: req.user?.type
+          },
+        });
+        return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      const role = user?.roleId ? await storage.getRole(user.roleId) : null;
+      
+      if (role?.name?.toLowerCase() !== 'administrator') {
+        await storage.createAuditLog({
+          userId: req.user.id,
+          action: 'balance_adjust',
+          targetType: 'account',
+          targetId: accountId,
+          details: { 
+            error: 'Unauthorized: Administrator role required',
+            attemptedByRole: role?.name,
+            attemptedByUser: user?.name
+          },
+        });
+        return res.status(403).json({ error: 'Unauthorized: Administrator role required' });
+      }
+
+      // Validate input
+      const schema = z.object({
+        amount: z.string().refine((val) => !isNaN(parseFloat(val)), { message: 'Amount must be a valid number' }),
+        fundType: z.enum(['real', 'demo', 'bonus']),
+        notes: z.string().optional(),
+      });
+
+      const validation = schema.safeParse({ amount, fundType, notes });
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      // Get account
+      const account = await storage.getAccount(accountId);
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      // Calculate new balances
+      const amountNum = parseFloat(amount);
+      let newRealBalance = parseFloat(account.realBalance);
+      let newDemoBalance = parseFloat(account.demoBalance);
+      let newBonusBalance = parseFloat(account.bonusBalance);
+
+      if (fundType === 'real') {
+        newRealBalance += amountNum;
+      } else if (fundType === 'demo') {
+        newDemoBalance += amountNum;
+      } else if (fundType === 'bonus') {
+        newBonusBalance += amountNum;
+      }
+
+      // Calculate total balance
+      const newTotalBalance = newRealBalance + newDemoBalance + newBonusBalance;
+
+      // Update account
+      const updatedAccount = await storage.updateAccount(accountId, {
+        realBalance: newRealBalance.toString(),
+        demoBalance: newDemoBalance.toString(),
+        bonusBalance: newBonusBalance.toString(),
+        balance: newTotalBalance.toString(),
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'balance_adjust',
+        targetType: 'account',
+        targetId: accountId,
+        details: {
+          amount: amountNum,
+          fundType,
+          reason: notes || '',
+          oldRealBalance: account.realBalance,
+          oldDemoBalance: account.demoBalance,
+          oldBonusBalance: account.bonusBalance,
+          oldTotalBalance: account.balance,
+          newRealBalance: newRealBalance.toString(),
+          newDemoBalance: newDemoBalance.toString(),
+          newBonusBalance: newBonusBalance.toString(),
+          newTotalBalance: newTotalBalance.toString(),
+        },
+      });
+
+      res.json(updatedAccount);
+    } catch (error: any) {
+      console.error('Balance adjustment error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update account leverage (Admin only)
+  app.patch("/api/accounts/:id/leverage", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const accountId = req.params.id;
+      const { leverage } = req.body;
+
+      // Admin-only access check
+      if (req.user?.type !== 'user') {
+        await storage.createAuditLog({
+          action: 'balance_adjust',
+          targetType: 'account',
+          targetId: accountId,
+          details: { 
+            error: 'Unauthorized: User access required',
+            attemptedBy: req.user?.id,
+            attemptedByType: req.user?.type,
+            action: 'leverage_update'
+          },
+        });
+        return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      const role = user?.roleId ? await storage.getRole(user.roleId) : null;
+      
+      if (role?.name?.toLowerCase() !== 'administrator') {
+        await storage.createAuditLog({
+          userId: req.user.id,
+          action: 'balance_adjust',
+          targetType: 'account',
+          targetId: accountId,
+          details: { 
+            error: 'Unauthorized: Administrator role required',
+            attemptedByRole: role?.name,
+            attemptedByUser: user?.name,
+            action: 'leverage_update'
+          },
+        });
+        return res.status(403).json({ error: 'Unauthorized: Administrator role required' });
+      }
+
+      // Validate input
+      const schema = z.object({
+        leverage: z.number().min(1).max(500),
+      });
+
+      const validation = schema.safeParse({ leverage });
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0].message });
+      }
+
+      // Get account
+      const account = await storage.getAccount(accountId);
+      if (!account) {
+        return res.status(404).json({ error: 'Account not found' });
+      }
+
+      // Update leverage
+      const updatedAccount = await storage.updateAccount(accountId, {
+        leverage,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'balance_adjust',
+        targetType: 'account',
+        targetId: accountId,
+        details: {
+          action: 'leverage_update',
+          oldLeverage: account.leverage,
+          newLeverage: leverage,
+        },
+      });
+
+      res.json(updatedAccount);
+    } catch (error: any) {
+      console.error('Leverage update error:', error);
       res.status(500).json({ error: error.message });
     }
   });

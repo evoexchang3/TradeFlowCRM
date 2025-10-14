@@ -40,6 +40,7 @@ export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', '
 export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
 export const tradeInitiatorTypeEnum = pgEnum('trade_initiator_type', ['client', 'agent', 'team_leader', 'crm_manager', 'admin', 'robot', 'system']);
 export const robotStatusEnum = pgEnum('robot_status', ['active', 'paused', 'stopped']);
+export const fundTypeEnum = pgEnum('fund_type', ['real', 'demo', 'bonus']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -104,7 +105,10 @@ export const accounts = pgTable("accounts", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   accountNumber: text("account_number").notNull().unique(),
   currency: text("currency").notNull().default('USD'),
-  balance: decimal("balance", { precision: 18, scale: 2 }).notNull().default('0'),
+  balance: decimal("balance", { precision: 18, scale: 2 }).notNull().default('0'), // Total balance (sum of all fund types)
+  realBalance: decimal("real_balance", { precision: 18, scale: 2 }).notNull().default('0'),
+  demoBalance: decimal("demo_balance", { precision: 18, scale: 2 }).notNull().default('0'),
+  bonusBalance: decimal("bonus_balance", { precision: 18, scale: 2 }).notNull().default('0'),
   equity: decimal("equity", { precision: 18, scale: 2 }).notNull().default('0'),
   margin: decimal("margin", { precision: 18, scale: 2 }).notNull().default('0'),
   freeMargin: decimal("free_margin", { precision: 18, scale: 2 }).notNull().default('0'),
@@ -135,6 +139,7 @@ export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   accountId: varchar("account_id").notNull().references(() => accounts.id),
   type: transactionTypeEnum("type").notNull(),
+  fundType: fundTypeEnum("fund_type").notNull().default('real'), // Track which type of funds: real, demo, or bonus
   amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
   status: transactionStatusEnum("status").notNull().default('pending'),
   method: text("method"), // e.g., bank_transfer, credit_card
