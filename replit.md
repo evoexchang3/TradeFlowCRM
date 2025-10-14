@@ -174,3 +174,105 @@ The CRM is fully integrated with the Trading Platform via three secure communica
    - Clear button to remove follow-up date
    - Proper error handling with success/error toasts
    - Simplified to date-only (not datetime) to avoid timezone complexity
+
+## Multi-Fund Type System (COMPLETE ✅)
+
+### Overview
+The platform supports three distinct fund types per account, enabling flexible balance management for different trading scenarios:
+
+**Fund Types:**
+1. **Real Funds** (Green Badge) - Actual client money, withdrawable
+2. **Demo Funds** (Blue Badge) - Practice/training balance, non-withdrawable
+3. **Bonus Funds** (Yellow Badge) - Promotional credits, non-withdrawable
+
+### Database Schema
+- `accounts.realBalance` - Real funds balance
+- `accounts.demoBalance` - Demo funds balance  
+- `accounts.bonusBalance` - Bonus funds balance
+- `accounts.balance` - Total balance (calculated as real + demo + bonus)
+- `transactions.fundType` - ENUM('real', 'demo', 'bonus') - Tracks which fund type was affected
+
+### Business Rules
+
+**Withdrawal Validation:**
+- ✅ Only real funds can be withdrawn
+- ✅ Withdrawals automatically validate sufficient real balance before processing
+- ✅ System blocks withdrawals if `realBalance < withdrawalAmount`
+- ✅ Demo and bonus funds cannot be withdrawn under any circumstances
+
+**Balance Management:**
+- Admin-only access for balance adjustments and leverage changes
+- Balance adjustments specify fund type (real/demo/bonus)
+- Total balance is always calculated as: `realBalance + demoBalance + bonusBalance`
+- All balance changes are audited with fund type, amount, and reason
+
+### Admin Features
+
+**Adjust Balance (Admin-only):**
+- POST /api/accounts/:id/adjust-balance
+- Parameters: amount (+ credit, - debit), fundType ('real'|'demo'|'bonus'), notes
+- Comprehensive audit logging with old/new values
+- Validates admin role with case-insensitive check
+
+**Leverage Management (Admin-only):**
+- PATCH /api/accounts/:id/leverage
+- Editable dropdown: 1:1, 1:10, 1:20, 1:50, 1:100, 1:200, 1:500
+- Audit logging tracks old and new leverage values
+
+### UI Features
+
+**Fund Breakdown Display:**
+- Shows color-coded badges: Real (green) | Demo (blue) | Bonus (yellow)
+- Displayed on client detail page below main balance
+- Format: "Real: $X | Demo: $Y | Bonus: $Z"
+
+**Transaction Fund Type Badges:**
+- Every transaction shows fund type badge with color coding
+- Displayed in both client detail transaction history and main transactions page
+- Visual clarity for which fund type was affected
+
+**Adjust Balance Dialog:**
+- Amount input field (supports decimals)
+- Fund type selector dropdown
+- Notes/reason textarea for audit trail
+- Success/error toast notifications
+
+### Webhook Integration
+The `withdrawal.completed` webhook validates and processes withdrawals:
+1. Checks if `realBalance >= withdrawalAmount`
+2. Returns 400 error if insufficient real funds
+3. Deducts from `realBalance` only
+4. Recalculates total balance
+5. Logs operation with fund type details
+6. Creates comprehensive audit trail
+
+### Market Data (COMPLETE ✅)
+
+**Twelve Data Ultra Plan - 406+ Trading Instruments:**
+
+**Forex (94+ pairs):**
+- Majors: EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD
+- Minors: EUR/GBP, EUR/JPY, GBP/JPY, EUR/CHF, GBP/CHF, EUR/AUD
+- Exotics: USD/TRY, USD/ZAR, USD/MXN, USD/SGD, USD/HKD, USD/SEK, USD/NOK
+- Full regional coverage: Scandinavian, Asian, Eastern European, Emerging Markets, Middle East & Africa
+
+**Cryptocurrencies (188+ pairs):**
+- Major: BTC, ETH, SOL, AVAX, MATIC, ADA, DOT, LINK, UNI, AAVE
+- DeFi Tokens: SUSHI, COMP, YFI, CRV, BAL, SNX
+- Gaming/Metaverse: SAND, MANA, AXS, ENJ, GALA
+- Quote currencies: USD, BTC, ETH, USDT, EUR
+
+**Commodities (35+ instruments):**
+- Precious Metals: Gold (XAU/USD), Silver (XAG/USD), Platinum (XPT/USD), Palladium (XPD/USD)
+- Energy: Crude Oil (CL1), Brent (CO1), Natural Gas (NG1), Heating Oil, Gasoline
+- Agricultural: Corn (C_1), Wheat, Soybeans, Coffee (KC1), Cotton (CT1), Sugar, Cocoa (CC1)
+- Industrial Metals: Copper (HG1), Aluminum, Zinc, Nickel, Lead
+
+**Indices (54+ global markets):**
+- US: S&P 500, Nasdaq 100, Dow Jones, Russell 2000, VIX
+- Europe: FTSE 100, DAX, CAC 40, Euro Stoxx 50, IBEX 35, FTSE MIB
+- Asia Pacific: Nikkei 225, Hang Seng, Shanghai Composite, ASX 200, KOSPI
+- Latin America & Middle East: BOVESPA, IPC Mexico, TA-125
+
+**Futures (35+ contracts):**
+- Index, Treasury/Bond, Currency, Metal, Energy, Agricultural futures

@@ -81,6 +81,7 @@ export default function Transactions() {
                   <TableHead>Date</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Fund Type</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead>Status</TableHead>
@@ -105,6 +106,21 @@ export default function Transactions() {
                     <TableCell>
                       <Badge variant={transaction.type === 'deposit' ? 'default' : 'secondary'}>
                         {transaction.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          transaction.fundType === 'real'
+                            ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border-green-500/20'
+                            : transaction.fundType === 'demo'
+                            ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20'
+                            : 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border-yellow-500/20'
+                        }
+                        data-testid={`badge-fundtype-${transaction.id}`}
+                      >
+                        {transaction.fundType ? transaction.fundType.charAt(0).toUpperCase() + transaction.fundType.slice(1) : 'N/A'}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono font-semibold">
@@ -144,7 +160,7 @@ export default function Transactions() {
                   </TableRow>
                 )) || (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12">
+                    <TableCell colSpan={9} className="text-center py-12">
                       <p className="text-sm text-muted-foreground">No transactions found</p>
                     </TableCell>
                   </TableRow>

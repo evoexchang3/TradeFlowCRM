@@ -122,30 +122,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const account = accounts[0];
+          
+          // FUND TYPE MANAGEMENT: Deposits credit real funds (actual client money)
+          const depositAmount = parseFloat(amount);
+          const currentRealBalance = parseFloat(account.realBalance || '0');
+          const currentDemoBalance = parseFloat(account.demoBalance || '0');
+          const currentBonusBalance = parseFloat(account.bonusBalance || '0');
+          
+          // Credit to real balance (deposits are real money)
+          const newRealBalance = (currentRealBalance + depositAmount).toString();
+          const newTotalBalance = (
+            parseFloat(newRealBalance) + 
+            currentDemoBalance + 
+            currentBonusBalance
+          ).toString();
+
+          // Update account with new balances
+          await storage.updateAccount(account.id, {
+            realBalance: newRealBalance,
+            balance: newTotalBalance,
+          });
+
+          // Also update subaccount balance for backward compatibility
           const subaccounts = await storage.getSubaccountsByAccountId(account.id);
           const mainSubaccount = subaccounts.find(s => s.name === 'Main') || subaccounts[0];
 
-          if (!mainSubaccount) {
-            console.error(`[Webhook] No subaccount found for account: ${account.id}`);
-            return res.status(404).json({ error: 'Subaccount not found' });
+          if (mainSubaccount) {
+            const newSubBalance = (parseFloat(mainSubaccount.balance) + depositAmount).toString();
+            await storage.updateSubaccount(mainSubaccount.id, { balance: newSubBalance });
           }
-
-          // Update subaccount balance
-          const newBalance = (parseFloat(mainSubaccount.balance) + parseFloat(amount)).toString();
-          await storage.updateSubaccount(mainSubaccount.id, { balance: newBalance });
 
           await storage.createAuditLog({
             action: 'webhook_received',
-            targetType: 'subaccount',
-            targetId: mainSubaccount.id,
+            targetType: 'account',
+            targetId: account.id,
             details: { 
               event, 
               source: 'trading_platform', 
               amount, 
               currency, 
               transactionId,
-              oldBalance: mainSubaccount.balance,
-              newBalance,
+              fundType: 'real',
+              oldRealBalance: account.realBalance,
+              newRealBalance,
+              oldTotalBalance: account.balance,
+              newTotalBalance,
             },
           });
 
@@ -169,30 +190,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const account = accounts[0];
+          
+          // FUND TYPE VALIDATION: Withdrawals can only deduct from real funds
+          const withdrawalAmount = parseFloat(amount);
+          const currentRealBalance = parseFloat(account.realBalance || '0');
+          
+          if (currentRealBalance < withdrawalAmount) {
+            console.error(`[Webhook] Insufficient real funds for withdrawal: ${clientEmail}, required: ${withdrawalAmount}, available: ${currentRealBalance}`);
+            
+            await storage.createAuditLog({
+              action: 'webhook_received',
+              targetType: 'account',
+              targetId: account.id,
+              details: { 
+                event, 
+                source: 'trading_platform', 
+                amount, 
+                currency, 
+                transactionId,
+                error: 'Insufficient real funds',
+                requiredAmount: withdrawalAmount,
+                availableRealBalance: currentRealBalance,
+              },
+            });
+            
+            return res.status(400).json({ 
+              error: 'Insufficient real funds for withdrawal',
+              required: withdrawalAmount,
+              available: currentRealBalance
+            });
+          }
+
+          // Deduct from real balance only
+          const newRealBalance = (currentRealBalance - withdrawalAmount).toString();
+          const newDemoBalance = account.demoBalance || '0';
+          const newBonusBalance = account.bonusBalance || '0';
+          const newTotalBalance = (
+            parseFloat(newRealBalance) + 
+            parseFloat(newDemoBalance) + 
+            parseFloat(newBonusBalance)
+          ).toString();
+
+          // Update account with new balances
+          await storage.updateAccount(account.id, {
+            realBalance: newRealBalance,
+            balance: newTotalBalance,
+          });
+
+          // Also update subaccount balance for backward compatibility
           const subaccounts = await storage.getSubaccountsByAccountId(account.id);
           const mainSubaccount = subaccounts.find(s => s.name === 'Main') || subaccounts[0];
 
-          if (!mainSubaccount) {
-            console.error(`[Webhook] No subaccount found for account: ${account.id}`);
-            return res.status(404).json({ error: 'Subaccount not found' });
+          if (mainSubaccount) {
+            const newSubBalance = (parseFloat(mainSubaccount.balance) - withdrawalAmount).toString();
+            await storage.updateSubaccount(mainSubaccount.id, { balance: newSubBalance });
           }
-
-          // Update subaccount balance
-          const newBalance = (parseFloat(mainSubaccount.balance) - parseFloat(amount)).toString();
-          await storage.updateSubaccount(mainSubaccount.id, { balance: newBalance });
 
           await storage.createAuditLog({
             action: 'webhook_received',
-            targetType: 'subaccount',
-            targetId: mainSubaccount.id,
+            targetType: 'account',
+            targetId: account.id,
             details: { 
               event, 
               source: 'trading_platform', 
               amount, 
               currency, 
               transactionId,
-              oldBalance: mainSubaccount.balance,
-              newBalance,
+              fundType: 'real',
+              oldRealBalance: account.realBalance,
+              newRealBalance,
+              oldTotalBalance: account.balance,
+              newTotalBalance,
             },
           });
 

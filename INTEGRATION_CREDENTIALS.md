@@ -301,6 +301,154 @@ curl -X GET https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janewa
 
 ---
 
+## 💰 Balance Management API (Admin-Only)
+
+### Overview
+The CRM supports a multi-fund type system with three distinct fund types per account:
+- **Real Funds** - Actual client money, withdrawable
+- **Demo Funds** - Practice/training balance, non-withdrawable  
+- **Bonus Funds** - Promotional credits, non-withdrawable
+
+**Important:** Only real funds can be withdrawn. The `withdrawal.completed` webhook automatically validates sufficient real balance before processing.
+
+### 4. Adjust Account Balance
+
+**Endpoint:** `POST /api/accounts/:id/adjust-balance`  
+**Authentication:** JWT (Admin role required)  
+**Authorization:** Administrator role only
+
+Adjusts a specific fund type balance (real, demo, or bonus) for an account.
+
+**Request Body:**
+```json
+{
+  "amount": "100.00",         // String: Positive = credit, Negative = debit
+  "fundType": "real",         // Enum: "real" | "demo" | "bonus"
+  "notes": "Initial deposit"  // Optional: Reason for adjustment
+}
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "realBalance": "100.00",
+  "demoBalance": "0.00",
+  "bonusBalance": "0.00",
+  "balance": "100.00",
+  "leverage": 100,
+  "currency": "USD",
+  "equity": "100.00",
+  "margin": "0.00",
+  "marginLevel": "0.00",
+  "clientId": "client-uuid"
+}
+```
+
+**Example Usage:**
+```bash
+# Credit $100 to real balance
+curl -X POST https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/accounts/550e8400-e29b-41d4-a716-446655440000/adjust-balance \
+  -H "Authorization: Bearer <admin-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "100.00",
+    "fundType": "real",
+    "notes": "Client deposit via wire transfer"
+  }'
+
+# Add $500 demo balance for training
+curl -X POST https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/accounts/550e8400-e29b-41d4-a716-446655440000/adjust-balance \
+  -H "Authorization: Bearer <admin-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "500.00",
+    "fundType": "demo",
+    "notes": "Demo account setup for new trader training"
+  }'
+
+# Deduct $50 from real balance
+curl -X POST https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/accounts/550e8400-e29b-41d4-a716-446655440000/adjust-balance \
+  -H "Authorization: Bearer <admin-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": "-50.00",
+    "fundType": "real",
+    "notes": "Fee deduction"
+  }'
+```
+
+### 5. Update Account Leverage
+
+**Endpoint:** `PATCH /api/accounts/:id/leverage`  
+**Authentication:** JWT (Admin role required)  
+**Authorization:** Administrator role only
+
+Updates the trading leverage for an account.
+
+**Request Body:**
+```json
+{
+  "leverage": 100  // Number: 1-500 (common: 1, 10, 20, 50, 100, 200, 500)
+}
+```
+
+**Response:**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "leverage": 100,
+  "balance": "1000.00",
+  "realBalance": "1000.00",
+  "demoBalance": "0.00",
+  "bonusBalance": "0.00",
+  "currency": "USD",
+  "clientId": "client-uuid"
+}
+```
+
+**Example Usage:**
+```bash
+# Set leverage to 1:100
+curl -X PATCH https://73f5fe5d-efff-4f14-80d1-8f6325fd178c-00-2e9obfqhtw7bv.janeway.replit.dev/api/accounts/550e8400-e29b-41d4-a716-446655440000/leverage \
+  -H "Authorization: Bearer <admin-jwt-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "leverage": 100
+  }'
+```
+
+### Withdrawal Validation Business Logic
+
+When the Trading Platform sends a `withdrawal.completed` webhook:
+
+1. **Validation:** CRM checks `account.realBalance >= withdrawalAmount`
+2. **Success Case:** 
+   - Deducts from `realBalance` only
+   - Recalculates `balance = realBalance + demoBalance + bonusBalance`
+   - Returns `200 OK` with `{ status: "processed" }`
+   - Logs operation in audit trail
+
+3. **Failure Case (Insufficient Real Funds):**
+   - Returns `400 Bad Request` with:
+     ```json
+     {
+       "error": "Insufficient real funds for withdrawal",
+       "required": 500.00,
+       "available": 250.00
+     }
+     ```
+   - Logs failed attempt in audit trail
+   - No balance changes occur
+
+**Example:**
+- Account has: Real=$100, Demo=$500, Bonus=$200 (Total=$800)
+- Withdrawal request: $150
+- Result: **BLOCKED** - Only $100 real funds available
+- Demo and bonus funds ($700) cannot be withdrawn
+
+---
+
 ## 🔄 Token Rotation Procedure
 
 When rotating tokens (recommended every 90 days):
