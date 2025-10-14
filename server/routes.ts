@@ -1412,6 +1412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== TRADING =====
   app.post("/api/orders", authMiddleware, async (req: AuthRequest, res) => {
     try {
+      // Debug: Log incoming order data
+      console.log('[ORDER DEBUG] Received order request:', JSON.stringify(req.body, null, 2));
+      
       // For clients, get their account. For admin users, they can specify accountId
       let accountId = req.body.accountId;
       let initiatorType: 'client' | 'agent' | 'team_leader' | 'crm_manager' | 'admin' = 'client';
