@@ -12,12 +12,24 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { MARKET_SYMBOLS, SYMBOLS_BY_CATEGORY, type MarketSymbol } from "@shared/market-symbols";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-type CategoryType = 'forex' | 'crypto' | 'commodities' | 'indices' | 'futures';
+type CategoryType = 'forex' | 'crypto' | 'commodities' | 'stocks' | 'etf';
+
+interface TwelveDataSymbol {
+  symbol: string;
+  name?: string;
+  currency_base?: string;
+  currency_quote?: string;
+  currency_group?: string;
+  exchange?: string;
+  mic_code?: string;
+  country?: string;
+  type?: string;
+  category?: string;
+}
 
 const LEVERAGE_OPTIONS = [
   { value: "1", label: "1:1" },
@@ -34,7 +46,7 @@ export default function Trading() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('forex');
-  const [selectedSymbol, setSelectedSymbol] = useState<MarketSymbol>(SYMBOLS_BY_CATEGORY.forex[0]);
+  const [selectedSymbol, setSelectedSymbol] = useState<TwelveDataSymbol | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [orderType, setOrderType] = useState<"market" | "limit" | "stop" | "stop_limit">("market");
   const [orderSide, setOrderSide] = useState<"buy" | "sell">("buy");
@@ -48,9 +60,27 @@ export default function Trading() {
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [clientComboOpen, setClientComboOpen] = useState(false);
 
+  // Fetch symbols dynamically from Twelve Data API (100,000+ symbols)
+  const { data: categorySymbols = [] } = useQuery<TwelveDataSymbol[]>({
+    queryKey: ['/api/symbols', selectedCategory],
+    queryFn: async () => {
+      const res = await fetch(`/api/symbols/${selectedCategory}`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` }
+      });
+      return res.json();
+    }
+  });
+
+  // Set initial selected symbol when symbols load
+  useEffect(() => {
+    if (categorySymbols.length > 0 && !selectedSymbol) {
+      setSelectedSymbol(categorySymbols[0]);
+    }
+  }, [categorySymbols, selectedSymbol]);
+
   // Get symbols for market data based on category
-  const categorySymbols = SYMBOLS_BY_CATEGORY[selectedCategory].map(s => s.symbol);
-  const quotes = useMarketData(categorySymbols.slice(0, 20)); // Limit to 20 for performance
+  const symbolsForMarketData = categorySymbols.slice(0, 20).map((s: TwelveDataSymbol) => s.symbol);
+  const quotes = useMarketData(symbolsForMarketData); // Limit to 20 for performance
 
   // Fetch user's role to determine permissions
   const { data: userData } = useQuery<{ user?: any; client?: any }>({
@@ -168,6 +198,15 @@ export default function Trading() {
       return;
     }
 
+    if (!selectedSymbol) {
+      toast({
+        title: "No symbol selected",
+        description: "Please select a trading symbol",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const currentPrice = quotes[selectedSymbol.symbol]?.price || 1.0;
     
     const orderData: any = {
@@ -205,12 +244,12 @@ export default function Trading() {
     placeOrderMutation.mutate(orderData);
   };
 
-  const currentQuote = quotes[selectedSymbol.symbol];
+  const currentQuote = selectedSymbol ? quotes[selectedSymbol.symbol] : null;
 
   // Filter symbols by search query
-  const filteredSymbols = SYMBOLS_BY_CATEGORY[selectedCategory].filter(symbol =>
+  const filteredSymbols = categorySymbols.filter((symbol: TwelveDataSymbol) =>
     symbol.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    symbol.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (symbol.name && symbol.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   // Auto-select first client for staff if none selected
@@ -314,14 +353,14 @@ export default function Trading() {
             <CardContent className="space-y-4">
               <Tabs value={selectedCategory} onValueChange={(value) => {
                 setSelectedCategory(value as CategoryType);
-                setSelectedSymbol(SYMBOLS_BY_CATEGORY[value as CategoryType][0]);
+                setSelectedSymbol(null); // Will be auto-selected by useEffect
               }}>
                 <TabsList className="grid grid-cols-5 w-full">
                   <TabsTrigger value="forex" data-testid="tab-forex">Forex</TabsTrigger>
                   <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
                   <TabsTrigger value="commodities" data-testid="tab-commodities">Commodities</TabsTrigger>
-                  <TabsTrigger value="indices" data-testid="tab-indices">Indices</TabsTrigger>
-                  <TabsTrigger value="futures" data-testid="tab-futures">Futures</TabsTrigger>
+                  <TabsTrigger value="stocks" data-testid="tab-stocks">Stocks</TabsTrigger>
+                  <TabsTrigger value="etf" data-testid="tab-etf">ETFs</TabsTrigger>
                 </TabsList>
               </Tabs>
 
@@ -343,7 +382,7 @@ export default function Trading() {
                     return (
                       <div
                         key={symbol.symbol}
-                        className={`flex items-center justify-between p-3 rounded-lg hover-elevate active-elevate-2 cursor-pointer ${selectedSymbol.symbol === symbol.symbol ? 'bg-accent' : ''}`}
+                        className={`flex items-center justify-between p-3 rounded-lg hover-elevate active-elevate-2 cursor-pointer ${selectedSymbol?.symbol === symbol.symbol ? 'bg-accent' : ''}`}
                         onClick={() => setSelectedSymbol(symbol)}
                         data-testid={`symbol-${symbol.symbol}`}
                       >
@@ -444,10 +483,16 @@ export default function Trading() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Selected Symbol</label>
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="font-medium">{selectedSymbol.symbol}</p>
-                  <p className="text-xs text-muted-foreground">{selectedSymbol.name}</p>
-                </div>
+                {selectedSymbol ? (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="font-medium">{selectedSymbol.symbol}</p>
+                    <p className="text-xs text-muted-foreground">{selectedSymbol.name || 'Loading...'}</p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">No symbol selected</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
