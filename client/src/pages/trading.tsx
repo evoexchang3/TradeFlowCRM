@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, X, Search, User, Edit } from "lucide-react";
+import { TrendingUp, TrendingDown, X, Search, User, Edit, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useToast } from "@/hooks/use-toast";
@@ -214,6 +214,27 @@ export default function Trading() {
       toast({
         title: "Position modification failed",
         description: error.message || "Failed to modify position.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePositionMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/positions/${id}`);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
+      toast({
+        title: "Position Deleted",
+        description: "Position has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete position.",
         variant: "destructive",
       });
     },
@@ -522,6 +543,15 @@ export default function Trading() {
                               data-testid={`button-close-position-${position.id}`}
                             >
                               <X className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deletePositionMutation.mutate(position.id)}
+                              disabled={deletePositionMutation.isPending}
+                              data-testid={`button-delete-position-${position.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </TableCell>
