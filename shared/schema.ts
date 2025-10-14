@@ -20,6 +20,9 @@ export const clientStatusEnum = pgEnum('client_status', [
   'new', 'reassigned', 'potential', 'low_potential', 'mid_potential', 'high_potential',
   'no_answer', 'voicemail', 'callback_requested', 'not_interested', 'converted', 'lost'
 ]);
+export const pipelineStatusEnum = pgEnum('pipeline_status', [
+  'new_lead', 'contact_attempted', 'in_discussion', 'kyc_pending', 'active_client', 'cold_inactive', 'lost'
+]);
 export const orderTypeEnum = pgEnum('order_type', ['market', 'limit', 'stop', 'stop_limit']);
 export const orderSideEnum = pgEnum('order_side', ['buy', 'sell']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'filled', 'partially_filled', 'cancelled', 'rejected']);
@@ -85,6 +88,7 @@ export const clients = pgTable("clients", {
   kycStatus: kycStatusEnum("kyc_status").notNull().default('pending'),
   kycDocuments: jsonb("kyc_documents").default('[]'), // Array of document URLs
   status: clientStatusEnum("status").notNull().default('new'),
+  pipelineStatus: pipelineStatusEnum("pipeline_status").notNull().default('new_lead'),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   teamId: varchar("team_id").references(() => teams.id),
   mustResetPassword: boolean("must_reset_password").notNull().default(false),

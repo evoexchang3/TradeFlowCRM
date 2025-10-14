@@ -51,6 +51,16 @@ const CLIENT_STATUSES = [
   { value: 'lost', label: 'Lost' },
 ];
 
+const PIPELINE_STATUSES = [
+  { value: 'new_lead', label: 'New Lead', variant: 'secondary' as const },
+  { value: 'contact_attempted', label: 'Contact Attempted', variant: 'default' as const },
+  { value: 'in_discussion', label: 'In Discussion', variant: 'default' as const },
+  { value: 'kyc_pending', label: 'KYC Pending', variant: 'default' as const },
+  { value: 'active_client', label: 'Active Client', variant: 'default' as const },
+  { value: 'cold_inactive', label: 'Cold/Inactive', variant: 'secondary' as const },
+  { value: 'lost', label: 'Lost', variant: 'destructive' as const },
+];
+
 export default function ClientDetail() {
   const [, params] = useRoute("/clients/:id");
   const clientId = params?.id;
@@ -148,6 +158,25 @@ export default function ClientDetail() {
       toast({
         title: "Error",
         description: "Failed to update client status.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updatePipelineStatusMutation = useMutation({
+    mutationFn: (pipelineStatus: string) => 
+      apiRequest('PATCH', `/api/clients/${clientId}`, { pipelineStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      toast({
+        title: "Pipeline status updated",
+        description: "Client pipeline status has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update pipeline status.",
         variant: "destructive",
       });
     },
@@ -403,9 +432,17 @@ export default function ClientDetail() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold" data-testid="text-client-name">
-              {client.firstName} {client.lastName}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold" data-testid="text-client-name">
+                {client.firstName} {client.lastName}
+              </h1>
+              <Badge 
+                variant={PIPELINE_STATUSES.find(s => s.value === client.pipelineStatus)?.variant || 'secondary'}
+                data-testid="badge-pipeline-status"
+              >
+                {PIPELINE_STATUSES.find(s => s.value === client.pipelineStatus)?.label || 'New Lead'}
+              </Badge>
+            </div>
             <p className="text-sm text-muted-foreground font-mono">{client.id}</p>
           </div>
         </div>
@@ -482,11 +519,30 @@ export default function ClientDetail() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Pipeline Status</span>
               <Select
+                value={client.pipelineStatus || 'new_lead'}
+                onValueChange={(value) => updatePipelineStatusMutation.mutate(value)}
+                disabled={updatePipelineStatusMutation.isPending}
+              >
+                <SelectTrigger className="w-[180px]" data-testid="select-pipeline-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PIPELINE_STATUSES.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Client Status</span>
+              <Select
                 value={client.status || 'new'}
                 onValueChange={(value) => updateStatusMutation.mutate(value)}
                 disabled={updateStatusMutation.isPending}
               >
-                <SelectTrigger className="w-[160px]" data-testid="select-client-status">
+                <SelectTrigger className="w-[180px]" data-testid="select-client-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
