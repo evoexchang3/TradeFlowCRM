@@ -17,11 +17,13 @@ export function useMarketData(symbols: string[]) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: 'subscribe', symbols }));
+      console.log('[Market Data] WebSocket connected, subscribing to:', symbols);
+      ws.send(JSON.stringify({ action: 'subscribe', symbols }));
     };
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
+      console.log('[Market Data] Received message:', message);
       if (message.type === 'quote') {
         setQuotes(prev => ({
           ...prev,
@@ -31,12 +33,12 @@ export function useMarketData(symbols: string[]) {
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('[Market Data] WebSocket error:', error);
     };
 
     return () => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'unsubscribe', symbols }));
+        ws.send(JSON.stringify({ action: 'unsubscribe', symbols }));
       }
       ws.close();
     };
