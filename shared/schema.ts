@@ -449,6 +449,9 @@ export const modifyPositionSchema = z.object({
   openPrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
     message: "Open price must be a positive number",
   }).optional(),
+  closePrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: "Close price must be a positive number",
+  }).optional(),
   quantity: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
     message: "Quantity must be a positive number",
   }).optional(),

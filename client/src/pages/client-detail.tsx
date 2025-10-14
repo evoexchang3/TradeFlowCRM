@@ -92,6 +92,7 @@ export default function ClientDetail() {
   const [modifyPositionDialogOpen, setModifyPositionDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const [modifyOpenPrice, setModifyOpenPrice] = useState('');
+  const [modifyClosePrice, setModifyClosePrice] = useState('');
   const [modifyQuantity, setModifyQuantity] = useState('');
   const [modifySide, setModifySide] = useState<'buy' | 'sell'>('buy');
   const [modifyPnl, setModifyPnl] = useState('');
@@ -978,6 +979,20 @@ export default function ClientDetail() {
                       data-testid="input-modify-open-price"
                     />
                   </div>
+                  {selectedPosition?.status === 'closed' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="modify-close-price">Close Price</Label>
+                      <Input
+                        id="modify-close-price"
+                        type="number"
+                        step="0.00001"
+                        placeholder="1.16000"
+                        value={modifyClosePrice}
+                        onChange={(e) => setModifyClosePrice(e.target.value)}
+                        data-testid="input-modify-close-price"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="modify-pnl">P/L ($)</Label>
                     <Input
@@ -1022,6 +1037,7 @@ export default function ClientDetail() {
                         openPrice: modifyOpenPrice,
                       };
                       if (modifyPnl) updates.unrealizedPnl = modifyPnl;
+                      if (modifyClosePrice) updates.closePrice = modifyClosePrice;
                       if (modifyOpenedAt) updates.openedAt = new Date(modifyOpenedAt).toISOString();
                       if (modifyClosedAt) updates.closedAt = new Date(modifyClosedAt).toISOString();
                       
@@ -1508,6 +1524,7 @@ export default function ClientDetail() {
                               onClick={() => {
                                 setSelectedPosition(position);
                                 setModifyOpenPrice(position.openPrice);
+                                setModifyClosePrice(position.closePrice || position.currentPrice || '');
                                 setModifyQuantity(position.quantity);
                                 setModifySide(position.side);
                                 setModifyPnl(position.unrealizedPnl || '');

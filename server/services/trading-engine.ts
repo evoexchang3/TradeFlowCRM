@@ -205,6 +205,7 @@ class TradingEngine {
       const updated = await storage.updatePosition(positionId, {
         status: 'closed',
         currentPrice: closePrice.toString(),
+        closePrice: closePrice.toString(),
         realizedPnl: realizedPnl.toString(),
         closedAt: new Date(),
       });
