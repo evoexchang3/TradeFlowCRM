@@ -175,6 +175,31 @@ class TradingEngine {
 
     const realizedPnl = priceChange * closingQuantity;
 
+    // Get account to update balance
+    const account = await storage.getAccount(position.accountId);
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    // Update account real balance with realized P/L (trades use real funds)
+    const newRealBalance = parseFloat(account.realBalance || '0') + realizedPnl;
+    const newTotalBalance = newRealBalance + parseFloat(account.demoBalance || '0') + parseFloat(account.bonusBalance || '0');
+    
+    await storage.updateAccount(position.accountId, {
+      realBalance: newRealBalance.toString(),
+      balance: newTotalBalance.toString(),
+    });
+
+    // Create transaction record for the realized P/L
+    await storage.createTransaction({
+      accountId: position.accountId,
+      type: realizedPnl >= 0 ? 'profit' : 'loss',
+      amount: Math.abs(realizedPnl).toString(),
+      fundType: 'real', // Trades use real funds
+      status: 'completed',
+      reference: `Position ${position.symbol} closed`,
+    });
+
     if (closingQuantity >= parseFloat(position.quantity)) {
       // Close entire position
       const updated = await storage.updatePosition(positionId, {
