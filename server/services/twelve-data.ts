@@ -50,6 +50,9 @@ class TwelveDataService {
         try {
           const message = JSON.parse(data.toString());
           
+          // Debug: Log raw message from Twelve Data
+          console.log('[TWELVE DATA] Raw WebSocket message:', JSON.stringify(message));
+          
           if (message.event === 'price') {
             const price = parseFloat(message.price);
             let spread = price * 0.0002; // Default 0.02% spread
