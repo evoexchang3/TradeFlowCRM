@@ -563,6 +563,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:id/closed-positions", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const client = await storage.getClient(req.params.id);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      const account = await storage.getAccountByClientId(client.id);
+      const closedPositions = await storage.getPositions({ accountId: account?.id, status: 'closed' });
+      res.json(closedPositions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/clients", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const data = req.body;
