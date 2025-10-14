@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Plus, Search, Phone, Mail, MoreVertical, Users } from "lucide-react";
+import { Plus, Search, Phone, Mail, MoreVertical, Users, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -48,7 +49,14 @@ export default function Clients() {
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [bulkAssignAgentId, setBulkAssignAgentId] = useState<string>('');
   const [bulkAssignTeamId, setBulkAssignTeamId] = useState<string>('');
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [selectedClientForComment, setSelectedClientForComment] = useState<any>(null);
+  const [commentText, setCommentText] = useState('');
   const { toast } = useToast();
+  
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/auth/me'],
+  });
   
   const { data: allClients, isLoading } = useQuery({
     queryKey: ['/api/clients'],
@@ -124,6 +132,54 @@ export default function Clients() {
     },
   });
 
+  const commentMutation = useMutation({
+    mutationFn: ({ clientId, comment }: { clientId: string; comment: string }) =>
+      apiRequest('POST', `/api/clients/${clientId}/comments`, { text: comment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      setCommentDialogOpen(false);
+      setCommentText('');
+      setSelectedClientForComment(null);
+      toast({
+        title: "Comment added",
+        description: "Your comment has been saved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add comment.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const assignAgentMutation = useMutation({
+    mutationFn: ({ clientId, assignedAgentId }: { clientId: string; assignedAgentId: string | null }) =>
+      apiRequest('PATCH', `/api/clients/${clientId}`, { assignedAgentId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      toast({
+        title: "Agent assigned",
+        description: "Client agent has been updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to assign agent.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check if user can assign agents (Team Leader, CRM Manager, or Admin only)
+  const canAssignAgents = () => {
+    if (!currentUser || !currentUser.role) return false;
+    const roleName = currentUser.role.name?.toLowerCase();
+    return roleName === 'administrator' || roleName === 'crm manager' || roleName === 'team leader';
+  };
+
   const handleToggleClient = (clientId: string) => {
     const newSelected = new Set(selectedClients);
     if (newSelected.has(clientId)) {
@@ -160,6 +216,24 @@ export default function Clients() {
       rejected: { variant: "destructive", label: "Rejected" },
     };
     const config = variants[status] || variants.pending;
+    return (
+      <Badge variant={config.variant as any} className="text-xs">
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const getPipelineStatusBadge = (status: string) => {
+    const variants: Record<string, { variant: any; label: string }> = {
+      new_lead: { variant: "default", label: "New Lead" },
+      contact_attempted: { variant: "secondary", label: "Contact Attempted" },
+      in_discussion: { variant: "secondary", label: "In Discussion" },
+      kyc_pending: { variant: "secondary", label: "KYC Pending" },
+      active_client: { variant: "default", label: "Active Client" },
+      cold_inactive: { variant: "secondary", label: "Cold/Inactive" },
+      lost: { variant: "destructive", label: "Lost" },
+    };
+    const config = variants[status] || { variant: "secondary", label: "Unknown" };
     return (
       <Badge variant={config.variant as any} className="text-xs">
         {config.label}
@@ -325,10 +399,11 @@ export default function Clients() {
                   <TableHead>Client</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Account</TableHead>
+                  <TableHead>Pipeline Status</TableHead>
                   <TableHead>KYC Status</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Agent</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-[140px]">Actions</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -379,6 +454,9 @@ export default function Clients() {
                       </span>
                     </TableCell>
                     <TableCell>
+                      {client.pipelineStatus ? getPipelineStatusBadge(client.pipelineStatus) : <span className="text-xs text-muted-foreground">-</span>}
+                    </TableCell>
+                    <TableCell>
                       {getKycStatusBadge(client.kycStatus)}
                     </TableCell>
                     <TableCell>
@@ -392,9 +470,31 @@ export default function Clients() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {client.assignedAgent?.name || 'Unassigned'}
-                      </span>
+                      {canAssignAgents() ? (
+                        <Select
+                          value={client.assignedAgentId || 'unassigned'}
+                          onValueChange={(value) => assignAgentMutation.mutate({
+                            clientId: client.id,
+                            assignedAgentId: value === 'unassigned' ? null : value
+                          })}
+                        >
+                          <SelectTrigger className="w-[140px] h-8 text-xs" data-testid={`select-agent-${client.id}`}>
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {agents.map((agent: any) => (
+                              <SelectItem key={agent.id} value={agent.id}>
+                                {agent.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">
+                          {client.assignedAgent?.name || 'Unassigned'}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -425,6 +525,18 @@ export default function Clients() {
                             <Mail className="h-3 w-3" />
                           </a>
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setSelectedClientForComment(client);
+                            setCommentDialogOpen(true);
+                          }}
+                          data-testid={`button-comment-${client.id}`}
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -449,7 +561,7 @@ export default function Clients() {
                   </TableRow>
                 )) || (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
+                    <TableCell colSpan={10} className="text-center py-12">
                       <p className="text-sm text-muted-foreground">No clients found</p>
                     </TableCell>
                   </TableRow>
@@ -524,6 +636,55 @@ export default function Clients() {
               className="hover-elevate active-elevate-2"
             >
               {bulkAssignMutation.isPending ? "Assigning..." : "Assign Clients"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
+        <DialogContent data-testid="dialog-add-comment">
+          <DialogHeader>
+            <DialogTitle>Add Comment</DialogTitle>
+            <DialogDescription>
+              Add a note or comment for {selectedClientForComment?.firstName} {selectedClientForComment?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Enter your comment..."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              rows={4}
+              data-testid="textarea-comment"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCommentDialogOpen(false);
+                setCommentText('');
+                setSelectedClientForComment(null);
+              }}
+              data-testid="button-cancel-comment"
+              className="hover-elevate active-elevate-2"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedClientForComment && commentText.trim()) {
+                  commentMutation.mutate({
+                    clientId: selectedClientForComment.id,
+                    comment: commentText.trim()
+                  });
+                }
+              }}
+              disabled={commentMutation.isPending || !commentText.trim()}
+              data-testid="button-save-comment"
+              className="hover-elevate active-elevate-2"
+            >
+              {commentMutation.isPending ? "Saving..." : "Save Comment"}
             </Button>
           </DialogFooter>
         </DialogContent>
