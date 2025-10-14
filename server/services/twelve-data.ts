@@ -138,12 +138,16 @@ class TwelveDataService {
 
   private sendSubscribe(symbol: string) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
+      const subscribeMsg = {
         action: 'subscribe',
         params: {
           symbols: symbol,
         },
-      }));
+      };
+      console.log('[TWELVE DATA] Subscribing to symbol:', symbol, subscribeMsg);
+      this.ws.send(JSON.stringify(subscribeMsg));
+    } else {
+      console.log('[TWELVE DATA] Cannot subscribe - WebSocket not ready. State:', this.ws?.readyState);
     }
   }
 
