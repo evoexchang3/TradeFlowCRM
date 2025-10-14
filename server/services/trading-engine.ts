@@ -114,6 +114,13 @@ class TradingEngine {
   async updatePositionPnL(position: Position): Promise<Position> {
     const quote = await twelveDataService.getQuote(position.symbol);
     
+    console.log(`[P/L DEBUG] Position ${position.id} (${position.symbol}):`, {
+      quote: { price: quote.price, bid: quote.bid, ask: quote.ask },
+      openPrice: position.openPrice,
+      quantity: position.quantity,
+      side: position.side
+    });
+    
     // Use bid/ask if available, otherwise use mid price with simulated spread
     let currentPrice: number;
     if (quote.bid && quote.ask) {
@@ -134,6 +141,14 @@ class TradingEngine {
       : openPrice - currentPrice;
 
     const unrealizedPnl = priceChange * quantity;
+
+    console.log(`[P/L DEBUG] Calculated:`, {
+      currentPrice,
+      openPrice,
+      quantity,
+      priceChange,
+      unrealizedPnl
+    });
 
     const updated = await storage.updatePosition(position.id, {
       currentPrice: currentPrice.toString(),
@@ -197,7 +212,33 @@ class TradingEngine {
     return await storage.updateOrder(orderId, { status: 'cancelled' });
   }
 
-  async modifyPosition(positionId: string, updates: { stopLoss?: string; takeProfit?: string; }): Promise<Position> {
+  async modifyPosition(positionId: string, updates: { 
+    stopLoss?: string; 
+    takeProfit?: string;
+    openPrice?: string;
+    closePrice?: string;
+    quantity?: string;
+    side?: 'buy' | 'sell';
+    unrealizedPnl?: string;
+  }): Promise<Position> {
+    // If key values changed, recalculate P/L
+    if (updates.openPrice || updates.quantity || updates.side) {
+      const position = await storage.getPosition(positionId);
+      if (position) {
+        const quote = await twelveDataService.getQuote(position.symbol);
+        const openPrice = parseFloat(updates.openPrice || position.openPrice);
+        const quantity = parseFloat(updates.quantity || position.quantity);
+        const side = updates.side || position.side;
+        
+        let currentPrice = position.side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
+        const priceChange = side === 'buy' 
+          ? currentPrice - openPrice
+          : openPrice - currentPrice;
+        
+        updates.unrealizedPnl = (priceChange * quantity).toString();
+      }
+    }
+    
     return await storage.updatePosition(positionId, updates);
   }
 

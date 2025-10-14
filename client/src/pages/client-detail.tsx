@@ -938,6 +938,7 @@ export default function ClientDetail() {
                     <TableHead>Open Price</TableHead>
                     <TableHead>Current Price</TableHead>
                     <TableHead>P/L</TableHead>
+                    <TableHead>Opened</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
