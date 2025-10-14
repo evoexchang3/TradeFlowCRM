@@ -486,8 +486,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = req.body;
       const hashedPassword = await bcrypt.hash(data.password || 'Welcome123!', 10);
 
+      // Parse dateOfBirth if it's a string (e.g., "10.01.1990")
+      let dateOfBirth = data.dateOfBirth;
+      if (typeof dateOfBirth === 'string' && dateOfBirth) {
+        // Try to parse various date formats
+        const parts = dateOfBirth.split(/[.\-\/]/);
+        if (parts.length === 3) {
+          // Assume DD.MM.YYYY or DD-MM-YYYY or DD/MM/YYYY
+          const day = parseInt(parts[0]);
+          const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+          const year = parseInt(parts[2]);
+          dateOfBirth = new Date(year, month, day);
+        } else {
+          dateOfBirth = new Date(dateOfBirth);
+        }
+      }
+
       const client = await storage.createClient({
         ...data,
+        dateOfBirth,
         password: hashedPassword,
         mustResetPassword: !data.password,
       });
@@ -1121,6 +1138,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: undefined
       }));
       res.json(sanitizedUsers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/users/agents", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only staff can access agents list
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const users = await storage.getUsers();
+      // Filter to only users with roles (agents) and remove passwords
+      const agents = users
+        .filter(user => user.roleId)
+        .map(user => ({
+          ...user,
+          password: undefined
+        }));
+      res.json(agents);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -86,13 +86,13 @@ export default function ClientDetail() {
 
   const { data: subaccounts = [] } = useQuery({
     queryKey: ['/api/subaccounts', client?.account?.id],
-    queryFn: () => apiRequest(`/api/subaccounts?accountId=${client?.account?.id}`, 'GET'),
+    queryFn: () => apiRequest('GET', `/api/subaccounts?accountId=${client?.account?.id}`),
     enabled: !!client?.account?.id,
   });
 
   const { data: internalTransfers = [] } = useQuery({
     queryKey: ['/api/internal-transfers', client?.account?.id],
-    queryFn: () => apiRequest(`/api/internal-transfers?accountId=${client?.account?.id}`, 'GET'),
+    queryFn: () => apiRequest('GET', `/api/internal-transfers?accountId=${client?.account?.id}`),
     enabled: !!client?.account?.id,
   });
 
@@ -100,12 +100,9 @@ export default function ClientDetail() {
     queryKey: ['/api/teams'],
   });
 
-  const { data: usersData = [] } = useQuery({
-    queryKey: ['/api/users'],
+  const { data: agents = [] } = useQuery({
+    queryKey: ['/api/users/agents'],
   });
-
-  // Filter users to only show agents (users with roles)
-  const agents = usersData.filter((user: any) => user.roleId);
 
   // Filter transfers based on subaccount and date range
   const filteredTransfers = internalTransfers.filter((transfer: any) => {
@@ -133,7 +130,7 @@ export default function ClientDetail() {
 
   const updateStatusMutation = useMutation({
     mutationFn: (status: string) => 
-      apiRequest(`/api/clients/${clientId}`, 'PATCH', { status }),
+      apiRequest('PATCH', `/api/clients/${clientId}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
@@ -152,7 +149,7 @@ export default function ClientDetail() {
 
   const addCommentMutation = useMutation({
     mutationFn: (comment: string) => 
-      apiRequest(`/api/clients/${clientId}/comments`, 'POST', { comment }),
+      apiRequest('POST', `/api/clients/${clientId}/comments`, { comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
       setNewComment('');
@@ -172,7 +169,7 @@ export default function ClientDetail() {
 
   const updateCommentMutation = useMutation({
     mutationFn: ({ id, comment }: { id: string; comment: string }) => 
-      apiRequest(`/api/comments/${id}`, 'PATCH', { comment }),
+      apiRequest('PATCH', `/api/comments/${id}`, { comment }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
       setEditingCommentId(null);
@@ -192,7 +189,7 @@ export default function ClientDetail() {
   });
 
   const deleteCommentMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/comments/${id}`, 'DELETE'),
+    mutationFn: (id: string) => apiRequest('DELETE', `/api/comments/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
       toast({
@@ -211,7 +208,7 @@ export default function ClientDetail() {
 
   const createSubaccountMutation = useMutation({
     mutationFn: (data: { accountId: string; name: string; currency: string }) =>
-      apiRequest('/api/subaccounts', 'POST', data),
+      apiRequest('POST', '/api/subaccounts', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subaccounts', client?.account?.id] });
       setCreateSubaccountOpen(false);
@@ -233,7 +230,7 @@ export default function ClientDetail() {
 
   const transferMutation = useMutation({
     mutationFn: (data: { fromSubaccountId: string; toSubaccountId: string; amount: string; notes?: string }) =>
-      apiRequest('/api/subaccounts/transfer', 'POST', data),
+      apiRequest('POST', '/api/subaccounts/transfer', data),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/subaccounts', client?.account?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/internal-transfers', client?.account?.id] });
@@ -267,7 +264,7 @@ export default function ClientDetail() {
 
   const assignMutation = useMutation({
     mutationFn: (data: { assignedAgentId?: string | null; teamId?: string | null }) =>
-      apiRequest(`/api/clients/${clientId}/assign`, 'PATCH', data),
+      apiRequest('PATCH', `/api/clients/${clientId}/assign`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
@@ -286,7 +283,7 @@ export default function ClientDetail() {
 
   const clientTransferMutation = useMutation({
     mutationFn: (data: { newAgentId?: string; newTeamId?: string; transferReason: string }) =>
-      apiRequest(`/api/clients/${clientId}/transfer`, 'POST', data),
+      apiRequest('POST', `/api/clients/${clientId}/transfer`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
@@ -309,7 +306,7 @@ export default function ClientDetail() {
   });
 
   const impersonateMutation = useMutation({
-    mutationFn: () => apiRequest(`/api/clients/${clientId}/impersonate`, 'POST'),
+    mutationFn: () => apiRequest('POST', `/api/clients/${clientId}/impersonate`),
     onSuccess: (data: any) => {
       // Open SSO URL in new tab
       window.open(data.ssoUrl, '_blank');

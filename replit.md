@@ -109,3 +109,32 @@ The CRM is fully integrated with the Trading Platform via three secure communica
   - CRM Manager: No access to User Management, Roles, API Keys
   - Team Leader: Team-scoped access only
   - Agent: Assigned clients only
+
+## Recent Bug Fixes (October 14, 2025)
+
+### Client & User Management Fixes ✅
+
+1. **Client Creation Date Parsing**
+   - Added server-side date parsing for dateOfBirth field
+   - Supports DD.MM.YYYY, DD-MM-YYYY, and DD/MM/YYYY formats
+   - Prevents "toISOString is not a function" errors
+
+2. **User Creation Name Field**
+   - Backend now properly combines firstName + lastName into single name field
+   - Fixes "null value in column 'name'" database constraint violations
+
+3. **Agent Dropdown Population**
+   - Created new GET /api/users/agents endpoint
+   - Returns only users with roles (agents) for dropdown filtering
+   - All agent queries updated to use new endpoint in:
+     - client-form.tsx
+     - client-detail.tsx
+     - clients.tsx
+
+4. **Client Assignment**
+   - Fixed apiRequest parameter order from (url, method, data) to (method, url, data)
+   - Resolves "Method is not a valid HTTP token" errors
+   - Updated in all mutation calls across:
+     - client-detail.tsx (8 mutations fixed)
+     - clients.tsx (bulk assign fixed)
+     - client-form.tsx (create/update fixed)

@@ -54,7 +54,7 @@ export default function ClientForm() {
   });
 
   const { data: agents } = useQuery({
-    queryKey: ['/api/users', 'agents'],
+    queryKey: ['/api/users/agents'],
   });
 
   const { data: teams } = useQuery({

@@ -58,11 +58,9 @@ export default function Clients() {
     queryKey: ['/api/teams'],
   });
 
-  const { data: usersData = [] } = useQuery({
-    queryKey: ['/api/users'],
+  const { data: agents = [] } = useQuery({
+    queryKey: ['/api/users/agents'],
   });
-
-  const agents = usersData.filter((user: any) => user.roleId);
 
   // Apply client-side filtering
   const clients = allClients?.filter((client: any) => {
@@ -105,7 +103,7 @@ export default function Clients() {
 
   const bulkAssignMutation = useMutation({
     mutationFn: (data: { clientIds: string[]; assignedAgentId?: string | null; teamId?: string | null }) =>
-      apiRequest('/api/clients/bulk-assign', 'POST', data),
+      apiRequest('POST', '/api/clients/bulk-assign', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       setSelectedClients(new Set());
