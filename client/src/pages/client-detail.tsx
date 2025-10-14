@@ -1277,7 +1277,6 @@ export default function ClientDetail() {
                   <SelectValue placeholder="Select new agent (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No change</SelectItem>
                   {agents.map((agent: any) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
@@ -1297,7 +1296,6 @@ export default function ClientDetail() {
                   <SelectValue placeholder="Select new team (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No change</SelectItem>
                   {teams.map((team: any) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}

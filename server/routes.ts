@@ -444,7 +444,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clients = clients.filter(c => c.assignedAgentId === user.id);
       }
 
-      res.json(clients);
+      // Enrich clients with agent and team information
+      const enrichedClients = await Promise.all(clients.map(async (client) => {
+        const assignedAgent = client.assignedAgentId ? await storage.getUserById(client.assignedAgentId) : null;
+        const team = client.teamId ? await storage.getTeamById(client.teamId) : null;
+        return {
+          ...client,
+          assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
+          team: team ? { id: team.id, name: team.name } : null,
+        };
+      }));
+
+      res.json(enrichedClients);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
