@@ -78,10 +78,6 @@ export default function Trading() {
     }
   }, [categorySymbols, selectedSymbol]);
 
-  // Get symbols for market data based on category
-  const symbolsForMarketData = categorySymbols.slice(0, 20).map((s: TwelveDataSymbol) => s.symbol);
-  const quotes = useMarketData(symbolsForMarketData); // Limit to 20 for performance
-
   // Fetch user's role to determine permissions
   const { data: userData } = useQuery<{ user?: any; client?: any }>({
     queryKey: ['/api/me'],
@@ -154,6 +150,12 @@ export default function Trading() {
       return map;
     }
   });
+
+  // Get symbols for market data: include category symbols AND position symbols
+  const categorySymbolsList = categorySymbols.slice(0, 20).map((s: TwelveDataSymbol) => s.symbol);
+  const positionSymbols = positions?.map((p: any) => p.symbol) || [];
+  const uniqueSymbols = categorySymbolsList.concat(positionSymbols.filter(s => !categorySymbolsList.includes(s)));
+  const quotes = useMarketData(uniqueSymbols);
 
   const placeOrderMutation = useMutation({
     mutationFn: async (data: any) => {
