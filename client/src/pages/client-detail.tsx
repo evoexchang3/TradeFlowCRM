@@ -1,6 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check, ArrowRightLeft } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MapPin, Calendar, FileText, TrendingUp, DollarSign, Send, Pencil, Trash2, Plus, Check, ArrowRightLeft, Edit } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,11 @@ export default function ClientDetail() {
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustFundType, setAdjustFundType] = useState<'real' | 'demo' | 'bonus'>('real');
   const [adjustNotes, setAdjustNotes] = useState('');
+  const [modifyPositionDialogOpen, setModifyPositionDialogOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<any>(null);
+  const [modifyOpenPrice, setModifyOpenPrice] = useState('');
+  const [modifyQuantity, setModifyQuantity] = useState('');
+  const [modifySide, setModifySide] = useState<'buy' | 'sell'>('buy');
   const { toast } = useToast();
 
   const { data: client, isLoading } = useQuery({
@@ -385,6 +391,27 @@ export default function ClientDetail() {
       toast({
         title: "Balance adjustment failed",
         description: error.message || "Failed to adjust balance.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const modifyPositionMutation = useMutation({
+    mutationFn: (data: { openPrice?: string; quantity?: string; side?: 'buy' | 'sell' }) =>
+      apiRequest('PATCH', `/api/positions/${selectedPosition?.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      setModifyPositionDialogOpen(false);
+      setSelectedPosition(null);
+      toast({
+        title: "Position modified",
+        description: "Position has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Position modification failed",
+        description: error.message || "Failed to modify position.",
         variant: "destructive",
       });
     },
@@ -854,6 +881,75 @@ export default function ClientDetail() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <Dialog open={modifyPositionDialogOpen} onOpenChange={(open) => {
+              setModifyPositionDialogOpen(open);
+              if (!open) {
+                setSelectedPosition(null);
+              }
+            }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Modify Position</DialogTitle>
+                  <DialogDescription>
+                    Edit position details: {selectedPosition?.symbol} ({selectedPosition?.id})
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="modify-side">Type</Label>
+                    <Select value={modifySide} onValueChange={(value: 'buy' | 'sell') => setModifySide(value)}>
+                      <SelectTrigger id="modify-side" data-testid="select-modify-side">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buy">Buy</SelectItem>
+                        <SelectItem value="sell">Sell</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="modify-quantity">Volume (Lot)</Label>
+                    <Input
+                      id="modify-quantity"
+                      type="number"
+                      step="0.01"
+                      placeholder="1.00"
+                      value={modifyQuantity}
+                      onChange={(e) => setModifyQuantity(e.target.value)}
+                      data-testid="input-modify-quantity"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="modify-open-price">Open Price</Label>
+                    <Input
+                      id="modify-open-price"
+                      type="number"
+                      step="0.00001"
+                      placeholder="1.16000"
+                      value={modifyOpenPrice}
+                      onChange={(e) => setModifyOpenPrice(e.target.value)}
+                      data-testid="input-modify-open-price"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={() => {
+                      modifyPositionMutation.mutate({
+                        side: modifySide,
+                        quantity: modifyQuantity,
+                        openPrice: modifyOpenPrice,
+                      });
+                    }}
+                    disabled={modifyPositionMutation.isPending}
+                    data-testid="button-save-position"
+                  >
+                    {modifyPositionMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
@@ -959,17 +1055,34 @@ export default function ClientDetail() {
                           <span className={`font-mono font-medium ${
                             (position.unrealizedPnl || 0) >= 0 ? 'text-success' : 'text-destructive'
                           }`}>
-                            ${position.unrealizedPnl || 0}
+                            ${Number(position.unrealizedPnl || 0).toFixed(4)}
                           </span>
                         </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {position.openedAt ? format(new Date(position.openedAt), 'MMM d, HH:mm') : '-'}
+                        </TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm">Modify</Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedPosition(position);
+                              setModifyOpenPrice(position.openPrice);
+                              setModifyQuantity(position.quantity);
+                              setModifySide(position.side);
+                              setModifyPositionDialogOpen(true);
+                            }}
+                            data-testid={`button-modify-position-${position.id}`}
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Modify
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8">
+                      <TableCell colSpan={8} className="text-center py-8">
                         <p className="text-sm text-muted-foreground">No open positions</p>
                       </TableCell>
                     </TableRow>

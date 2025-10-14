@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, X, Search, User } from "lucide-react";
+import { TrendingUp, TrendingDown, X, Search, User, Edit } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMarketData } from "@/hooks/use-market-data";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,9 @@ import { useAuth } from "@/lib/auth";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 type CategoryType = 'forex' | 'crypto' | 'commodities' | 'stocks' | 'etf';
 
@@ -59,6 +62,11 @@ export default function Trading() {
   const [fees, setFees] = useState("0");
   const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
   const [clientComboOpen, setClientComboOpen] = useState(false);
+  const [modifyPositionDialogOpen, setModifyPositionDialogOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<any>(null);
+  const [modifyOpenPrice, setModifyOpenPrice] = useState('');
+  const [modifyQuantity, setModifyQuantity] = useState('');
+  const [modifySide, setModifySide] = useState<'buy' | 'sell'>('buy');
 
   // Fetch symbols dynamically from Twelve Data API (100,000+ symbols)
   const { data: categorySymbols = [] } = useQuery<TwelveDataSymbol[]>({
@@ -187,6 +195,27 @@ export default function Trading() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
       toast({ title: "Position closed successfully" });
+    },
+  });
+
+  const modifyPositionMutation = useMutation({
+    mutationFn: (data: { openPrice?: string; quantity?: string; side?: 'buy' | 'sell' }) =>
+      apiRequest('PATCH', `/api/positions/${selectedPosition?.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
+      setModifyPositionDialogOpen(false);
+      setSelectedPosition(null);
+      toast({
+        title: "Position modified",
+        description: "Position has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Position modification failed",
+        description: error.message || "Failed to modify position.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -431,6 +460,7 @@ export default function Trading() {
                     <TableHead>Current</TableHead>
                     <TableHead>Leverage</TableHead>
                     <TableHead>P/L</TableHead>
+                    <TableHead>Opened</TableHead>
                     <TableHead>Initiator</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -438,7 +468,7 @@ export default function Trading() {
                 <TableBody>
                   {positions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
                         No open positions
                       </TableCell>
                     </TableRow>
@@ -457,8 +487,11 @@ export default function Trading() {
                         <TableCell>1:{position.leverage || '1'}</TableCell>
                         <TableCell>
                           <span className={parseFloat(position.unrealizedPnl) >= 0 ? 'text-success' : 'text-destructive'}>
-                            ${parseFloat(position.unrealizedPnl).toFixed(2)}
+                            ${parseFloat(position.unrealizedPnl).toFixed(4)}
                           </span>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {position.openedAt ? format(new Date(position.openedAt), 'MMM d, HH:mm') : '-'}
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-muted-foreground">
@@ -466,15 +499,31 @@ export default function Trading() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => closePositionMutation.mutate({ id: position.id, quantity: position.quantity })}
-                            disabled={closePositionMutation.isPending}
-                            data-testid={`button-close-position-${position.id}`}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedPosition(position);
+                                setModifyOpenPrice(position.openPrice);
+                                setModifyQuantity(position.quantity);
+                                setModifySide(position.side);
+                                setModifyPositionDialogOpen(true);
+                              }}
+                              data-testid={`button-modify-position-${position.id}`}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => closePositionMutation.mutate({ id: position.id, quantity: position.quantity })}
+                              disabled={closePositionMutation.isPending}
+                              data-testid={`button-close-position-${position.id}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -654,6 +703,75 @@ export default function Trading() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={modifyPositionDialogOpen} onOpenChange={(open) => {
+        setModifyPositionDialogOpen(open);
+        if (!open) {
+          setSelectedPosition(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modify Position</DialogTitle>
+            <DialogDescription>
+              Edit position details: {selectedPosition?.symbol} ({selectedPosition?.id})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="modify-side">Type</Label>
+              <Select value={modifySide} onValueChange={(value: 'buy' | 'sell') => setModifySide(value)}>
+                <SelectTrigger id="modify-side" data-testid="select-modify-side">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="buy">Buy</SelectItem>
+                  <SelectItem value="sell">Sell</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="modify-quantity">Volume (Lot)</Label>
+              <Input
+                id="modify-quantity"
+                type="number"
+                step="0.01"
+                placeholder="1.00"
+                value={modifyQuantity}
+                onChange={(e) => setModifyQuantity(e.target.value)}
+                data-testid="input-modify-quantity"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="modify-open-price">Open Price</Label>
+              <Input
+                id="modify-open-price"
+                type="number"
+                step="0.00001"
+                placeholder="1.16000"
+                value={modifyOpenPrice}
+                onChange={(e) => setModifyOpenPrice(e.target.value)}
+                data-testid="input-modify-open-price"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                modifyPositionMutation.mutate({
+                  side: modifySide,
+                  quantity: modifyQuantity,
+                  openPrice: modifyOpenPrice,
+                });
+              }}
+              disabled={modifyPositionMutation.isPending}
+              data-testid="button-save-position"
+            >
+              {modifyPositionMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

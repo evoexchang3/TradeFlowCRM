@@ -11,6 +11,7 @@ import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
 import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenMiddleware, type AuthRequest } from "./middleware/auth";
 import { previewImport, executeImport } from "./import";
+import { modifyPositionSchema } from "@shared/schema";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -1605,6 +1606,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/positions/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
+      // Validate request body
+      const validatedData = modifyPositionSchema.parse(req.body);
+
       // Verify position ownership
       const position = await storage.getPosition(req.params.id);
       if (!position) {
@@ -1620,7 +1624,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const modifiedPosition = await tradingEngine.modifyPosition(req.params.id, req.body);
+      // Capture before state for audit trail
+      const beforeState = {
+        openPrice: position.openPrice,
+        quantity: position.quantity,
+        side: position.side,
+      };
+
+      const modifiedPosition = await tradingEngine.modifyPosition(req.params.id, validatedData);
+
+      // Capture after state for audit trail
+      const afterState = {
+        openPrice: modifiedPosition.openPrice,
+        quantity: modifiedPosition.quantity,
+        side: modifiedPosition.side,
+      };
 
       await storage.createAuditLog({
         userId: req.user?.type === 'user' ? req.user.id : undefined,
@@ -1628,11 +1646,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: 'trade_edit',
         targetType: 'position',
         targetId: modifiedPosition.id,
-        details: req.body,
+        details: {
+          before: beforeState,
+          after: afterState,
+          changes: validatedData,
+        },
       });
 
       res.json(modifiedPosition);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
       res.status(500).json({ error: error.message });
     }
   });

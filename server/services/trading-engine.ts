@@ -221,25 +221,34 @@ class TradingEngine {
     side?: 'buy' | 'sell';
     unrealizedPnl?: string;
   }): Promise<Position> {
-    // If key values changed, recalculate P/L
+    const position = await storage.getPosition(positionId);
+    if (!position) {
+      throw new Error('Position not found');
+    }
+
+    // If key values changed, recalculate P/L immediately
     if (updates.openPrice || updates.quantity || updates.side) {
-      const position = await storage.getPosition(positionId);
-      if (position) {
-        const quote = await twelveDataService.getQuote(position.symbol);
-        const openPrice = parseFloat(updates.openPrice || position.openPrice);
-        const quantity = parseFloat(updates.quantity || position.quantity);
-        const side = updates.side || position.side;
-        
-        let currentPrice = position.side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
-        const priceChange = side === 'buy' 
-          ? currentPrice - openPrice
-          : openPrice - currentPrice;
-        
-        updates.unrealizedPnl = (priceChange * quantity).toString();
-      }
+      const quote = await twelveDataService.getQuote(position.symbol);
+      const openPrice = parseFloat(updates.openPrice || position.openPrice);
+      const quantity = parseFloat(updates.quantity || position.quantity);
+      const side = updates.side || position.side;
+      
+      // Use the updated side value to select correct price (bid for buy, ask for sell)
+      const currentPrice = side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
+      const priceChange = side === 'buy' 
+        ? currentPrice - openPrice
+        : openPrice - currentPrice;
+      
+      updates.unrealizedPnl = (priceChange * quantity).toFixed(8);
+      updates.currentPrice = currentPrice.toString();
     }
     
-    return await storage.updatePosition(positionId, updates);
+    const modifiedPosition = await storage.updatePosition(positionId, updates);
+    
+    // Update account metrics immediately after position modification
+    await this.updateAccountMetrics(position.accountId);
+    
+    return modifiedPosition;
   }
 
   async updateAccountMetrics(accountId: string): Promise<void> {

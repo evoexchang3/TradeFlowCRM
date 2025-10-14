@@ -445,6 +445,16 @@ export const insertPositionSchema = createInsertSchema(positions).omit({
   openedAt: true,
 });
 
+export const modifyPositionSchema = z.object({
+  openPrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: "Open price must be a positive number",
+  }).optional(),
+  quantity: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: "Quantity must be a positive number",
+  }).optional(),
+  side: z.enum(['buy', 'sell']).optional(),
+});
+
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   id: true,
   createdAt: true,
