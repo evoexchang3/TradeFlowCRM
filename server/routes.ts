@@ -1642,6 +1642,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== TRADING SYMBOLS (100,000+ from Twelve Data) =====
+  app.get("/api/symbols/forex", async (req, res) => {
+    try {
+      const symbols = await twelveDataService.getForexPairs();
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/symbols/crypto", async (req, res) => {
+    try {
+      const symbols = await twelveDataService.getCryptocurrencies();
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/symbols/commodities", async (req, res) => {
+    try {
+      const symbols = await twelveDataService.getCommodities();
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/symbols/stocks", async (req, res) => {
+    try {
+      const { exchange = 'NYSE' } = req.query;
+      const symbols = await twelveDataService.getStocks(exchange as string);
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/symbols/etf", async (req, res) => {
+    try {
+      const { exchange = 'NYSE' } = req.query;
+      const symbols = await twelveDataService.getETFs(exchange as string);
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/symbols/all", async (req, res) => {
+    try {
+      const options = {
+        includeForex: req.query.includeForex !== 'false',
+        includeCrypto: req.query.includeCrypto !== 'false',
+        includeCommodities: req.query.includeCommodities !== 'false',
+        stockExchanges: req.query.stockExchanges ? (req.query.stockExchanges as string).split(',') : [],
+        etfExchanges: req.query.etfExchanges ? (req.query.etfExchanges as string).split(',') : [],
+      };
+      const symbols = await twelveDataService.getAllSymbols(options);
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== TRANSACTIONS =====
   app.get("/api/transactions", authMiddleware, async (req: AuthRequest, res) => {
     try {

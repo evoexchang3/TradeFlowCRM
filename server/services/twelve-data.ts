@@ -298,6 +298,233 @@ class TwelveDataService {
 
     return candles;
   }
+
+  // Symbol fetching methods - Twelve Data Ultra Plan provides 100,000+ symbols
+  private symbolsCache: {
+    forex?: any[];
+    crypto?: any[];
+    commodities?: any[];
+    stocks?: Map<string, any[]>;
+    etf?: Map<string, any[]>;
+    lastFetched?: number;
+  } = {};
+  private CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+  async getForexPairs(): Promise<any[]> {
+    if (this.symbolsCache.forex && this.symbolsCache.lastFetched && 
+        Date.now() - this.symbolsCache.lastFetched < this.CACHE_TTL) {
+      return this.symbolsCache.forex;
+    }
+
+    if (!TWELVE_DATA_API_KEY) {
+      return this.getFallbackForexPairs();
+    }
+
+    try {
+      const response = await fetch(
+        `${TWELVE_DATA_REST_URL}/forex_pairs?apikey=${TWELVE_DATA_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.data) {
+        this.symbolsCache.forex = data.data;
+        this.symbolsCache.lastFetched = Date.now();
+        return data.data;
+      }
+    } catch (error) {
+      console.error('Error fetching forex pairs:', error);
+    }
+
+    return this.getFallbackForexPairs();
+  }
+
+  async getCryptocurrencies(): Promise<any[]> {
+    if (this.symbolsCache.crypto && this.symbolsCache.lastFetched && 
+        Date.now() - this.symbolsCache.lastFetched < this.CACHE_TTL) {
+      return this.symbolsCache.crypto;
+    }
+
+    if (!TWELVE_DATA_API_KEY) {
+      return this.getFallbackCrypto();
+    }
+
+    try {
+      const response = await fetch(
+        `${TWELVE_DATA_REST_URL}/cryptocurrencies?apikey=${TWELVE_DATA_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.data) {
+        this.symbolsCache.crypto = data.data;
+        this.symbolsCache.lastFetched = Date.now();
+        return data.data;
+      }
+    } catch (error) {
+      console.error('Error fetching cryptocurrencies:', error);
+    }
+
+    return this.getFallbackCrypto();
+  }
+
+  async getCommodities(): Promise<any[]> {
+    if (this.symbolsCache.commodities && this.symbolsCache.lastFetched && 
+        Date.now() - this.symbolsCache.lastFetched < this.CACHE_TTL) {
+      return this.symbolsCache.commodities;
+    }
+
+    if (!TWELVE_DATA_API_KEY) {
+      return this.getFallbackCommodities();
+    }
+
+    try {
+      const response = await fetch(
+        `${TWELVE_DATA_REST_URL}/commodities?apikey=${TWELVE_DATA_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.data) {
+        this.symbolsCache.commodities = data.data;
+        this.symbolsCache.lastFetched = Date.now();
+        return data.data;
+      }
+    } catch (error) {
+      console.error('Error fetching commodities:', error);
+    }
+
+    return this.getFallbackCommodities();
+  }
+
+  async getStocks(exchange: string = 'NYSE'): Promise<any[]> {
+    if (!this.symbolsCache.stocks) {
+      this.symbolsCache.stocks = new Map();
+    }
+
+    if (this.symbolsCache.stocks.has(exchange) && this.symbolsCache.lastFetched && 
+        Date.now() - this.symbolsCache.lastFetched < this.CACHE_TTL) {
+      return this.symbolsCache.stocks.get(exchange)!;
+    }
+
+    if (!TWELVE_DATA_API_KEY) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(
+        `${TWELVE_DATA_REST_URL}/stocks?exchange=${exchange}&apikey=${TWELVE_DATA_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.data) {
+        this.symbolsCache.stocks.set(exchange, data.data);
+        this.symbolsCache.lastFetched = Date.now();
+        return data.data;
+      }
+    } catch (error) {
+      console.error(`Error fetching stocks for ${exchange}:`, error);
+    }
+
+    return [];
+  }
+
+  async getETFs(exchange: string = 'NYSE'): Promise<any[]> {
+    if (!this.symbolsCache.etf) {
+      this.symbolsCache.etf = new Map();
+    }
+
+    if (this.symbolsCache.etf.has(exchange) && this.symbolsCache.lastFetched && 
+        Date.now() - this.symbolsCache.lastFetched < this.CACHE_TTL) {
+      return this.symbolsCache.etf.get(exchange)!;
+    }
+
+    if (!TWELVE_DATA_API_KEY) {
+      return [];
+    }
+
+    try {
+      const response = await fetch(
+        `${TWELVE_DATA_REST_URL}/etf?exchange=${exchange}&apikey=${TWELVE_DATA_API_KEY}`
+      );
+      const data = await response.json();
+      
+      if (data.data) {
+        this.symbolsCache.etf.set(exchange, data.data);
+        this.symbolsCache.lastFetched = Date.now();
+        return data.data;
+      }
+    } catch (error) {
+      console.error(`Error fetching ETFs for ${exchange}:`, error);
+    }
+
+    return [];
+  }
+
+  async getAllSymbols(options: {
+    includeForex?: boolean;
+    includeCrypto?: boolean;
+    includeCommodities?: boolean;
+    stockExchanges?: string[];
+    etfExchanges?: string[];
+  } = {}) {
+    const {
+      includeForex = true,
+      includeCrypto = true,
+      includeCommodities = true,
+      stockExchanges = [],
+      etfExchanges = [],
+    } = options;
+
+    const results: any[] = [];
+
+    if (includeForex) {
+      const forex = await this.getForexPairs();
+      results.push(...forex.map(f => ({ ...f, category: 'forex' })));
+    }
+
+    if (includeCrypto) {
+      const crypto = await this.getCryptocurrencies();
+      results.push(...crypto.map(c => ({ ...c, category: 'crypto' })));
+    }
+
+    if (includeCommodities) {
+      const commodities = await this.getCommodities();
+      results.push(...commodities.map(c => ({ ...c, category: 'commodities' })));
+    }
+
+    for (const exchange of stockExchanges) {
+      const stocks = await this.getStocks(exchange);
+      results.push(...stocks.map(s => ({ ...s, category: 'stocks', exchange })));
+    }
+
+    for (const exchange of etfExchanges) {
+      const etfs = await this.getETFs(exchange);
+      results.push(...etfs.map(e => ({ ...e, category: 'etf', exchange })));
+    }
+
+    return results;
+  }
+
+  // Fallback data for when API is not available
+  private getFallbackForexPairs() {
+    return [
+      { symbol: "EUR/USD", currency_group: "Major", currency_base: "EUR", currency_quote: "USD" },
+      { symbol: "GBP/USD", currency_group: "Major", currency_base: "GBP", currency_quote: "USD" },
+      { symbol: "USD/JPY", currency_group: "Major", currency_base: "USD", currency_quote: "JPY" },
+    ];
+  }
+
+  private getFallbackCrypto() {
+    return [
+      { symbol: "BTC/USD", available_exchanges: ["Binance", "Coinbase"], currency_base: "BTC", currency_quote: "USD" },
+      { symbol: "ETH/USD", available_exchanges: ["Binance", "Coinbase"], currency_base: "ETH", currency_quote: "USD" },
+    ];
+  }
+
+  private getFallbackCommodities() {
+    return [
+      { symbol: "XAU/USD", name: "Gold", category: "Precious Metals" },
+      { symbol: "XAG/USD", name: "Silver", category: "Precious Metals" },
+    ];
+  }
 }
 
 export const twelveDataService = new TwelveDataService();
