@@ -641,6 +641,84 @@ export default function ClientDetail() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Next Follow-up</span>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="date"
+                    value={client.nextFollowUpDate ? new Date(client.nextFollowUpDate).toISOString().slice(0, 10) : ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        // Parse as local date and convert to ISO string for storage
+                        const localDate = new Date(value + 'T00:00:00');
+                        apiRequest('PATCH', `/api/clients/${clientId}`, {
+                          nextFollowUpDate: localDate.toISOString()
+                        }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+                          toast({
+                            title: "Follow-up date set",
+                            description: "Next follow-up date has been set.",
+                          });
+                        }).catch(() => {
+                          toast({
+                            title: "Error",
+                            description: "Failed to update follow-up date.",
+                            variant: "destructive",
+                          });
+                        });
+                      } else {
+                        apiRequest('PATCH', `/api/clients/${clientId}`, {
+                          nextFollowUpDate: null
+                        }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+                          toast({
+                            title: "Follow-up date cleared",
+                            description: "Next follow-up date has been cleared.",
+                          });
+                        }).catch(() => {
+                          toast({
+                            title: "Error",
+                            description: "Failed to clear follow-up date.",
+                            variant: "destructive",
+                          });
+                        });
+                      }
+                    }}
+                    className="w-[140px] h-8 text-xs"
+                    data-testid="input-next-followup-date"
+                  />
+                  {client.nextFollowUpDate && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        apiRequest('PATCH', `/api/clients/${clientId}`, {
+                          nextFollowUpDate: null
+                        }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+                          toast({
+                            title: "Follow-up date cleared",
+                            description: "Next follow-up date has been removed.",
+                          });
+                        }).catch(() => {
+                          toast({
+                            title: "Error",
+                            description: "Failed to clear follow-up date.",
+                            variant: "destructive",
+                          });
+                        });
+                      }}
+                      data-testid="button-clear-followup-date"
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -1214,6 +1292,23 @@ export default function ClientDetail() {
                 {comments.length > 0 ? (
                   comments.map((comment: any) => (
                     <div key={comment.id} className="p-4 border rounded-md space-y-2" data-testid={`comment-${comment.id}`}>
+                      <div className="flex items-center justify-between gap-4 mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-xs font-medium text-primary">
+                              {comment.user?.name?.charAt(0) || 'U'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium" data-testid="text-comment-user">
+                              {comment.user?.name || 'Unknown User'}
+                            </p>
+                            <p className="text-xs text-muted-foreground" data-testid="text-comment-timestamp">
+                              {new Date(comment.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           {editingCommentId === comment.id ? (
@@ -1310,10 +1405,104 @@ export default function ClientDetail() {
         <TabsContent value="history" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Trading History</CardTitle>
+              <CardTitle className="text-lg">Activity Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">Closed positions will appear here</p>
+              <div className="space-y-4">
+                {(() => {
+                  // Combine all activities
+                  const activities: any[] = [];
+                  
+                  // Add comments
+                  comments.forEach((comment: any) => {
+                    activities.push({
+                      type: 'comment',
+                      timestamp: new Date(comment.createdAt),
+                      data: comment,
+                    });
+                  });
+                  
+                  // Add positions
+                  client.positions?.forEach((position: any) => {
+                    activities.push({
+                      type: 'position',
+                      timestamp: new Date(position.openTime),
+                      data: position,
+                    });
+                  });
+                  
+                  // Add transactions
+                  client.transactions?.forEach((transaction: any) => {
+                    activities.push({
+                      type: 'transaction',
+                      timestamp: new Date(transaction.createdAt),
+                      data: transaction,
+                    });
+                  });
+                  
+                  // Sort by timestamp (newest first)
+                  activities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+                  
+                  if (activities.length === 0) {
+                    return <p className="text-sm text-muted-foreground">No activity yet</p>;
+                  }
+                  
+                  return activities.map((activity, index) => (
+                    <div key={index} className="flex gap-4 pb-4 border-b last:border-b-0" data-testid={`activity-${activity.type}-${index}`}>
+                      <div className="flex flex-col items-center">
+                        <div className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                          activity.type === 'comment' ? 'bg-blue-100 dark:bg-blue-900' :
+                          activity.type === 'position' ? 'bg-green-100 dark:bg-green-900' :
+                          'bg-purple-100 dark:bg-purple-900'
+                        }`}>
+                          {activity.type === 'comment' && <FileText className="h-4 w-4 text-blue-600 dark:text-blue-300" />}
+                          {activity.type === 'position' && <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-300" />}
+                          {activity.type === 'transaction' && <DollarSign className="h-4 w-4 text-purple-600 dark:text-purple-300" />}
+                        </div>
+                        {index < activities.length - 1 && (
+                          <div className="w-px h-full bg-border mt-2" />
+                        )}
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium">
+                            {activity.type === 'comment' && 'Comment Added'}
+                            {activity.type === 'position' && `${activity.data.type === 'buy' ? 'Opened Long' : 'Opened Short'} Position`}
+                            {activity.type === 'transaction' && `${activity.data.type === 'deposit' ? 'Deposit' : 'Withdrawal'}`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.timestamp.toLocaleString()}
+                          </p>
+                        </div>
+                        {activity.type === 'comment' && (
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              by {activity.data.user?.name || 'Unknown User'}
+                            </p>
+                            <p className="text-sm">{activity.data.comment}</p>
+                          </div>
+                        )}
+                        {activity.type === 'position' && (
+                          <div className="text-sm space-y-1">
+                            <p><span className="text-muted-foreground">Symbol:</span> {activity.data.symbol}</p>
+                            <p><span className="text-muted-foreground">Volume:</span> {activity.data.volume}</p>
+                            <p><span className="text-muted-foreground">Entry Price:</span> ${activity.data.openPrice}</p>
+                            {activity.data.status === 'closed' && (
+                              <p><span className="text-muted-foreground">P/L:</span> ${activity.data.profitLoss}</p>
+                            )}
+                          </div>
+                        )}
+                        {activity.type === 'transaction' && (
+                          <div className="text-sm space-y-1">
+                            <p><span className="text-muted-foreground">Amount:</span> ${activity.data.amount}</p>
+                            <p><span className="text-muted-foreground">Status:</span> <Badge variant={activity.data.status === 'completed' ? 'default' : 'secondary'}>{activity.data.status}</Badge></p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

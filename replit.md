@@ -138,3 +138,39 @@ The CRM is fully integrated with the Trading Platform via three secure communica
      - client-detail.tsx (8 mutations fixed)
      - clients.tsx (bulk assign fixed)
      - client-form.tsx (create/update fixed)
+
+### Client Details Enhancements ✅
+
+**1. Pipeline Status System**
+   - Added pipelineStatusEnum with 7 stages: new_lead, contact_attempted, in_discussion, kyc_pending, active_client, cold_inactive, lost
+   - Visual badge in client header with color-coded variants (default/secondary/destructive)
+   - Inline dropdown editor in Account Status card
+   - Separate from existing client status for clarity
+
+**2. Quick Action Buttons**
+   - Call button with tel: link (disabled if no phone number)
+   - Email button with mailto: link  
+   - Add Comment button opens quick-entry dialog
+   - Dialog properly handles async mutations with onSuccess/onError
+   - Comment preserved on error for retry capability
+
+**3. Enhanced Comments Section**
+   - Backend enriches comments with user information (name)
+   - Displays commenter avatar with initial
+   - Shows commenter name and timestamp for each comment
+   - Better visual hierarchy and prominence
+
+**4. Activity Timeline**
+   - Transformed History tab into comprehensive timeline
+   - Combines comments, positions (trades), and transactions
+   - Chronologically sorted (newest first)
+   - Visual icons for each activity type
+   - Timeline connector lines between activities
+   - Shows relevant details per activity type
+
+**5. Next Follow-up Date**
+   - Added nextFollowUpDate field to clients schema
+   - Date picker in Account Status card
+   - Clear button to remove follow-up date
+   - Proper error handling with success/error toasts
+   - Simplified to date-only (not datetime) to avoid timezone complexity

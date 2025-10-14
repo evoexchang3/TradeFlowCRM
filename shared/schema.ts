@@ -89,6 +89,7 @@ export const clients = pgTable("clients", {
   kycDocuments: jsonb("kyc_documents").default('[]'), // Array of document URLs
   status: clientStatusEnum("status").notNull().default('new'),
   pipelineStatus: pipelineStatusEnum("pipeline_status").notNull().default('new_lead'),
+  nextFollowUpDate: timestamp("next_follow_up_date"),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   teamId: varchar("team_id").references(() => teams.id),
   mustResetPassword: boolean("must_reset_password").notNull().default(false),

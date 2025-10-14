@@ -740,7 +740,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/clients/:id/comments", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const comments = await storage.getClientComments(req.params.id);
-      res.json(comments);
+      
+      // Enrich comments with user information
+      const enrichedComments = await Promise.all(comments.map(async (comment) => {
+        const user = comment.userId ? await storage.getUser(comment.userId) : null;
+        return {
+          ...comment,
+          user: user ? { id: user.id, name: user.name } : null,
+        };
+      }));
+      
+      res.json(enrichedComments);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
