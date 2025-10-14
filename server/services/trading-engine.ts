@@ -113,7 +113,19 @@ class TradingEngine {
 
   async updatePositionPnL(position: Position): Promise<Position> {
     const quote = await twelveDataService.getQuote(position.symbol);
-    const currentPrice = position.side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
+    
+    // Use bid/ask if available, otherwise use mid price with simulated spread
+    let currentPrice: number;
+    if (quote.bid && quote.ask) {
+      // Use actual bid/ask
+      currentPrice = position.side === 'buy' ? quote.bid : quote.ask;
+    } else {
+      // Simulate spread when bid/ask not available (±0.0001 from mid price)
+      const spread = parseFloat(position.spread || '0.0001');
+      currentPrice = position.side === 'buy' 
+        ? quote.price - (spread / 2)  // For BUY positions, use bid (mid - half spread)
+        : quote.price + (spread / 2); // For SELL positions, use ask (mid + half spread)
+    }
 
     const openPrice = parseFloat(position.openPrice);
     const quantity = parseFloat(position.quantity);
@@ -238,11 +250,10 @@ class TradingEngine {
     const quote = await twelveDataService.getQuote(order.symbol);
     const orderPrice = parseFloat(order.price || '0');
 
-    // Require valid bid/ask for proper execution - skip if missing
-    if (!quote.bid || !quote.ask) {
-      console.warn(`Missing bid/ask for ${order.symbol}, skipping order check`);
-      return;
-    }
+    // Use bid/ask if available, otherwise simulate with spread
+    const spread = parseFloat(order.spread || '0.0001');
+    const bid = quote.bid || (quote.price - spread / 2);
+    const ask = quote.ask || (quote.price + spread / 2);
 
     let shouldExecute = false;
 
@@ -251,9 +262,9 @@ class TradingEngine {
         // Limit Buy: Execute when ask price <= limit price (can buy at or below limit)
         // Limit Sell: Execute when bid price >= limit price (can sell at or above limit)
         if (order.side === 'buy') {
-          shouldExecute = quote.ask <= orderPrice;
+          shouldExecute = ask <= orderPrice;
         } else {
-          shouldExecute = quote.bid >= orderPrice;
+          shouldExecute = bid >= orderPrice;
         }
         break;
 
@@ -261,9 +272,9 @@ class TradingEngine {
         // Stop Buy: Execute when ask price >= stop price (market is going up, ready to buy at ask)
         // Stop Sell: Execute when bid price <= stop price (market is going down, ready to sell at bid)
         if (order.side === 'buy') {
-          shouldExecute = quote.ask >= orderPrice;
+          shouldExecute = ask >= orderPrice;
         } else {
-          shouldExecute = quote.bid <= orderPrice;
+          shouldExecute = bid <= orderPrice;
         }
         break;
 
@@ -272,9 +283,9 @@ class TradingEngine {
         // For simplicity, we'll treat stop_limit similar to stop for now
         // In a full implementation, this would transition to a limit order after stop triggers
         if (order.side === 'buy') {
-          shouldExecute = quote.ask >= orderPrice;
+          shouldExecute = ask >= orderPrice;
         } else {
-          shouldExecute = quote.bid <= orderPrice;
+          shouldExecute = bid <= orderPrice;
         }
         break;
     }
