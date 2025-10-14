@@ -209,16 +209,19 @@ export default function Trading() {
 
     const currentPrice = quotes[selectedSymbol.symbol]?.price || 1.0;
     
+    // Normalize numeric inputs (replace comma with period for European locales)
+    const normalizeNumber = (value: string) => value.replace(',', '.');
+    
     const orderData: any = {
       symbol: selectedSymbol.symbol,
       type: orderType,
       side: orderSide,
-      quantity: parseFloat(quantity),
-      leverage,
-      spread,
-      fees,
-      stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
-      takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
+      quantity: parseFloat(normalizeNumber(quantity)),
+      leverage: normalizeNumber(leverage),
+      spread: normalizeNumber(spread),
+      fees: normalizeNumber(fees),
+      stopLoss: stopLoss ? parseFloat(normalizeNumber(stopLoss)) : undefined,
+      takeProfit: takeProfit ? parseFloat(normalizeNumber(takeProfit)) : undefined,
     };
 
     // Add price for non-market orders
@@ -231,7 +234,7 @@ export default function Trading() {
         });
         return;
       }
-      orderData.price = parseFloat(orderPrice);
+      orderData.price = parseFloat(normalizeNumber(orderPrice));
     } else {
       orderData.price = currentPrice;
     }
