@@ -335,7 +335,21 @@ export class DatabaseStorage implements IStorage {
 
   // Positions
   async getPositions(filters?: any): Promise<Position[]> {
-    return await db.select().from(positions).where(eq(positions.status, 'open')).orderBy(desc(positions.openedAt));
+    const conditions = [];
+    
+    if (filters?.accountId) {
+      conditions.push(eq(positions.accountId, filters.accountId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(positions.status, filters.status));
+    }
+    
+    let query = db.select().from(positions);
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    return await query.orderBy(desc(positions.openedAt));
   }
 
   async getPosition(id: string): Promise<Position | undefined> {
