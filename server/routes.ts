@@ -11,7 +11,17 @@ import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
 import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenMiddleware, type AuthRequest } from "./middleware/auth";
 import { previewImport, executeImport } from "./import";
-import { modifyPositionSchema } from "@shared/schema";
+import { 
+  modifyPositionSchema, 
+  markFTDSchema, 
+  clients, 
+  accounts, 
+  symbolGroups, 
+  tradingSymbols, 
+  calendarEvents, 
+  emailTemplates 
+} from "@shared/schema";
+import { eq, or, and, isNull } from "drizzle-orm";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -915,6 +925,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== SALES & RETENTION ENDPOINTS =====
+  app.get("/api/clients/sales", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('client.view_sales') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      
+      // Role-based filtering with FTD filter
+      const roleName = role?.name?.toLowerCase();
+      const ftdFilter = or(eq(clients.hasFTD, false), isNull(clients.hasFTD));
+      
+      let salesClients;
+      if (roleName === 'agent' && user.teamId) {
+        salesClients = await db.select().from(clients)
+          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
+      } else if (roleName === 'team leader' && user.teamId) {
+        salesClients = await db.select().from(clients)
+          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
+      } else {
+        salesClients = await db.select().from(clients)
+          .where(ftdFilter);
+      }
+      res.json(salesClients);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/clients/retention", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('client.view_retention') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      
+      // Role-based filtering with FTD filter
+      const roleName = role?.name?.toLowerCase();
+      const ftdFilter = eq(clients.hasFTD, true);
+      
+      let retentionClients;
+      if (roleName === 'agent' && user.teamId) {
+        retentionClients = await db.select().from(clients)
+          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
+      } else if (roleName === 'team leader' && user.teamId) {
+        retentionClients = await db.select().from(clients)
+          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
+      } else {
+        retentionClients = await db.select().from(clients)
+          .where(ftdFilter);
+      }
+      res.json(retentionClients);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/:id/mark-ftd", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('client.mark_ftd') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const client = await storage.getClient(req.params.id);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      if (client.hasFTD) {
+        return res.status(400).json({ error: 'Client already marked as FTD' });
+      }
+
+      const validated = markFTDSchema.parse(req.body);
+      const amount = parseFloat(validated.amount);
+
+      // Get client's account
+      const accounts = await storage.getAccountsByClientId(client.id);
+      if (!accounts || accounts.length === 0) {
+        return res.status(400).json({ error: 'Client has no account' });
+      }
+
+      const account = accounts[0];
+      const db = storage.db;
+
+      // Update client FTD status
+      await db.update(clients)
+        .set({
+          hasFTD: true,
+          ftdDate: new Date(),
+          ftdAmount: amount.toString(),
+          ftdFundType: validated.fundType,
+        })
+        .where(eq(clients.id, client.id));
+
+      // Add funds to account based on fund type
+      const balanceUpdate: any = {};
+      if (validated.fundType === 'real') {
+        balanceUpdate.realBalance = (parseFloat(account.realBalance) + amount).toString();
+      } else if (validated.fundType === 'demo') {
+        balanceUpdate.demoBalance = (parseFloat(account.demoBalance) + amount).toString();
+      } else if (validated.fundType === 'bonus') {
+        balanceUpdate.bonusBalance = (parseFloat(account.bonusBalance) + amount).toString();
+      }
+
+      balanceUpdate.balance = (
+        parseFloat(balanceUpdate.realBalance || account.realBalance) +
+        parseFloat(balanceUpdate.demoBalance || account.demoBalance) +
+        parseFloat(balanceUpdate.bonusBalance || account.bonusBalance)
+      ).toString();
+
+      await db.update(accounts)
+        .set(balanceUpdate)
+        .where(eq(accounts.id, account.id));
+
+      // Create transaction record
+      await storage.createTransaction({
+        accountId: account.id,
+        type: 'deposit',
+        fundType: validated.fundType,
+        amount: amount.toString(),
+        status: 'completed',
+        notes: `FTD: ${validated.notes || 'First Time Deposit'}`,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'client_ftd_marked',
+        details: {
+          clientId: client.id,
+          amount: amount,
+          fundType: validated.fundType,
+          notes: validated.notes,
+        },
+      });
+
+      res.json({ success: true, message: 'Client marked as FTD successfully' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== SUBACCOUNTS =====
   app.get("/api/subaccounts", authMiddleware, async (req: AuthRequest, res) => {
     try {
@@ -1744,6 +1934,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ success: true, message: "Position deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== GLOBAL POSITIONS VIEW =====
+  app.get("/api/positions/all/open", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('trade.view_all') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      // Get all open positions
+      const allPositions = await storage.getAllPositions();
+      const openPositions = allPositions.filter(p => p.status === 'open');
+
+      // Enrich with client data
+      const enrichedPositions = await Promise.all(openPositions.map(async (position) => {
+        const account = await storage.getAccount(position.accountId);
+        const client = account ? await storage.getClient(account.clientId) : null;
+        return {
+          ...position,
+          clientName: client?.name || 'Unknown',
+          clientEmail: client?.email || '',
+          accountNumber: account?.accountNumber || '',
+        };
+      }));
+
+      // Role-based filtering
+      const roleName = role?.name?.toLowerCase();
+      if (roleName === 'agent' && user.teamId) {
+        const filteredPositions = await Promise.all(
+          enrichedPositions.filter(async (p) => {
+            const account = await storage.getAccount(p.accountId);
+            const client = account ? await storage.getClient(account.clientId) : null;
+            return client?.teamId === user.teamId;
+          })
+        );
+        return res.json(filteredPositions);
+      } else if (roleName === 'team leader' && user.teamId) {
+        const filteredPositions = await Promise.all(
+          enrichedPositions.filter(async (p) => {
+            const account = await storage.getAccount(p.accountId);
+            const client = account ? await storage.getClient(account.clientId) : null;
+            return client?.teamId === user.teamId;
+          })
+        );
+        return res.json(filteredPositions);
+      }
+
+      res.json(enrichedPositions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/positions/all/closed", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('trade.view_all') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      // Get all closed positions
+      const allPositions = await storage.getAllPositions();
+      const closedPositions = allPositions.filter(p => p.status === 'closed');
+
+      // Enrich with client data
+      const enrichedPositions = await Promise.all(closedPositions.map(async (position) => {
+        const account = await storage.getAccount(position.accountId);
+        const client = account ? await storage.getClient(account.clientId) : null;
+        return {
+          ...position,
+          clientName: client?.name || 'Unknown',
+          clientEmail: client?.email || '',
+          accountNumber: account?.accountNumber || '',
+        };
+      }));
+
+      // Role-based filtering
+      const roleName = role?.name?.toLowerCase();
+      if (roleName === 'agent' && user.teamId) {
+        const filteredPositions = await Promise.all(
+          enrichedPositions.filter(async (p) => {
+            const account = await storage.getAccount(p.accountId);
+            const client = account ? await storage.getClient(account.clientId) : null;
+            return client?.teamId === user.teamId;
+          })
+        );
+        return res.json(filteredPositions);
+      } else if (roleName === 'team leader' && user.teamId) {
+        const filteredPositions = await Promise.all(
+          enrichedPositions.filter(async (p) => {
+            const account = await storage.getAccount(p.accountId);
+            const client = account ? await storage.getClient(account.clientId) : null;
+            return client?.teamId === user.teamId;
+          })
+        );
+        return res.json(filteredPositions);
+      }
+
+      res.json(enrichedPositions);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3339,6 +3654,622 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedAccount);
     } catch (error: any) {
       console.error('Leverage update error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== SYMBOL GROUPS MANAGEMENT =====
+  app.get("/api/symbol-groups", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const groups = await db.select().from(symbolGroups);
+      res.json(groups);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/symbol-groups", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('symbol.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [newGroup] = await db.insert(symbolGroups).values({
+        name: req.body.name,
+        description: req.body.description,
+        displayOrder: req.body.displayOrder || 0,
+      }).returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'symbol_group_create',
+        details: { symbolGroup: newGroup },
+      });
+
+      res.json(newGroup);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/symbol-groups/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('symbol.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [updatedGroup] = await db.update(symbolGroups)
+        .set({
+          name: req.body.name,
+          description: req.body.description,
+          displayOrder: req.body.displayOrder,
+          updatedAt: new Date(),
+        })
+        .where(eq(symbolGroups.id, parseInt(req.params.id)))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'symbol_group_edit',
+        details: { symbolGroupId: req.params.id, changes: req.body },
+      });
+
+      res.json(updatedGroup);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/symbol-groups/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('symbol.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      await db.delete(symbolGroups).where(eq(symbolGroups.id, parseInt(req.params.id)));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'symbol_group_delete',
+        details: { symbolGroupId: req.params.id },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== TRADING SYMBOLS MANAGEMENT =====
+  app.get("/api/symbols", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const symbols = await db.select().from(tradingSymbols);
+      res.json(symbols);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/symbols", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('symbol.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [newSymbol] = await db.insert(tradingSymbols).values({
+        symbol: req.body.symbol,
+        name: req.body.name,
+        groupId: req.body.groupId,
+        contractSize: req.body.contractSize,
+        pipValue: req.body.pipValue,
+        minLot: req.body.minLot,
+        maxLot: req.body.maxLot,
+        lotStep: req.body.lotStep,
+        enabled: req.body.enabled ?? true,
+        displayOrder: req.body.displayOrder || 0,
+      }).returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'symbol_create',
+        details: { symbol: newSymbol },
+      });
+
+      res.json(newSymbol);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/symbols/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('symbol.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [updatedSymbol] = await db.update(tradingSymbols)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(tradingSymbols.id, parseInt(req.params.id)))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'symbol_edit',
+        details: { symbolId: req.params.id, changes: req.body },
+      });
+
+      res.json(updatedSymbol);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/symbols/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('symbol.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      await db.delete(tradingSymbols).where(eq(tradingSymbols.id, parseInt(req.params.id)));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'symbol_delete',
+        details: { symbolId: req.params.id },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== CALENDAR EVENTS =====
+  app.get("/api/calendar/events", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.view') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      let query = db.select().from(calendarEvents);
+
+      // Role-based filtering
+      const roleName = role?.name?.toLowerCase();
+      if (roleName === 'agent') {
+        query = query.where(eq(calendarEvents.userId, user.id));
+      } else if (roleName === 'team leader' && user.teamId) {
+        // Team leaders see their own events and their team's events
+        const teamUsers = await storage.getUsersByTeamId(user.teamId);
+        const userIds = teamUsers.map(u => u.id);
+        query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
+      }
+
+      const events = await query;
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/calendar/events", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [newEvent] = await db.insert(calendarEvents).values({
+        title: req.body.title,
+        description: req.body.description,
+        startTime: new Date(req.body.startTime),
+        endTime: new Date(req.body.endTime),
+        userId: req.body.userId || user.id,
+        clientId: req.body.clientId || null,
+        eventType: req.body.eventType,
+      }).returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'calendar_event_create',
+        details: { event: newEvent },
+      });
+
+      res.json(newEvent);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/calendar/events/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const updateData: any = { ...req.body, updatedAt: new Date() };
+      if (req.body.startTime) updateData.startTime = new Date(req.body.startTime);
+      if (req.body.endTime) updateData.endTime = new Date(req.body.endTime);
+
+      const [updatedEvent] = await db.update(calendarEvents)
+        .set(updateData)
+        .where(eq(calendarEvents.id, parseInt(req.params.id)))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'calendar_event_edit',
+        details: { eventId: req.params.id, changes: req.body },
+      });
+
+      res.json(updatedEvent);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/calendar/events/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      await db.delete(calendarEvents).where(eq(calendarEvents.id, parseInt(req.params.id)));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'calendar_event_delete',
+        details: { eventId: req.params.id },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== EMAIL TEMPLATES =====
+  app.get("/api/email-templates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('email_template.view') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const templates = await db.select().from(emailTemplates);
+      res.json(templates);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/email-templates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('email_template.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [newTemplate] = await db.insert(emailTemplates).values({
+        name: req.body.name,
+        subject: req.body.subject,
+        body: req.body.body,
+        variables: req.body.variables || [],
+      }).returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'email_template_create',
+        details: { template: newTemplate },
+      });
+
+      res.json(newTemplate);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/email-templates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('email_template.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [updatedTemplate] = await db.update(emailTemplates)
+        .set({
+          name: req.body.name,
+          subject: req.body.subject,
+          body: req.body.body,
+          variables: req.body.variables,
+          updatedAt: new Date(),
+        })
+        .where(eq(emailTemplates.id, parseInt(req.params.id)))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'email_template_edit',
+        details: { templateId: req.params.id, changes: req.body },
+      });
+
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/email-templates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('email_template.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      await db.delete(emailTemplates).where(eq(emailTemplates.id, parseInt(req.params.id)));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'email_template_delete',
+        details: { templateId: req.params.id },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== SALES DASHBOARD =====
+  app.get("/api/reports/sales-dashboard", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      const roleName = role?.name?.toLowerCase();
+
+      // Get all clients based on role
+      const db = storage.db;
+      let clientsQuery = db.select().from(clients);
+      
+      if (roleName === 'agent' && user.teamId) {
+        clientsQuery = clientsQuery.where(eq(clients.teamId, user.teamId));
+      } else if (roleName === 'team leader' && user.teamId) {
+        clientsQuery = clientsQuery.where(eq(clients.teamId, user.teamId));
+      }
+
+      const allClients = await clientsQuery;
+
+      // Calculate metrics
+      const totalClients = allClients.length;
+      const salesClients = allClients.filter(c => !c.hasFTD).length;
+      const retentionClients = allClients.filter(c => c.hasFTD).length;
+      
+      // FTD metrics
+      const ftdClients = allClients.filter(c => c.hasFTD);
+      const totalFTDAmount = ftdClients.reduce((sum, c) => sum + (parseFloat(c.ftdAmount || '0')), 0);
+      const avgFTDAmount = ftdClients.length > 0 ? totalFTDAmount / ftdClients.length : 0;
+
+      // Recent FTDs (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentFTDs = ftdClients.filter(c => c.ftdDate && new Date(c.ftdDate) >= thirtyDaysAgo);
+
+      // Pipeline status distribution
+      const pipelineDistribution = allClients.reduce((acc: any, client) => {
+        const status = client.pipelineStatus || 'new_lead';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+
+      res.json({
+        totalClients,
+        salesClients,
+        retentionClients,
+        conversionRate: totalClients > 0 ? (retentionClients / totalClients * 100).toFixed(2) : 0,
+        totalFTDAmount: totalFTDAmount.toFixed(2),
+        avgFTDAmount: avgFTDAmount.toFixed(2),
+        recentFTDsCount: recentFTDs.length,
+        pipelineDistribution,
+      });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
