@@ -380,6 +380,7 @@ class TradingEngine {
     quantity?: string;
     side?: 'buy' | 'sell';
     unrealizedPnl?: string;
+    realizedPnl?: string;
     openedAt?: Date | string;
     closedAt?: Date | string;
   }): Promise<Position> {
@@ -392,10 +393,28 @@ class TradingEngine {
     const contractMultiplier = parseFloat(position.contractMultiplier || '1');
     const closeFeeRate = 0.0005; // 0.05% close fee
 
+    // Validation: Prevent manual P/L override when prices are ACTUALLY changed
+    // Compare against existing values to avoid false positives when forms submit unchanged values
+    const priceFieldsChanged = !!(
+      (updates.openPrice && updates.openPrice !== position.openPrice) ||
+      (updates.closePrice && updates.closePrice !== position.closePrice) ||
+      (updates.quantity && updates.quantity !== position.quantity) ||
+      (updates.side && updates.side !== position.side)
+    );
+    const manualPnlProvided = position.status === 'closed' 
+      ? (updates.realizedPnl !== undefined && updates.realizedPnl !== null)
+      : (updates.unrealizedPnl !== undefined && updates.unrealizedPnl !== null);
+    
+    if (priceFieldsChanged && manualPnlProvided) {
+      throw new Error('Cannot manually override P/L when also changing prices or quantity. Please use either automatic calculation (change prices) or manual P/L entry, not both.');
+    }
+    
+    // Track if we're doing a manual P/L override (to skip auto-recalculation later)
+    let manualPnlOverrideApplied = false;
+
     // For CLOSED positions: recalculate realized P/L if critical fields change
     if (position.status === 'closed') {
-      const shouldRecalculateClosedPnl = (updates.openPrice || updates.closePrice || updates.quantity || updates.side) && 
-                                          (!updates.unrealizedPnl || updates.unrealizedPnl === '');
+      const shouldRecalculateClosedPnl = priceFieldsChanged;
       
       if (shouldRecalculateClosedPnl) {
         const openPrice = parseFloat(updates.openPrice || position.openPrice);
@@ -489,11 +508,65 @@ class TradingEngine {
           }
         }
       }
+      // Handle manual P/L override for closed positions
+      else if (updates.realizedPnl !== undefined && updates.realizedPnl !== null) {
+        const oldRealizedPnl = parseFloat(position.realizedPnl || '0');
+        const newRealizedPnl = parseFloat(updates.realizedPnl);
+        const pnlDifference = newRealizedPnl - oldRealizedPnl;
+        
+        console.log('[TRADING ENGINE] Manual realized P/L override:', {
+          positionId,
+          symbol: position.symbol,
+          oldRealizedPnl,
+          newRealizedPnl,
+          pnlDifference,
+          status: 'manual_override'
+        });
+        
+        // Adjust account balance for the P/L difference
+        if (pnlDifference !== 0) {
+          const account = await storage.getAccount(position.accountId);
+          if (account) {
+            const currentRealBalance = parseFloat(account.realBalance || '0');
+            const newRealBalance = currentRealBalance + pnlDifference;
+            
+            console.log('[TRADING ENGINE] Adjusting balance for manual P/L edit:', {
+              accountId: position.accountId,
+              oldBalance: currentRealBalance,
+              pnlDifference,
+              newBalance: newRealBalance,
+              type: 'manual_override'
+            });
+            
+            await storage.updateAccount(position.accountId, {
+              realBalance: newRealBalance.toFixed(8),
+              balance: (
+                newRealBalance + 
+                parseFloat(account.demoBalance || '0') + 
+                parseFloat(account.bonusBalance || '0')
+              ).toFixed(8),
+            });
+            
+            // Create transaction record for the manual P/L adjustment
+            const transactionReference = pnlDifference >= 0
+              ? `Position ${position.symbol} P/L manually adjusted +$${pnlDifference.toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`
+              : `Position ${position.symbol} P/L manually adjusted -$${Math.abs(pnlDifference).toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`;
+            
+            await storage.createTransaction({
+              accountId: position.accountId,
+              type: 'adjustment',
+              amount: Math.abs(pnlDifference).toFixed(8),
+              fundType: 'real',
+              status: 'completed',
+              reference: transactionReference,
+            });
+          }
+        }
+      }
     }
-    // For OPEN positions: recalculate unrealized P/L (unless P/L was manually overridden)
+    // For OPEN positions: recalculate unrealized P/L or handle manual override
     else {
-      const shouldRecalculatePnl = (updates.openPrice || updates.quantity || updates.side) && 
-                                    (!updates.unrealizedPnl || updates.unrealizedPnl === '');
+      const shouldRecalculatePnl = priceFieldsChanged;
       
       if (shouldRecalculatePnl) {
         const quote = await twelveDataService.getQuote(position.symbol);
@@ -531,12 +604,55 @@ class TradingEngine {
         updates.unrealizedPnl = netUnrealizedPnl.toFixed(8);
         updates.currentPrice = currentPrice.toString();
       }
+      // Handle manual unrealized P/L override for open positions
+      else if (updates.unrealizedPnl !== undefined && updates.unrealizedPnl !== null) {
+        console.log('[TRADING ENGINE] Manual unrealized P/L override:', {
+          positionId,
+          symbol: position.symbol,
+          oldUnrealizedPnl: position.unrealizedPnl,
+          newUnrealizedPnl: updates.unrealizedPnl,
+          status: 'manual_override',
+          note: 'Open positions: unrealized P/L affects equity, not balance'
+        });
+        
+        // Set flag to skip automatic recalculation
+        manualPnlOverrideApplied = true;
+        
+        // Note: For open positions, unrealized P/L only affects equity calculation,
+        // not the actual balance. Balance is only adjusted when position closes.
+      }
     }
     
     const modifiedPosition = await storage.updatePosition(positionId, updates);
     
     // Update account metrics immediately after position modification
-    await this.updateAccountMetrics(position.accountId);
+    // Skip if manual P/L override was applied to prevent overwriting the manual value
+    if (!manualPnlOverrideApplied) {
+      await this.updateAccountMetrics(position.accountId);
+    } else {
+      console.log('[TRADING ENGINE] Skipping automatic metric update to preserve manual P/L override');
+      
+      // For manual overrides on open positions, we still need to update account equity
+      // but without recalculating this position's P/L
+      const account = await storage.getAccount(position.accountId);
+      if (account) {
+        const positions = await storage.getPositions({ accountId: position.accountId, status: 'open' });
+        let totalUnrealizedPnl = 0;
+        
+        for (const pos of positions) {
+          // Use the value from database (which now has our manual override)
+          const currentPosition = pos.id === positionId ? modifiedPosition : pos;
+          totalUnrealizedPnl += parseFloat(currentPosition.unrealizedPnl || '0');
+        }
+        
+        const balance = parseFloat(account.balance);
+        const equity = balance + totalUnrealizedPnl;
+        
+        await storage.updateAccount(position.accountId, {
+          equity: equity.toString(),
+        });
+      }
+    }
     
     return modifiedPosition;
   }

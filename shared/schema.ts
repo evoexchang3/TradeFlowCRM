@@ -460,7 +460,10 @@ export const modifyPositionSchema = z.object({
   }).optional(),
   side: z.enum(['buy', 'sell']).optional(),
   unrealizedPnl: z.string().refine((val) => !isNaN(parseFloat(val)), {
-    message: "P/L must be a valid number",
+    message: "Unrealized P/L must be a valid number",
+  }).optional(),
+  realizedPnl: z.string().refine((val) => !isNaN(parseFloat(val)), {
+    message: "Realized P/L must be a valid number",
   }).optional(),
   openedAt: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Opened date must be a valid date",
