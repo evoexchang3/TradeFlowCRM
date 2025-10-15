@@ -214,6 +214,9 @@ export const positions = pgTable("positions", {
   leverage: decimal("leverage", { precision: 5, scale: 2 }).default('1'),
   spread: decimal("spread", { precision: 10, scale: 5 }).default('0'),
   fees: decimal("fees", { precision: 18, scale: 2 }).default('0'),
+  contractMultiplier: decimal("contract_multiplier", { precision: 10, scale: 2 }).default('1'), // Multiplier for indices/CFDs (e.g., S&P500 = 50)
+  marginMode: text("margin_mode").default('isolated'), // 'isolated' | 'cross'
+  marginUsed: decimal("margin_used", { precision: 18, scale: 2 }).default('0'), // Actual margin used for this position
   openedAt: timestamp("opened_at").notNull().defaultNow(),
   closedAt: timestamp("closed_at"),
 });

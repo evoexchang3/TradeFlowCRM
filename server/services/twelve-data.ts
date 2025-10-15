@@ -21,6 +21,7 @@ class TwelveDataService {
   private quoteCache = new Map<string, Quote>();
   private spreadCache = new Map<string, { spread: number; timestamp: number }>();
   private SPREAD_CACHE_TTL = 60000; // Cache spread for 1 minute
+  private QUOTE_STALENESS_THRESHOLD = 5000; // 5 seconds - generous threshold for quote freshness
 
   constructor() {
     this.connect();
@@ -258,6 +259,57 @@ class TwelveDataService {
 
     // Return simulated data
     return this.getSimulatedQuote(symbol);
+  }
+
+  /**
+   * Check if market data is live (fresh) for a symbol
+   * Returns true if quote is less than QUOTE_STALENESS_THRESHOLD old
+   */
+  isMarketLive(symbol: string): boolean {
+    const cached = this.quoteCache.get(symbol);
+    if (!cached) {
+      return false; // No quote available
+    }
+    
+    const age = Date.now() - cached.timestamp;
+    return age < this.QUOTE_STALENESS_THRESHOLD;
+  }
+
+  /**
+   * Get live quote or throw error if market is not live
+   * This is the strict gate for critical operations (orders, liquidations)
+   */
+  async getLiveQuoteOrThrow(symbol: string): Promise<Quote> {
+    const quote = await this.getQuote(symbol);
+    const age = Date.now() - quote.timestamp;
+    
+    if (age > this.QUOTE_STALENESS_THRESHOLD) {
+      throw new Error(`LIVE FEED LOST - Market data for ${symbol} is stale (${(age / 1000).toFixed(1)}s old). Trading paused.`);
+    }
+    
+    return quote;
+  }
+
+  /**
+   * Get market status for multiple symbols
+   */
+  getMarketStatus(symbols: string[]): Record<string, { live: boolean; age: number }> {
+    const status: Record<string, { live: boolean; age: number }> = {};
+    
+    symbols.forEach(symbol => {
+      const cached = this.quoteCache.get(symbol);
+      if (cached) {
+        const age = Date.now() - cached.timestamp;
+        status[symbol] = {
+          live: age < this.QUOTE_STALENESS_THRESHOLD,
+          age,
+        };
+      } else {
+        status[symbol] = { live: false, age: -1 };
+      }
+    });
+    
+    return status;
   }
 
   private getSimulatedQuote(symbol: string): Quote {

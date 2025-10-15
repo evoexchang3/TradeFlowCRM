@@ -1,13 +1,15 @@
 import { storage } from '../storage';
 import { twelveDataService } from './twelve-data';
 import type { InsertOrder, InsertPosition, Order, Position } from '@shared/schema';
+import { getInstrumentConfig, roundToQtyStep, roundToTickSize } from '../config/instruments';
 
 interface PlaceOrderRequest {
   accountId: string;
   symbol: string;
   type: 'market' | 'limit' | 'stop' | 'stop_limit';
   side: 'buy' | 'sell';
-  quantity: string;
+  quantity?: string;  // Direct quantity input (legacy)
+  margin?: string;    // Margin amount in USD (NEW - preferred)
   price?: string;
   stopLoss?: string;
   takeProfit?: string;
@@ -20,7 +22,7 @@ interface PlaceOrderRequest {
 
 class TradingEngine {
   async placeOrder(request: PlaceOrderRequest): Promise<Order> {
-    const { accountId, symbol, type, side, quantity, price, stopLoss, takeProfit, leverage, spread, fees, initiatorType, initiatorId } = request;
+    const { accountId, symbol, type, side, quantity, margin, price, stopLoss, takeProfit, leverage, spread, fees, initiatorType, initiatorId } = request;
 
     // Validate order parameters based on type
     if (type === 'limit' && !price) {
@@ -33,14 +35,93 @@ class TradingEngine {
       throw new Error('Stop-limit orders require both stop and limit prices');
     }
 
+    // Get instrument configuration
+    const instrumentConfig = getInstrumentConfig(symbol);
+    
+    // Validate leverage against instrument max
+    const leverageValue = parseFloat(leverage || '1');
+    if (leverageValue > instrumentConfig.maxLeverage) {
+      throw new Error(`Leverage ${leverageValue} exceeds maximum ${instrumentConfig.maxLeverage} for ${symbol}`);
+    }
+
+    // LIVE-ONLY GATE: Check if market is live before accepting orders
+    // This prevents trading on stale quotes
+    try {
+      await twelveDataService.getLiveQuoteOrThrow(symbol);
+    } catch (error: any) {
+      throw new Error(`Cannot place order: ${error.message}`);
+    }
+
+    // Calculate quantity based on input method
+    let calculatedQuantity: string;
+    let marginUsed: number;
+    
+    if (margin) {
+      // PREFERRED METHOD: Calculate quantity from margin
+      // Formula: quantity = (margin × leverage) / (entryPrice × contractMultiplier)
+      
+      const marginValue = parseFloat(margin);
+      const entryPrice = type === 'market' 
+        ? (await twelveDataService.getLiveQuoteOrThrow(symbol)).price
+        : parseFloat(price || '0');
+      
+      if (entryPrice === 0) {
+        throw new Error('Cannot calculate quantity: entry price is zero');
+      }
+      
+      // Position size = margin × leverage
+      const positionSize = marginValue * leverageValue;
+      
+      // Quantity = positionSize / (entryPrice × contractMultiplier)
+      const rawQuantity = positionSize / (entryPrice * instrumentConfig.contractMultiplier);
+      
+      // Round to instrument's quantity step
+      const roundedQuantity = roundToQtyStep(rawQuantity, symbol);
+      
+      if (roundedQuantity <= 0) {
+        throw new Error(`Calculated quantity rounds to zero. Increase margin or check instrument config.`);
+      }
+      
+      calculatedQuantity = roundedQuantity.toString();
+      marginUsed = marginValue;
+      
+      console.log('[TRADING ENGINE] Position sizing from margin:', {
+        margin: marginValue,
+        leverage: leverageValue,
+        positionSize,
+        entryPrice,
+        contractMultiplier: instrumentConfig.contractMultiplier,
+        rawQuantity,
+        roundedQuantity: calculatedQuantity,
+      });
+    } else if (quantity) {
+      // LEGACY METHOD: Direct quantity input
+      calculatedQuantity = quantity;
+      
+      // Calculate margin used (reverse calculation)
+      const entryPrice = type === 'market' 
+        ? (await twelveDataService.getQuote(symbol)).price
+        : parseFloat(price || '0');
+      
+      const positionSize = parseFloat(quantity) * entryPrice * instrumentConfig.contractMultiplier;
+      marginUsed = positionSize / leverageValue;
+      
+      console.log('[TRADING ENGINE] Legacy quantity input - calculated margin:', marginUsed);
+    } else {
+      throw new Error('Either margin or quantity must be provided');
+    }
+
+    // Round price to tick size for limit/stop orders
+    const roundedPrice = price ? roundToTickSize(parseFloat(price), symbol).toString() : undefined;
+
     // Create the order
     const order: InsertOrder = {
       accountId,
       symbol,
       type,
       side,
-      quantity,
-      price,
+      quantity: calculatedQuantity,
+      price: roundedPrice,
       stopLoss,
       takeProfit,
       leverage: leverage || '1',
@@ -84,6 +165,15 @@ class TradingEngine {
       filledAt: new Date(),
     });
 
+    // Get instrument config for contract multiplier
+    const instrumentConfig = getInstrumentConfig(order.symbol);
+    
+    // Calculate margin used for this position
+    const quantity = parseFloat(order.quantity);
+    const leverage = parseFloat(order.leverage || '1');
+    const positionNotional = quantity * fillPrice * instrumentConfig.contractMultiplier;
+    const marginUsed = positionNotional / leverage;
+
     // Create position
     const position: InsertPosition = {
       accountId: order.accountId,
@@ -98,6 +188,9 @@ class TradingEngine {
       leverage: order.leverage || '1',
       spread: order.spread || '0',
       fees: order.fees || '0',
+      contractMultiplier: instrumentConfig.contractMultiplier.toString(),
+      marginMode: 'isolated', // Default to isolated margin
+      marginUsed: marginUsed.toString(),
       initiatorType: order.initiatorType || 'client',
       initiatorId: order.initiatorId,
       status: 'open',
@@ -112,6 +205,13 @@ class TradingEngine {
   }
 
   async updatePositionPnL(position: Position): Promise<Position> {
+    // LIVE-ONLY GATE: Check if market is live before updating P/L
+    // If not live, return position unchanged (freeze P/L display)
+    if (!twelveDataService.isMarketLive(position.symbol)) {
+      console.log(`[P/L DEBUG] Market not live for ${position.symbol}, skipping P/L update`);
+      return position;
+    }
+
     const quote = await twelveDataService.getQuote(position.symbol);
     
     console.log(`[P/L DEBUG] Position ${position.id} (${position.symbol}):`, {
@@ -136,18 +236,27 @@ class TradingEngine {
 
     const openPrice = parseFloat(position.openPrice);
     const quantity = parseFloat(position.quantity);
+    const contractMultiplier = parseFloat(position.contractMultiplier || '1');
     const priceChange = position.side === 'buy' 
       ? currentPrice - openPrice
       : openPrice - currentPrice;
 
-    const unrealizedPnl = priceChange * quantity;
+    // Gross P/L with contract multiplier
+    const grossPnl = priceChange * quantity * contractMultiplier;
+    
+    // Deduct fees (open fees are paid, close fees will be paid on close)
+    const feesPaid = parseFloat(position.fees || '0');
+    const unrealizedPnl = grossPnl - feesPaid;
 
     console.log(`[P/L DEBUG] Calculated:`, {
       currentPrice,
       openPrice,
       quantity,
+      contractMultiplier,
       priceChange,
-      unrealizedPnl
+      grossPnl,
+      feesPaid,
+      netUnrealizedPnl: unrealizedPnl
     });
 
     const updated = await storage.updatePosition(position.id, {
@@ -169,11 +278,36 @@ class TradingEngine {
 
     const closingQuantity = quantity ? parseFloat(quantity) : parseFloat(position.quantity);
     const openPrice = parseFloat(position.openPrice);
+    const contractMultiplier = parseFloat(position.contractMultiplier || '1');
     const priceChange = position.side === 'buy'
       ? closePrice - openPrice
       : openPrice - closePrice;
 
-    const realizedPnl = priceChange * closingQuantity;
+    // Calculate gross realized P/L with contract multiplier
+    const grossRealizedPnl = priceChange * closingQuantity * contractMultiplier;
+    
+    // Calculate fees: open fees were already paid, now add estimated close fees
+    const openFees = parseFloat(position.fees || '0');
+    const closeFeeRate = 0.0005; // 0.05% close fee (configurable per instrument later)
+    const positionValue = closingQuantity * closePrice * contractMultiplier;
+    const closeFees = positionValue * closeFeeRate;
+    const totalFees = openFees + closeFees;
+    
+    // Net realized P/L after all fees
+    const realizedPnl = grossRealizedPnl - totalFees;
+
+    console.log('[CLOSE POSITION] P/L Calculation:', {
+      symbol: position.symbol,
+      openPrice,
+      closePrice,
+      closingQuantity,
+      contractMultiplier,
+      grossRealizedPnl,
+      openFees,
+      closeFees,
+      totalFees,
+      netRealizedPnl: realizedPnl
+    });
 
     // Get account to update balance
     const account = await storage.getAccount(position.accountId);
@@ -197,7 +331,7 @@ class TradingEngine {
       amount: Math.abs(realizedPnl).toString(),
       fundType: 'real', // Trades use real funds
       status: 'completed',
-      reference: `Position ${position.symbol} closed`,
+      reference: `Position ${position.symbol} closed (Gross: $${grossRealizedPnl.toFixed(2)}, Fees: $${totalFees.toFixed(2)})`,
     });
 
     if (closingQuantity >= parseFloat(position.quantity)) {
