@@ -784,17 +784,41 @@ export default function Trading() {
                 />
               </div>
 
-              {currentQuote && (
-                <div className="p-3 bg-accent/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Current Price</p>
-                  <p className="text-2xl font-mono font-semibold">{currentQuote.price.toFixed(5)}</p>
-                </div>
-              )}
+              {currentQuote && (() => {
+                const now = Date.now();
+                const quoteAge = now - currentQuote.timestamp;
+                const isLive = quoteAge < 5000; // 5 second staleness threshold
+                
+                return (
+                  <div className="p-3 bg-accent/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm text-muted-foreground">Current Price</p>
+                      <Badge 
+                        variant={isLive ? "default" : "destructive"}
+                        className="text-xs"
+                        data-testid={`badge-market-${isLive ? 'live' : 'stale'}`}
+                      >
+                        {isLive ? '🟢 LIVE' : '🔴 STALE'}
+                      </Badge>
+                    </div>
+                    <p className="text-2xl font-mono font-semibold">{currentQuote.price.toFixed(5)}</p>
+                    {!isLive && (
+                      <p className="text-xs text-destructive mt-1">
+                        Market data is stale. Trading is disabled.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <Button
                 className="w-full"
                 onClick={handlePlaceOrder}
-                disabled={placeOrderMutation.isPending || !selectedAccount}
+                disabled={
+                  placeOrderMutation.isPending || 
+                  !selectedAccount || 
+                  (currentQuote && (Date.now() - currentQuote.timestamp > 5000))
+                }
                 data-testid="button-place-order"
               >
                 {placeOrderMutation.isPending ? 'Placing Order...' : `Place ${orderSide.toUpperCase()} Order`}
