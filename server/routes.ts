@@ -57,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       switch (event) {
         case 'client.registered': {
           // Trading Platform notifies CRM of new client registration
-          const { clientId, email, firstName, lastName, phone } = data;
+          const { email, firstName, lastName, phone, dateOfBirth, country, registeredAt } = data;
           
           // Check if client already exists
           const existing = await storage.getClientByEmail(email);
@@ -392,10 +392,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId: client.id,
         accountNumber: generateAccountNumber(),
         currency: 'USD',
-        balance: '10000', // Demo balance
-        equity: '10000',
+        balance: '0',
+        equity: '0',
         margin: '0',
-        freeMargin: '10000',
+        freeMargin: '0',
         leverage: 100,
         isActive: true,
       });
@@ -611,8 +611,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId: client.id,
         accountNumber: generateAccountNumber(),
         currency: 'USD',
-        balance: '10000',
-        equity: '10000',
+        balance: '0',
+        equity: '0',
         isActive: true,
       });
 
