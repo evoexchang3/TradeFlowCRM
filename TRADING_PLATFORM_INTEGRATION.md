@@ -8,6 +8,74 @@ This guide explains how to integrate the Trading Platform with the CRM system us
 
 ---
 
+## 🚀 Quick Start: Required Credentials
+
+### What You Already Have ✅
+- ✅ CRM Base URL
+- ✅ CRM Service Token (Bearer token for API calls)
+- ✅ JWT Access Secret
+- ✅ JWT Refresh Secret
+
+### What You Need from CRM Team 📋
+
+#### 1. **DATABASE_URL** (Critical - Shared Database Access)
+```bash
+DATABASE_URL=postgresql://[username]:[password]@[host]/[database]?sslmode=require
+```
+**Purpose:** Direct access to shared PostgreSQL database for reading/writing positions, clients, accounts.
+
+**Important:** This is the SAME database the CRM uses. Both systems share one database for instant sync.
+
+**How to get:** Contact CRM admin (apitwelve001@gmail.com) - stored in CRM Replit Secrets
+
+#### 2. **WEBHOOK_SECRET** (For Signing Webhooks to CRM)
+```bash
+WEBHOOK_SECRET=[64-character-hex-string]
+```
+**Purpose:** HMAC-SHA256 signature for webhooks you send TO the CRM (client.registered, deposit.completed, etc.)
+
+**How to get:** Contact CRM admin (apitwelve001@gmail.com) - stored in CRM Replit Secrets
+
+**How to Use:**
+```javascript
+const crypto = require('crypto');
+const signature = crypto
+  .createHmac('sha256', process.env.WEBHOOK_SECRET)
+  .update(JSON.stringify(payload))
+  .digest('hex');
+```
+
+#### 3. **Trading Platform Base URL** (For CRM Callbacks - Optional)
+```bash
+TRADING_PLATFORM_URL=https://your-trading-platform.com
+```
+**Purpose:** If CRM needs to send webhooks back to your platform (future feature).
+
+---
+
+### Complete Environment Variables Checklist
+
+Add these to your Trading Platform `.env` file:
+
+```bash
+# ===== DATABASE (REQUIRED) =====
+DATABASE_URL=<get-from-crm-team>
+
+# ===== WEBHOOK INTEGRATION (REQUIRED) =====
+WEBHOOK_SECRET=<get-from-crm-team>
+CRM_WEBHOOK_URL=https://evo-crm.replit.app/api/webhooks/site
+
+# ===== API INTEGRATION (YOU ALREADY HAVE) =====
+CRM_BASE_URL=https://evo-crm.replit.app/api
+CRM_SERVICE_TOKEN=<you-already-have-this>
+
+# ===== JWT TOKENS (YOU ALREADY HAVE) =====
+JWT_ACCESS_SECRET=<you-already-have-this>
+JWT_REFRESH_SECRET=<you-already-have-this>
+```
+
+---
+
 ## Architecture Summary
 
 ```
@@ -826,15 +894,31 @@ SERVICE_API_TOKEN=your-service-token-here
 **Issue:** Webhook signature invalid
 - **Solution:** Ensure using same `WEBHOOK_SECRET` as CRM
 
+### Getting Credentials
+
+📋 **See:** `TRADING_PLATFORM_CREDENTIALS.md` for detailed instructions on obtaining credentials.
+
+**CRM Administrator Contact:**
+- Email: apitwelve001@gmail.com
+- Replit Project: evo-crm
+- Login: Use admin credentials to access Replit Secrets
+
+**Required Credentials:**
+1. `DATABASE_URL` - Shared database connection string (from Replit Secrets)
+2. `WEBHOOK_SECRET` - HMAC signature secret (from Replit Secrets)
+
 ### Contact
 
-For integration support or credentials, contact the CRM development team.
+For integration support or technical questions:
+- **CRM Administrator:** apitwelve001@gmail.com
+- **Documentation:** See `TRADING_PLATFORM_CREDENTIALS.md` for credential access
+- **Integration Guide:** This document
 
 ---
 
 ## Quick Start Checklist
 
-1. ✅ Get `DATABASE_URL`, `WEBHOOK_SECRET`, `SERVICE_API_TOKEN` from CRM team
+1. ✅ Request `DATABASE_URL` and `WEBHOOK_SECRET` from CRM admin (see `TRADING_PLATFORM_CREDENTIALS.md`)
 2. ✅ Set up database connection with SSL
 3. ✅ Test reading from `clients` and `accounts` tables
 4. ✅ Implement client registration webhook sender
