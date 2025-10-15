@@ -31,10 +31,13 @@ export const transactionTypeEnum = pgEnum('transaction_type', ['deposit', 'withd
 export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'completed', 'rejected']);
 export const transferStatusEnum = pgEnum('transfer_status', ['pending', 'completed', 'rejected']);
 export const auditActionEnum = pgEnum('audit_action', [
-  'login', 'logout', 'client_create', 'client_edit', 'client_delete',
+  'login', 'logout', 'client_create', 'client_edit', 'client_delete', 'client_ftd_marked',
   'trade_create', 'trade_edit', 'trade_close', 'trade_delete', 'balance_adjust',
   'role_create', 'role_edit', 'role_delete', 'permission_change',
-  'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use'
+  'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use',
+  'symbol_create', 'symbol_edit', 'symbol_delete', 'symbol_group_create', 'symbol_group_edit', 'symbol_group_delete',
+  'calendar_event_create', 'calendar_event_edit', 'calendar_event_delete',
+  'email_template_create', 'email_template_edit', 'email_template_delete', 'webhook_received'
 ]);
 export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
 export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
@@ -93,6 +96,10 @@ export const clients = pgTable("clients", {
   nextFollowUpDate: timestamp("next_follow_up_date"),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   teamId: varchar("team_id").references(() => teams.id),
+  hasFTD: boolean("has_ftd").notNull().default(false),
+  ftdDate: timestamp("ftd_date"),
+  ftdAmount: decimal("ftd_amount", { precision: 18, scale: 2 }),
+  ftdFundType: fundTypeEnum("ftd_fund_type"),
   mustResetPassword: boolean("must_reset_password").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -160,6 +167,42 @@ export const internalTransfers = pgTable("internal_transfers", {
   userId: varchar("user_id").notNull().references(() => users.id), // Staff who initiated transfer
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
+});
+
+// Symbol Groups (Forex, Crypto, Metals, etc.)
+export const symbolGroups = pgTable("symbol_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  defaultSpread: decimal("default_spread", { precision: 10, scale: 5 }),
+  defaultLeverage: integer("default_leverage").default(100),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Trading Symbols (Instruments)
+export const tradingSymbols = pgTable("trading_symbols", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull().unique(), // e.g., EUR/USD, BTC/USD
+  displayName: text("display_name").notNull(),
+  category: text("category").notNull(), // forex, crypto, metals, indices, commodities
+  groupId: varchar("group_id").references(() => symbolGroups.id),
+  baseAsset: text("base_asset"), // EUR in EUR/USD
+  quoteAsset: text("quote_asset"), // USD in EUR/USD
+  contractSize: decimal("contract_size", { precision: 18, scale: 8 }).notNull().default('100000'), // Standard lot size
+  minLotSize: decimal("min_lot_size", { precision: 18, scale: 8 }).notNull().default('0.01'),
+  maxLotSize: decimal("max_lot_size", { precision: 18, scale: 8 }).notNull().default('100'),
+  spreadDefault: decimal("spread_default", { precision: 10, scale: 5 }).notNull(), // in pips
+  commissionRate: decimal("commission_rate", { precision: 10, scale: 5 }).notNull().default('0'),
+  leverage: integer("leverage").notNull().default(100),
+  tradingHours: jsonb("trading_hours").default('[]'), // Array of trading hour objects
+  digits: integer("digits").notNull().default(5), // Decimal places for price
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Orders
@@ -295,6 +338,38 @@ export const clientComments = pgTable("client_comments", {
   clientId: varchar("client_id").notNull().references(() => clients.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   comment: text("comment").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Calendar Events
+export const calendarEvents = pgTable("calendar_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  eventType: text("event_type").notNull(), // meeting, call, follow_up, demo, kyc_review
+  userId: varchar("user_id").references(() => users.id),
+  clientId: varchar("client_id").references(() => clients.id),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  status: text("status").notNull().default('scheduled'), // scheduled, completed, cancelled, rescheduled
+  location: text("location"), // Physical location or meeting URL
+  reminders: jsonb("reminders").default('[]'), // Array of reminder objects {minutes: 30, type: 'email'}
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Email Templates
+export const emailTemplates = pgTable("email_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(), // HTML content
+  category: text("category"), // welcome, verification, follow_up, promotion, kyc, deposit
+  variables: jsonb("variables").default('[]'), // Available {{variables}} like {{client_name}}, {{balance}}
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -556,21 +631,82 @@ export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type InsertApiKey = z.infer<typeof insertApiKeySchema>;
 
+export const insertSymbolGroupSchema = createInsertSchema(symbolGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SymbolGroup = typeof symbolGroups.$inferSelect;
+export type InsertSymbolGroup = z.infer<typeof insertSymbolGroupSchema>;
+
+export const insertTradingSymbolSchema = createInsertSchema(tradingSymbols).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type TradingSymbol = typeof tradingSymbols.$inferSelect;
+export type InsertTradingSymbol = z.infer<typeof insertTradingSymbolSchema>;
+
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+
+// Mark FTD schema
+export const markFTDSchema = z.object({
+  amount: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: "Amount must be a positive number",
+  }),
+  fundType: z.enum(['real', 'demo', 'bonus']),
+  notes: z.string().optional(),
+});
+
 // Permission constants
 export const PERMISSIONS = {
   // Client permissions
   CLIENT_VIEW: 'client.view',
   CLIENT_VIEW_ALL: 'client.view_all',
+  CLIENT_VIEW_SALES: 'client.view_sales',
+  CLIENT_VIEW_RETENTION: 'client.view_retention',
   CLIENT_CREATE: 'client.create',
   CLIENT_EDIT: 'client.edit',
   CLIENT_DELETE: 'client.delete',
   CLIENT_VIEW_PII: 'client.view_pii', // View unmasked email/phone
+  CLIENT_MARK_FTD: 'client.mark_ftd',
   
   // Trading permissions
   TRADE_VIEW: 'trade.view',
+  TRADE_VIEW_ALL: 'trade.view_all',
   TRADE_CREATE: 'trade.create',
   TRADE_EDIT: 'trade.edit',
   TRADE_CLOSE: 'trade.close',
+  
+  // Symbol permissions
+  SYMBOL_VIEW: 'symbol.view',
+  SYMBOL_MANAGE: 'symbol.manage',
+  
+  // Calendar permissions
+  CALENDAR_VIEW: 'calendar.view',
+  CALENDAR_MANAGE: 'calendar.manage',
+  
+  // Email template permissions
+  EMAIL_TEMPLATE_VIEW: 'email_template.view',
+  EMAIL_TEMPLATE_MANAGE: 'email_template.manage',
   
   // Balance permissions
   BALANCE_VIEW: 'balance.view',
