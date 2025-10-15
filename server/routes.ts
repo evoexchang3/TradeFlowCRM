@@ -3823,6 +3823,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== CFD ACCOUNTS MONITORING =====
+  app.get("/api/accounts/all", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      // Get all accounts
+      let accounts = await storage.getAccounts();
+      
+      // Role-based filtering
+      if (roleName === 'agent' && user.teamId) {
+        const teamClients = (await storage.getClients()).filter(c => c.teamId === user.teamId);
+        const teamClientIds = new Set(teamClients.map(c => c.id));
+        accounts = accounts.filter(a => teamClientIds.has(a.clientId));
+      } else if (roleName === 'team leader' && user.teamId) {
+        const teamClients = (await storage.getClients()).filter(c => c.teamId === user.teamId);
+        const teamClientIds = new Set(teamClients.map(c => c.id));
+        accounts = accounts.filter(a => teamClientIds.has(a.clientId));
+      }
+
+      // Enrich with client data
+      const enrichedAccounts = await Promise.all(
+        accounts.map(async (account) => {
+          const client = await storage.getClient(account.clientId);
+          return {
+            ...account,
+            client: client ? {
+              id: client.id,
+              firstName: client.firstName,
+              lastName: client.lastName,
+              email: client.email,
+              country: client.country,
+              status: client.status,
+              hasFTD: client.hasFTD,
+            } : null,
+          };
+        })
+      );
+
+      res.json(enrichedAccounts.filter(a => a.client !== null));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== SYMBOL GROUPS MANAGEMENT =====
   app.get("/api/symbol-groups", authMiddleware, async (req: AuthRequest, res) => {
     try {

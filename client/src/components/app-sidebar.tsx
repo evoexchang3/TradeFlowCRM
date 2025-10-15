@@ -14,7 +14,10 @@ import {
   History,
   Settings,
   LogOut,
-  BarChart3
+  BarChart3,
+  Layers,
+  FolderOpen,
+  Wallet
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -61,6 +64,24 @@ const menuItems: MenuItem[] = [
     title: "All Clients",
     url: "/clients",
     icon: Users,
+  },
+  {
+    title: "Trading Symbols",
+    url: "/trading/symbols",
+    icon: Layers,
+    roles: ['administrator', 'crm manager'],
+  },
+  {
+    title: "Symbol Groups",
+    url: "/trading/symbol-groups",
+    icon: FolderOpen,
+    roles: ['administrator', 'crm manager'],
+  },
+  {
+    title: "CFD Accounts",
+    url: "/trading/cfd-accounts",
+    icon: Wallet,
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
     title: "Open Positions",

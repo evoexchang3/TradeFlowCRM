@@ -23,6 +23,9 @@ import Trading from "@/pages/trading";
 import GlobalOpenPositions from "@/pages/global-open-positions";
 import GlobalClosedPositions from "@/pages/global-closed-positions";
 import SalesDashboard from "@/pages/sales-dashboard";
+import TradingSymbols from "@/pages/trading-symbols";
+import TradingSymbolGroups from "@/pages/trading-symbol-groups";
+import CFDAccounts from "@/pages/cfd-accounts";
 import Transactions from "@/pages/transactions";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
@@ -119,6 +122,21 @@ function Router() {
       </Route>
 
       {/* Trading - all staff roles */}
+      <Route path="/trading/symbols">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <TradingSymbols />
+        </RouteGuard>
+      </Route>
+      <Route path="/trading/symbol-groups">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <TradingSymbolGroups />
+        </RouteGuard>
+      </Route>
+      <Route path="/trading/cfd-accounts">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <CFDAccounts />
+        </RouteGuard>
+      </Route>
       <Route path="/trading/open-positions">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
           <GlobalOpenPositions />
