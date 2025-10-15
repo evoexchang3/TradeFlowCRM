@@ -175,6 +175,42 @@ The CRM is fully integrated with the Trading Platform via three secure communica
    - Proper error handling with success/error toasts
    - Simplified to date-only (not datetime) to avoid timezone complexity
 
+## Recent Changes (October 15, 2025)
+
+### Initial Balance Configuration ✅
+
+**Issue:** New clients were receiving $10,000 initial balance instead of $0
+**Fix Applied:**
+- Updated webhook handler (`client.registered` event) to set initial balance to $0
+- Updated manual client creation endpoint to set initial balance to $0
+- Fixed webhook audit log to use `email` instead of undefined `clientId` variable
+- All new accounts now start with:
+  - `balance: '0'`
+  - `realBalance: '0'`
+  - `demoBalance: '0'`
+  - `bonusBalance: '0'`
+  - `equity: '0'`
+  - `margin: '0'`
+  - `freeMargin: '0'`
+
+### Trading Platform Integration Guide ✅
+
+**Created:** `TRADING_PLATFORM_INTEGRATION.md`
+- Comprehensive shared database integration guide for Trading Platform AI
+- Database schema documentation (clients, accounts, positions, orders, transactions)
+- Step-by-step code examples:
+  - Client registration via webhook
+  - Position display (reading from database)
+  - Opening/closing positions
+  - Real-time P/L updates
+  - Deposit/withdrawal/KYC webhooks
+- Security credentials and HMAC signature verification
+- Business rules (fund types, withdrawal validation, initiator types)
+- Testing checklist and troubleshooting guide
+- Common SQL queries reference
+
+**Architecture:** Both CRM and Trading Platform share the same PostgreSQL database for instant synchronization, eliminating data duplication and sync delays.
+
 ## Multi-Fund Type System (COMPLETE ✅)
 
 ### Overview
