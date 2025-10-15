@@ -1,0 +1,167 @@
+
+---
+
+## 💰 Full Guide: P/L Calculation with Leverage
+
+### (Longs, Shorts, Fees & Funding)
+
+---
+
+### **1️⃣ General Concepts**
+
+| Term              | Meaning                                    |
+| ----------------- | ------------------------------------------ |
+| **Entry Price**   | Price where you open the position          |
+| **Exit Price**    | Price where you close it                   |
+| **Leverage (L)**  | Multiplier of exposure vs. your own margin |
+| **Margin**        | Your own capital used as collateral        |
+| **Position Size** | Margin × Leverage                          |
+| **P/L**           | Profit or Loss in absolute terms           |
+| **ROI**           | Return on your own capital (P/L ÷ Margin)  |
+
+---
+
+### **2️⃣ Core Formula (applies to both long & short)**
+
+[
+\text{P/L} = \text{Position Size} \times \left(\frac{\text{Exit Price} - \text{Entry Price}}{\text{Entry Price}}\right)
+]
+
+Then add **sign** depending on trade direction:
+
+* **Long:** Positive if Exit > Entry
+* **Short:** Positive if Exit < Entry
+
+You can combine both in one formula:
+
+[
+\text{P/L} = \text{Margin} \times \text{Leverage} \times \text{Direction} \times \left(\frac{\text{Exit Price} - \text{Entry Price}}{\text{Entry Price}}\right)
+]
+
+Where
+**Direction = +1** for long, **–1** for short.
+
+---
+
+### **3️⃣ Example A – Long Trade (10× Leverage)**
+
+* Margin = **$1,000**
+* Leverage = **10×**
+* Position Size = $10,000
+* Entry = $50,000
+* Exit = $51,000 (+2%)
+
+[
+\text{P/L} = 1000 × 10 × (51,000 - 50,000)/50,000 = 1000 × 10 × 0.02 = $200
+]
+
+**Result:** +$200 profit → +20% ROI
+
+---
+
+### **4️⃣ Example B – Short Trade (10× Leverage)**
+
+Now you **sell first**, expecting price to drop.
+
+* Margin = **$1,000**
+* Leverage = **10×**
+* Position Size = $10,000
+* Entry = $50,000
+* Exit = $49,000 (–2%)
+
+[
+\text{P/L} = 1000 × 10 × (-1) × \frac{49,000 - 50,000}{50,000}
+]
+
+[
+\text{P/L} = 1000 × 10 × (-1) × (-0.02) = +$200
+]
+
+**Result:** +$200 profit → +20% ROI
+
+✅ Because price fell, the short position gains value.
+
+---
+
+### **5️⃣ If Price Moves Against You**
+
+If BTC rises from **$50,000 → $51,000** while you are **short**:
+
+[
+\text{P/L} = 1000 × 10 × (-1) × (51,000 - 50,000)/50,000 = -$200
+]
+
+**Result:** –$200 loss → –20% ROI.
+
+---
+
+### **6️⃣ Include Fees and Funding**
+
+Leverage also amplifies how much small fees affect your returns.
+Usually, two main types of costs:
+
+#### **a) Trading Fees**
+
+Exchange charges when you open & close:
+[
+\text{Trading Fee} = \text{Position Size} × \text{Fee Rate}
+]
+Example: 0.05% per side
+→ $10,000 × 0.0005 × 2 = $10 total.
+
+Subtract that from P/L.
+
+---
+
+#### **b) Funding Rate (for perpetual futures)**
+
+If you hold positions overnight, you may **pay or receive** funding (depends on market imbalance).
+
+[
+\text{Funding P/L} = \text{Position Size} × \text{Funding Rate}
+]
+
+Example:
+Funding rate = 0.01%
+→ $10,000 × 0.0001 = $1 every funding interval.
+
+Add/subtract accordingly.
+
+---
+
+### **7️⃣ Final Formula (Full Version)**
+
+[
+\text{Net P/L} = (\text{Margin} × \text{Leverage} × \text{Direction} × \frac{\text{Exit} - \text{Entry}}{\text{Entry}}) - \text{Trading Fees} ± \text{Funding}
+]
+
+---
+
+### **8️⃣ Liquidation Warning**
+
+If your losses approach your margin value, position gets **liquidated**.
+
+Roughly:
+[
+\text{Liquidation Price (Long)} ≈ \text{Entry Price} × \left(1 - \frac{1}{\text{Leverage}}\right)
+]
+
+[
+\text{Liquidation Price (Short)} ≈ \text{Entry Price} × \left(1 + \frac{1}{\text{Leverage}}\right)
+]
+
+So with 10× leverage, a **10% move against you** wipes out your margin.
+
+---
+
+### **9️⃣ Summary Table**
+
+| Type      | Entry  | Exit   | Market Move | Leverage | Margin | P/L   | ROI  |
+| --------- | ------ | ------ | ----------- | -------- | ------ | ----- | ---- |
+| **Long**  | 50,000 | 51,000 | +2%         | 10×      | $1,000 | +$200 | +20% |
+| **Long**  | 50,000 | 49,000 | –2%         | 10×      | $1,000 | –$200 | –20% |
+| **Short** | 50,000 | 49,000 | –2%         | 10×      | $1,000 | +$200 | +20% |
+| **Short** | 50,000 | 51,000 | +2%         | 10×      | $1,000 | –$200 | –20% |
+
+---
+
