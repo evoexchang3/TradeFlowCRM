@@ -1,0 +1,205 @@
+
+
+# Goals (what must be true)
+
+1. **Backend is the single source of truth** for position sizing, leverage, P/L, and liquidation.
+2. **WebSocket-only live mark price** from Twelve Data; if it’s stale, **trading halts** (fail-closed).
+3. **Leverage is applied to position sizing**, not just stored.
+4. **Instrument rules** (tick size, qty step, max leverage, lot conventions, contract multipliers) are centralized.
+5. **Deterministic behavior**: same inputs → same sizes, same P/L.
+
+---
+
+# Architecture changes (high level)
+
+* Create a **Price Feed Service** that subscribes to Twelve Data **WebSocket** streams for all tradable symbols.
+
+  * Keep the **latest mark price + timestamp** per symbol in memory.
+  * Define a **maximum staleness threshold** (e.g., 1000 ms). If the last tick is older, the symbol is **not live**.
+  * Provide two functions conceptually:
+
+    * “Is market live?” (returns true/false per symbol)
+    * “Get live mark or throw” (strict gate: throws if no live tick or stale)
+
+* Make the **Trading Engine** call the Price Feed Service **before**:
+
+  * accepting new orders,
+  * recalculating P/L,
+  * performing liquidation.
+    If not live, **reject/block** the action and surface a clear “LIVE FEED LOST — Trading paused” reason.
+
+* Introduce a central **Instrument Config Registry** for each symbol with at least:
+
+  * `kind` (crypto/fx/index),
+  * `contractMultiplier` (crypto spot/perp = 1; indices/CFD can differ),
+  * `tickSize` (price increment),
+  * `qtyStep` (minimum quantity increment),
+  * `maxLeverage`,
+  * `lotSize` (only if you actually support “lots” for that instrument type; e.g., FX = 100,000 units).
+
+* Persist on each position:
+
+  * `symbol`, `side` (long/short),
+  * `entryPrice`,
+  * `quantity` (final backend-computed),
+  * `leverage`, `marginMode` (isolated/cross),
+  * `contractMultiplier`,
+  * `feesPaid` (open; and later add close when realized),
+  * `fundingAccrued` (if you add perps later).
+
+---
+
+# Sizing & leverage (what the backend must do)
+
+* Accept **one canonical input** from the client request for size **(choose one of: margin amount, base quantity, or lots)** plus `leverage`.
+* **Backend** converts that input into **position notional** and **final tradable quantity**:
+
+  * If input is **margin**: `positionNotional = margin × leverage`; then `quantity = positionNotional / (entryPrice × contractMultiplier)`.
+  * If input is **quantity**: compute notional for checks; verify it matches leverage caps and margin requirements.
+  * If input is **lots** (only where defined): convert to base units using instrument `lotSize`, then derive notional & quantity.
+* Enforce **rounding** to `qtyStep` and **price** to `tickSize` (for limit orders).
+* Enforce **risk rules**:
+
+  * `leverage <= maxLeverage(instrument)`
+  * `positionNotional >= minNotional(instrument)` (if you define one)
+  * margin sufficiency based on isolated/cross logic.
+
+**Important:** Do **not** trust any pre-computed quantity from the frontend. Always recompute server-side.
+
+---
+
+# P/L calculation (unrealized)
+
+* Always fetch a **live mark price** for the symbol from the Price Feed Service. If unavailable or stale, **do not compute**; surface “market not live.”
+* Compute **directional price delta**:
+
+  * Long: `mark − entry`
+  * Short: `entry − mark`
+* **Gross P/L** = `priceDelta × quantity × contractMultiplier`
+* **Net P/L** (if you need it) = `gross − feesPaid + fundingAccrued` (funding only if you implement perps).
+* Update P/L at a **reasonable UI cadence** (e.g., 250–500 ms) to avoid jitter; backend can stream deltas or be polled.
+
+---
+
+# Liquidation model (initial, practical)
+
+* For **isolated margin** as a first implementation:
+
+  * Use a simple formula based on initial leverage and a small **fee buffer** (e.g., 0.30–0.50%) so fees don’t trigger premature liq.
+  * Long positions liquidate when the **live mark** crosses down to the threshold; short positions when it crosses up.
+  * **Never liquidate** if the symbol is not live (fail-closed).
+* For **cross margin** (if/when added): base tests on **account equity vs. maintenance margin** across positions, still guarded by live marks.
+
+---
+
+# Twelve Data integration (strict “live only” policy)
+
+* Subscribe via **WebSocket** only.
+* Maintain per-symbol **latest tick** and **timestamp**.
+* Define **max staleness** (e.g., 1 second). If exceeded:
+
+  * **Block** new orders, closing actions, and liquidations for that symbol.
+  * **Freeze** displayed P/L values and show a **red status** message for the symbol: “LIVE FEED LOST — Trading paused”.
+* Handle reconnection/resubscription logic **only** at the socket level; **do not** use REST or any non-live fallback.
+
+---
+
+# Frontend behavior (UX, no business logic)
+
+* Provide a **mode toggle** for input: **Margin** / **Quantity** / **Lots** (lots only where defined).
+* Show **live conversions** (read-only previews) using current live price:
+
+  * required margin, position notional, computed quantity, est. liquidation price.
+* Disable **Buy/Sell/Close/Reduce** buttons when the symbol is “not live”.
+* Show a **status pill** per symbol:
+
+  * Green “LIVE” when last tick ≤ staleness threshold.
+  * Red “LIVE FEED LOST — Trading paused” otherwise.
+* The payload sent to backend should include the **chosen input mode** and value + `leverage` (the backend decides all final numbers).
+
+---
+
+# Fees, funding, and costs
+
+* Define fee rates per instrument (maker/taker).
+* Add **open fees** when a position is created; **close fees** on realization.
+* If you later add **perpetual funding**, accrue it on a schedule and include in **net P/L**.
+* Keep costs transparent in the UI (Open Fee, Est. Close Fee, Net P/L).
+
+---
+
+# Precision & controls
+
+* Respect **tick size** and **quantity step** per instrument (round down to the nearest valid increment).
+* Reject orders that round to zero quantity or below minimum notional.
+* Enforce **max leverage** per symbol tier.
+* Store and display all values with consistent decimal places per instrument (crypto often 8 for qty, 2–2+ for USD).
+
+---
+
+# Testing & acceptance criteria (must pass)
+
+1. **Leverage sizing**
+
+   * Margin 1,000; Leverage 100; Price 50,000; Multiplier 1 → **Quantity = 2.0000** (BTC example).
+   * Quantity 2; Price 50,000 → Notional 100,000; Required margin at 100× = 1,000.
+
+2. **P/L sign & scale**
+
+   * Long +2% on 100k notional → +2,000 gross; Short −2% → +2,000 gross.
+   * Reverse moves yield symmetric losses.
+
+3. **Live-only gate**
+
+   * If last tick age > staleness threshold:
+
+     * Order placement rejected with “market not live”.
+     * P/L display freezes; red banner shown.
+     * Liquidation cannot execute.
+
+4. **Precision enforcement**
+
+   * Quantities and limit prices are rounded to instrument steps; invalid orders rejected.
+
+5. **Risk enforcement**
+
+   * Leverage cannot exceed instrument max; positions below min notional rejected.
+
+6. **Determinism**
+
+   * Same inputs with the same live price produce identical quantity and P/L.
+
+---
+
+# Operational safeguards
+
+* **Telemetry**: log socket status, last tick time per symbol, reject counts due to staleness, and reconnection attempts.
+* **Alerts**: trigger an ops alert if a symbol is not live for > N seconds.
+* **Kill-switch**: ability to disable trading per symbol by config if feed quality is degraded.
+
+---
+
+# Data model updates (store at creation)
+
+* `symbol`, `side`, `entryPrice`, `quantity`, `leverage`, `marginMode`, `contractMultiplier`, `feesPaid`, `fundingAccrued` (if used).
+* For auditability, also store: **input mode** (margin/quantity/lots), **input value**, and the **mark/limit price** used at acceptance time.
+
+---
+
+# Input policy (clear decisions)
+
+* **Primary input = Margin** (recommended for crypto).
+* **Optional inputs**: Quantity; Lots (only for FX where a standardized lot size exists).
+* Regardless of UI mode, **backend recomputes** quantity and notional and enforces all rules.
+
+---
+
+# Summary for the Replit AI
+
+* Move **all sizing and leverage application to the backend**.
+* Use **Twelve Data WebSocket** as the **only** mark source; if tick is stale, **block trading and liquidation**.
+* Centralize **instrument config** (steps, multipliers, leverage caps, optional lot sizes).
+* Compute **P/L** from live mark, directionally.
+* Enforce **rounding, risk limits, and determinism**.
+* Frontend is **display & input** only; it must reflect live status and disable actions when the market isn’t live.
+* Add **tests** and **telemetry** to guarantee correctness and operational safety.
