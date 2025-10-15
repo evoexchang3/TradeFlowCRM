@@ -1642,9 +1642,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Capture before state for audit trail
       const beforeState = {
         openPrice: position.openPrice,
+        closePrice: position.closePrice,
         quantity: position.quantity,
         side: position.side,
+        status: position.status,
+        unrealizedPnl: position.unrealizedPnl,
+        realizedPnl: position.realizedPnl,
+        fees: position.fees,
       };
+
+      // Get account balance before modification
+      const account = await storage.getAccount(position.accountId);
+      const balanceBefore = account?.balance || '0';
 
       // Convert openedAt and closedAt strings to Date if provided
       const updates: any = { ...validatedData };
@@ -1657,12 +1666,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const modifiedPosition = await tradingEngine.modifyPosition(req.params.id, updates);
 
+      // Get account balance after modification
+      const accountAfter = await storage.getAccount(position.accountId);
+      const balanceAfter = accountAfter?.balance || '0';
+      const balanceChange = parseFloat(balanceAfter) - parseFloat(balanceBefore);
+
       // Capture after state for audit trail
       const afterState = {
         openPrice: modifiedPosition.openPrice,
+        closePrice: modifiedPosition.closePrice,
         quantity: modifiedPosition.quantity,
         side: modifiedPosition.side,
+        status: modifiedPosition.status,
+        unrealizedPnl: modifiedPosition.unrealizedPnl,
+        realizedPnl: modifiedPosition.realizedPnl,
+        fees: modifiedPosition.fees,
       };
+
+      // Calculate P/L changes for audit trail
+      const pnlChange = position.status === 'closed'
+        ? parseFloat(modifiedPosition.realizedPnl || '0') - parseFloat(position.realizedPnl || '0')
+        : parseFloat(modifiedPosition.unrealizedPnl || '0') - parseFloat(position.unrealizedPnl || '0');
 
       await storage.createAuditLog({
         userId: req.user?.type === 'user' ? req.user.id : undefined,
@@ -1674,6 +1698,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           before: beforeState,
           after: afterState,
           changes: validatedData,
+          pnlChange: pnlChange.toFixed(2),
+          balanceChange: balanceChange !== 0 ? balanceChange.toFixed(2) : undefined,
+          balanceBefore: balanceBefore,
+          balanceAfter: balanceAfter,
         },
       });
 

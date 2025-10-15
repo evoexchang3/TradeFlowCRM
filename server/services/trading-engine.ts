@@ -388,6 +388,10 @@ class TradingEngine {
       throw new Error('Position not found');
     }
 
+    // Get contract multiplier for accurate P/L calculations
+    const contractMultiplier = parseFloat(position.contractMultiplier || '1');
+    const closeFeeRate = 0.0005; // 0.05% close fee
+
     // For CLOSED positions: recalculate realized P/L if critical fields change
     if (position.status === 'closed') {
       const shouldRecalculateClosedPnl = (updates.openPrice || updates.closePrice || updates.quantity || updates.side) && 
@@ -399,16 +403,51 @@ class TradingEngine {
         const quantity = parseFloat(updates.quantity || position.quantity);
         const side = updates.side || position.side;
         
+        // Calculate price change based on side
         const priceChange = side === 'buy' 
           ? closePrice - openPrice
           : openPrice - closePrice;
         
+        // Calculate gross P/L with contract multiplier
+        const grossPnl = priceChange * quantity * contractMultiplier;
+        
+        // Calculate fees from first principles to avoid compounding on repeated edits
+        // Open fees: calculated based on opening the position
+        const openPositionValue = quantity * openPrice * contractMultiplier;
+        const openFees = openPositionValue * closeFeeRate; // 0.05% of open position value
+        
+        // Close fees: calculated based on closing the position
+        const closePositionValue = quantity * closePrice * contractMultiplier;
+        const closeFees = closePositionValue * closeFeeRate; // 0.05% of close position value
+        
+        const totalFees = openFees + closeFees;
+        
+        // Calculate net realized P/L (gross P/L minus all fees)
+        const newRealizedPnl = grossPnl - totalFees;
         const oldRealizedPnl = parseFloat(position.realizedPnl || '0');
-        const newRealizedPnl = priceChange * quantity;
         const pnlDifference = newRealizedPnl - oldRealizedPnl;
         
-        // Update the realized P/L
-        updates.unrealizedPnl = newRealizedPnl.toFixed(8);
+        console.log('[TRADING ENGINE] Closed position P/L recalculation:', {
+          positionId,
+          symbol: position.symbol,
+          side,
+          openPrice,
+          closePrice,
+          quantity,
+          contractMultiplier,
+          priceChange,
+          grossPnl,
+          openFees,
+          closeFees,
+          totalFees,
+          oldRealizedPnl,
+          newRealizedPnl,
+          pnlDifference
+        });
+        
+        // Update the realized P/L (FIXED: use realizedPnl field, not unrealizedPnl)
+        updates.realizedPnl = newRealizedPnl.toFixed(8);
+        updates.fees = totalFees.toFixed(8);
         
         // Adjust account balance for the P/L difference
         if (pnlDifference !== 0) {
@@ -417,6 +456,13 @@ class TradingEngine {
             const currentRealBalance = parseFloat(account.realBalance || '0');
             const newRealBalance = currentRealBalance + pnlDifference;
             
+            console.log('[TRADING ENGINE] Adjusting balance for position edit:', {
+              accountId: position.accountId,
+              oldBalance: currentRealBalance,
+              pnlDifference,
+              newBalance: newRealBalance
+            });
+            
             await storage.updateAccount(position.accountId, {
               realBalance: newRealBalance.toFixed(8),
               balance: (
@@ -424,6 +470,21 @@ class TradingEngine {
                 parseFloat(account.demoBalance || '0') + 
                 parseFloat(account.bonusBalance || '0')
               ).toFixed(8),
+            });
+            
+            // Create transaction record for the balance adjustment
+            const transactionType = pnlDifference >= 0 ? 'adjustment' : 'adjustment';
+            const transactionReference = pnlDifference >= 0
+              ? `Position ${position.symbol} edited - P/L increased by $${pnlDifference.toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`
+              : `Position ${position.symbol} edited - P/L decreased by $${Math.abs(pnlDifference).toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`;
+            
+            await storage.createTransaction({
+              accountId: position.accountId,
+              type: transactionType,
+              amount: Math.abs(pnlDifference).toFixed(8),
+              fundType: 'real',
+              status: 'completed',
+              reference: transactionReference,
             });
           }
         }
@@ -446,7 +507,28 @@ class TradingEngine {
           ? currentPrice - openPrice
           : openPrice - currentPrice;
         
-        updates.unrealizedPnl = (priceChange * quantity).toFixed(8);
+        // Calculate gross P/L with contract multiplier
+        const grossPnl = priceChange * quantity * contractMultiplier;
+        
+        // Deduct fees already paid (open fees) from unrealized P/L
+        const openFees = parseFloat(position.fees || '0');
+        const netUnrealizedPnl = grossPnl - openFees;
+        
+        console.log('[TRADING ENGINE] Open position P/L recalculation:', {
+          positionId,
+          symbol: position.symbol,
+          side,
+          openPrice,
+          currentPrice,
+          quantity,
+          contractMultiplier,
+          priceChange,
+          grossPnl,
+          openFees,
+          netUnrealizedPnl
+        });
+        
+        updates.unrealizedPnl = netUnrealizedPnl.toFixed(8);
         updates.currentPrice = currentPrice.toString();
       }
     }
