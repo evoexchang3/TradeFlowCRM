@@ -406,7 +406,7 @@ export default function ClientDetail() {
   });
 
   const modifyPositionMutation = useMutation({
-    mutationFn: (data: { openPrice?: string; quantity?: string; side?: 'buy' | 'sell'; unrealizedPnl?: string; openedAt?: string }) =>
+    mutationFn: (data: { openPrice?: string; closePrice?: string; quantity?: string; side?: 'buy' | 'sell'; unrealizedPnl?: string; realizedPnl?: string; openedAt?: string; closedAt?: string }) =>
       apiRequest('PATCH', `/api/positions/${selectedPosition?.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
@@ -1036,7 +1036,14 @@ export default function ClientDetail() {
                         quantity: modifyQuantity,
                         openPrice: modifyOpenPrice,
                       };
-                      if (modifyPnl) updates.unrealizedPnl = modifyPnl;
+                      // Send correct P/L field based on position status
+                      if (modifyPnl) {
+                        if (selectedPosition?.status === 'closed') {
+                          updates.realizedPnl = modifyPnl;
+                        } else {
+                          updates.unrealizedPnl = modifyPnl;
+                        }
+                      }
                       if (modifyClosePrice) updates.closePrice = modifyClosePrice;
                       if (modifyOpenedAt) updates.openedAt = new Date(modifyOpenedAt).toISOString();
                       if (modifyClosedAt) updates.closedAt = new Date(modifyClosedAt).toISOString();
@@ -1505,9 +1512,9 @@ export default function ClientDetail() {
                         <TableCell className="font-mono">{position.closePrice || '-'}</TableCell>
                         <TableCell>
                           <span className={`font-mono font-medium ${
-                            (position.unrealizedPnl || 0) >= 0 ? 'text-success' : 'text-destructive'
+                            (position.realizedPnl || 0) >= 0 ? 'text-success' : 'text-destructive'
                           }`}>
-                            ${parseFloat(position.unrealizedPnl || 0).toFixed(8).replace(/\.?0+$/, '')}
+                            ${parseFloat(position.realizedPnl || 0).toFixed(8).replace(/\.?0+$/, '')}
                           </span>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
@@ -1527,7 +1534,7 @@ export default function ClientDetail() {
                                 setModifyClosePrice(position.closePrice || position.currentPrice || '');
                                 setModifyQuantity(position.quantity);
                                 setModifySide(position.side);
-                                setModifyPnl(position.unrealizedPnl || '');
+                                setModifyPnl(position.realizedPnl || '');
                                 if (position.openedAt) {
                                   const date = new Date(position.openedAt);
                                   const year = date.getFullYear();
