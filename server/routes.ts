@@ -3859,8 +3859,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const db = storage.db;
       const [newGroup] = await db.insert(symbolGroups).values({
         name: req.body.name,
+        displayName: req.body.displayName || req.body.name,
         description: req.body.description,
-        displayOrder: req.body.displayOrder || 0,
+        defaultSpread: req.body.defaultSpread,
+        defaultLeverage: req.body.defaultLeverage || 100,
+        sortOrder: req.body.sortOrder || 0,
+        isActive: req.body.isActive ?? true,
       }).returning();
 
       await storage.createAuditLog({
@@ -3896,12 +3900,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const db = storage.db;
       const [updatedGroup] = await db.update(symbolGroups)
         .set({
-          name: req.body.name,
-          description: req.body.description,
-          displayOrder: req.body.displayOrder,
+          ...req.body,
           updatedAt: new Date(),
         })
-        .where(eq(symbolGroups.id, parseInt(req.params.id)))
+        .where(eq(symbolGroups.id, req.params.id))
         .returning();
 
       await storage.createAuditLog({
@@ -3935,7 +3937,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const db = storage.db;
-      await db.delete(symbolGroups).where(eq(symbolGroups.id, parseInt(req.params.id)));
+      await db.delete(symbolGroups).where(eq(symbolGroups.id, req.params.id));
 
       await storage.createAuditLog({
         userId: user.id,
@@ -3985,15 +3987,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const db = storage.db;
       const [newSymbol] = await db.insert(tradingSymbols).values({
         symbol: req.body.symbol,
-        name: req.body.name,
+        displayName: req.body.displayName || req.body.symbol,
+        category: req.body.category || 'forex',
         groupId: req.body.groupId,
-        contractSize: req.body.contractSize,
-        pipValue: req.body.pipValue,
-        minLot: req.body.minLot,
-        maxLot: req.body.maxLot,
-        lotStep: req.body.lotStep,
-        enabled: req.body.enabled ?? true,
-        displayOrder: req.body.displayOrder || 0,
+        baseAsset: req.body.baseAsset,
+        quoteAsset: req.body.quoteAsset,
+        twelveDataSymbol: req.body.twelveDataSymbol || req.body.symbol,
+        contractSize: req.body.contractSize || '100000',
+        minLotSize: req.body.minLotSize || '0.01',
+        maxLotSize: req.body.maxLotSize || '100',
+        spreadDefault: req.body.spreadDefault || '0',
+        commissionRate: req.body.commissionRate || '0',
+        leverage: req.body.leverage || 100,
+        tradingHours: req.body.tradingHours || [],
+        digits: req.body.digits || 5,
+        isActive: req.body.isActive ?? true,
       }).returning();
 
       await storage.createAuditLog({
@@ -4032,7 +4040,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...req.body,
           updatedAt: new Date(),
         })
-        .where(eq(tradingSymbols.id, parseInt(req.params.id)))
+        .where(eq(tradingSymbols.id, req.params.id))
         .returning();
 
       await storage.createAuditLog({
@@ -4066,7 +4074,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const db = storage.db;
-      await db.delete(tradingSymbols).where(eq(tradingSymbols.id, parseInt(req.params.id)));
+      await db.delete(tradingSymbols).where(eq(tradingSymbols.id, req.params.id));
 
       await storage.createAuditLog({
         userId: user.id,
@@ -4186,7 +4194,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const [updatedEvent] = await db.update(calendarEvents)
         .set(updateData)
-        .where(eq(calendarEvents.id, parseInt(req.params.id)))
+        .where(eq(calendarEvents.id, req.params.id))
         .returning();
 
       await storage.createAuditLog({
@@ -4220,7 +4228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const db = storage.db;
-      await db.delete(calendarEvents).where(eq(calendarEvents.id, parseInt(req.params.id)));
+      await db.delete(calendarEvents).where(eq(calendarEvents.id, req.params.id));
 
       await storage.createAuditLog({
         userId: user.id,
@@ -4326,7 +4334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           variables: req.body.variables,
           updatedAt: new Date(),
         })
-        .where(eq(emailTemplates.id, parseInt(req.params.id)))
+        .where(eq(emailTemplates.id, req.params.id))
         .returning();
 
       await storage.createAuditLog({
@@ -4360,7 +4368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const db = storage.db;
-      await db.delete(emailTemplates).where(eq(emailTemplates.id, parseInt(req.params.id)));
+      await db.delete(emailTemplates).where(eq(emailTemplates.id, req.params.id));
 
       await storage.createAuditLog({
         userId: user.id,
