@@ -1,0 +1,30 @@
+# ============================================
+# TRADING PLATFORM INTEGRATION CREDENTIALS
+# ============================================
+# Copy this into your Trading Platform .env file
+# Last Updated: October 15, 2025
+# ============================================
+
+# ===== SHARED DATABASE (PROVIDED BY CRM) =====
+DATABASE_URL=postgresql://neondb_owner:npg_lhwn1VNO7pmf@ep-cool-river-afkask7t.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require
+
+# ===== WEBHOOK SECURITY (PROVIDED BY CRM) =====
+WEBHOOK_SECRET=78c61a3b5f15221d5e6a8a84fb8276f64fd1320bfe589597167f0a1e26ceb7b9
+CRM_WEBHOOK_URL=https://evo-crm.replit.app/api/webhooks/site
+
+# ===== SERVICE API (PROVIDED BY CRM) =====
+CRM_BASE_URL=https://evo-crm.replit.app/api
+CRM_SERVICE_TOKEN=851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+
+# ===== YOUR JWT SECRETS (YOU PROVIDE THESE) =====
+JWT_ACCESS_SECRET=<your-existing-jwt-access-secret>
+JWT_REFRESH_SECRET=<your-existing-jwt-refresh-secret>
+
+# ============================================
+# IMPORTANT SECURITY NOTES:
+# ============================================
+# 1. Never commit these credentials to Git
+# 2. Store in environment variables only
+# 3. Use .gitignore to exclude .env files
+# 4. Rotate credentials if compromised
+# ============================================
