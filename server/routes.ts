@@ -100,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             action: 'webhook_received',
             targetType: 'client',
             targetId: client.id,
-            details: { event, source: 'trading_platform', externalClientId: clientId },
+            details: { event, source: 'trading_platform', email },
           });
 
           return res.json({ status: 'created', clientId: client.id });
