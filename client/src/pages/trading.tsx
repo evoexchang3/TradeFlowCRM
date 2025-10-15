@@ -67,6 +67,8 @@ export default function Trading() {
   const [modifyOpenPrice, setModifyOpenPrice] = useState('');
   const [modifyQuantity, setModifyQuantity] = useState('');
   const [modifySide, setModifySide] = useState<'buy' | 'sell'>('buy');
+  const [inputMode, setInputMode] = useState<'margin' | 'quantity'>('margin');
+  const [marginInput, setMarginInput] = useState("1000");
 
   // Fetch symbols dynamically from Twelve Data API (100,000+ symbols)
   const { data: categorySymbols = [] } = useQuery<TwelveDataSymbol[]>({
@@ -268,13 +270,19 @@ export default function Trading() {
       symbol: selectedSymbol.symbol,
       type: orderType,
       side: orderSide,
-      quantity: parseFloat(normalizeNumber(quantity)),
       leverage: normalizeNumber(leverage),
       spread: normalizeNumber(spread),
       fees: normalizeNumber(fees),
       stopLoss: stopLoss ? parseFloat(normalizeNumber(stopLoss)) : undefined,
       takeProfit: takeProfit ? parseFloat(normalizeNumber(takeProfit)) : undefined,
     };
+
+    // Use margin input (preferred) or fallback to quantity
+    if (inputMode === 'margin') {
+      orderData.margin = normalizeNumber(marginInput);
+    } else {
+      orderData.quantity = parseFloat(normalizeNumber(quantity));
+    }
 
     // Add price for non-market orders
     if (orderType !== 'market') {
@@ -623,17 +631,52 @@ export default function Trading() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Quantity (lots)</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    data-testid="input-order-quantity"
-                  />
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Input Mode</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={inputMode === 'margin' ? 'default' : 'outline'}
+                    onClick={() => setInputMode('margin')}
+                    data-testid="button-input-margin"
+                    size="sm"
+                  >
+                    Margin ($)
+                  </Button>
+                  <Button
+                    variant={inputMode === 'quantity' ? 'default' : 'outline'}
+                    onClick={() => setInputMode('quantity')}
+                    data-testid="button-input-quantity"
+                    size="sm"
+                  >
+                    Quantity (lots)
+                  </Button>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {inputMode === 'margin' ? (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Margin ($)</label>
+                    <Input
+                      type="number"
+                      step="100"
+                      value={marginInput}
+                      onChange={(e) => setMarginInput(e.target.value)}
+                      data-testid="input-order-margin"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Quantity (lots)</label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      data-testid="input-order-quantity"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Leverage</label>
@@ -649,6 +692,33 @@ export default function Trading() {
                   </Select>
                 </div>
               </div>
+
+              {inputMode === 'margin' && currentQuote && (() => {
+                const entryPrice = orderType === 'market' ? currentQuote.price : parseFloat(orderPrice || '0');
+                const leverageNum = parseFloat(leverage);
+                const marginNum = parseFloat(marginInput || '0');
+                const contractMultiplier = 1; // Default, should fetch from instrument config
+                
+                if (entryPrice > 0 && leverageNum > 0 && marginNum > 0) {
+                  const positionSize = marginNum * leverageNum;
+                  const calculatedQty = positionSize / (entryPrice * contractMultiplier);
+                  
+                  return (
+                    <div className="p-3 bg-accent/30 rounded-lg space-y-1">
+                      <p className="text-xs text-muted-foreground">Calculated Values</p>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Position Size:</span>
+                        <span className="text-sm font-semibold">${positionSize.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm">Quantity (lots):</span>
+                        <span className="text-sm font-semibold">{calculatedQty.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {orderType !== 'market' && (
                 <div className="space-y-2">
