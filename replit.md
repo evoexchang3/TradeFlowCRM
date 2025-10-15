@@ -93,6 +93,34 @@ Fixed critical bugs in position modification causing incorrect P/L and balance c
 
 **Architect Approved:** ✅ All changes reviewed and verified correct
 
+### Position Edit Manual P/L Override Fixes ✅
+Fixed bugs preventing P/L recalculation and manual balance adjustments:
+
+**Problems Fixed:**
+1. ❌→✅ P/L not recalculating when open/close prices changed
+2. ❌→✅ Manual P/L edits not adjusting account balance
+3. ❌→✅ Validation too strict (blocked unchanged form values)
+4. ❌→✅ Manual unrealized P/L overrides being overwritten by automatic recalculation
+
+**Implementation - Four Edit Scenarios:**
+1. **Closed - Automatic:** Change prices → P/L recalculates with fees/multiplier, balance adjusts
+2. **Closed - Manual:** Set P/L value → Balance adjusts for difference, transaction created
+3. **Open - Automatic:** Change prices → Unrealized P/L recalculates, equity updates
+4. **Open - Manual:** Set unrealized P/L → Value preserved (not overwritten), equity updates
+
+**Key Features:**
+- Smart validation: Compares actual value changes, not just field presence
+- Manual override preservation: Skips automatic recalculation to preserve manual values
+- Conflict prevention: Cannot change prices AND manually override P/L in same request
+- Transaction logging: All balance adjustments create detailed transaction records
+
+**Files Modified:**
+- `shared/schema.ts` - Added `realizedPnl` field to modifyPositionSchema
+- `server/services/trading-engine.ts` - Complete overhaul of modifyPosition() logic
+- `POSITION_EDIT_PNL_MANUAL_OVERRIDE_FIXES.md` - Complete documentation
+
+**Architect Approved:** ✅ All changes reviewed and verified correct
+
 ## External Dependencies
 
 **Market Data Provider**:
