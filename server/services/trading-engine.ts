@@ -402,8 +402,8 @@ class TradingEngine {
       (updates.side && updates.side !== position.side)
     );
     const manualPnlProvided = position.status === 'closed' 
-      ? (updates.realizedPnl !== undefined && updates.realizedPnl !== null)
-      : (updates.unrealizedPnl !== undefined && updates.unrealizedPnl !== null);
+      ? (updates.realizedPnl !== undefined && updates.realizedPnl !== null && updates.realizedPnl !== position.realizedPnl)
+      : (updates.unrealizedPnl !== undefined && updates.unrealizedPnl !== null && updates.unrealizedPnl !== position.unrealizedPnl);
     
     if (priceFieldsChanged && manualPnlProvided) {
       throw new Error('Cannot manually override P/L when also changing prices or quantity. Please use either automatic calculation (change prices) or manual P/L entry, not both.');
