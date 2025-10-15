@@ -492,7 +492,7 @@ class TradingEngine {
             });
             
             // Create transaction record for the balance adjustment
-            const transactionType = pnlDifference >= 0 ? 'adjustment' : 'adjustment';
+            const transactionType = pnlDifference >= 0 ? 'profit' : 'loss';
             const transactionReference = pnlDifference >= 0
               ? `Position ${position.symbol} edited - P/L increased by $${pnlDifference.toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`
               : `Position ${position.symbol} edited - P/L decreased by $${Math.abs(pnlDifference).toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`;
@@ -548,13 +548,14 @@ class TradingEngine {
             });
             
             // Create transaction record for the manual P/L adjustment
+            const transactionType = pnlDifference >= 0 ? 'profit' : 'loss';
             const transactionReference = pnlDifference >= 0
               ? `Position ${position.symbol} P/L manually adjusted +$${pnlDifference.toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`
               : `Position ${position.symbol} P/L manually adjusted -$${Math.abs(pnlDifference).toFixed(2)} (Old: $${oldRealizedPnl.toFixed(2)} → New: $${newRealizedPnl.toFixed(2)})`;
             
             await storage.createTransaction({
               accountId: position.accountId,
-              type: 'adjustment',
+              type: transactionType,
               amount: Math.abs(pnlDifference).toFixed(8),
               fundType: 'real',
               status: 'completed',
