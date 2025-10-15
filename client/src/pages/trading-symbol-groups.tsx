@@ -51,8 +51,8 @@ const groupFormSchema = z.object({
   displayName: z.string().min(1, "Display name is required"),
   description: z.string().optional(),
   defaultSpread: z.string().optional(),
-  defaultLeverage: z.number().optional(),
-  sortOrder: z.number().default(0),
+  defaultLeverage: z.coerce.number().optional(),
+  sortOrder: z.coerce.number().default(0),
   isActive: z.boolean().default(true),
 });
 

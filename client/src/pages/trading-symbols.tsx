@@ -65,8 +65,8 @@ const symbolFormSchema = z.object({
   maxLotSize: z.string().default("100"),
   spreadDefault: z.string().default("0"),
   commissionRate: z.string().default("0"),
-  leverage: z.number().default(100),
-  digits: z.number().default(5),
+  leverage: z.coerce.number().default(100),
+  digits: z.coerce.number().default(5),
   isActive: z.boolean().default(true),
 });
 
