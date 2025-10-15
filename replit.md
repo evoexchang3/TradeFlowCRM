@@ -70,6 +70,29 @@ Created complete integration documentation with actual credentials:
 
 **Ready to Share:** All files contain actual credentials - no manual setup needed!
 
+### Position Edit P&L and Balance Fixes ✅
+Fixed critical bugs in position modification causing incorrect P/L and balance corruption:
+
+**Problems Fixed:**
+1. ❌→✅ Missing contract multipliers in P/L calculations
+2. ❌→✅ Fees not deducted from recalculated P/L
+3. ❌→✅ Wrong field updated for closed positions (unrealizedPnl instead of realizedPnl)
+4. ❌→✅ Fee compounding on repeated edits
+
+**Implementation:**
+- Closed positions: Calculate fees from first principles (`openFees + closeFees`) to prevent compounding
+- Open positions: Include contract multiplier and deduct fees from unrealized P/L
+- Balance adjustments: Correctly apply P/L difference (e.g., $10→$15 adds $5, $10→-$10 deducts $20)
+- Transaction records: Created for all balance adjustments with detailed references
+- Audit logs: Enhanced to track P/L changes, balance changes, and fee details
+
+**Files Modified:**
+- `server/services/trading-engine.ts` - modifyPosition() function
+- `server/routes.ts` - Enhanced audit logging
+- `POSITION_EDIT_FIXES.md` - Complete documentation of fixes
+
+**Architect Approved:** ✅ All changes reviewed and verified correct
+
 ## External Dependencies
 
 **Market Data Provider**:
