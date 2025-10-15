@@ -121,6 +121,55 @@ Fixed bugs preventing P/L recalculation and manual balance adjustments:
 
 **Architect Approved:** ✅ All changes reviewed and verified correct
 
+### Sales & Retention Workflow Implementation ✅
+Implemented complete Sales & Retention client segmentation system with FTD (First Time Deposit) workflow and global trading views.
+
+**Frontend Pages Created:**
+1. **Sales Clients** (`/clients/sales`) - View clients without FTD, pipeline status tracking
+2. **Retention Clients** (`/clients/retention`) - View clients with FTD, retention management
+3. **Global Open Positions** (`/trading/open-positions`) - View all open positions across all clients
+4. **Global Closed Positions** (`/trading/closed-positions`) - View all closed positions across all clients
+5. **Sales Dashboard** (`/reports/sales`) - Metrics dashboard with FTD analytics
+
+**Backend API Endpoints:**
+- GET `/api/clients/sales` - Returns clients without FTD (role-based filtering)
+- GET `/api/clients/retention` - Returns clients with FTD (role-based filtering)
+- POST `/api/clients/:id/mark-ftd` - Marks First Time Deposit, updates balances, creates transactions, audit logs
+- GET `/api/positions/all/open` - Returns all open positions with client enrichment
+- GET `/api/positions/all/closed` - Returns all closed positions with client enrichment
+
+**Key Features:**
+- **FTD Workflow**: Sales agents mark client's first deposit, automatically moves client to retention queue
+- **Role-Based Access**: Agents see only their clients, Team Leaders see team clients, Admins see all
+- **Fund Type Support**: Mark FTD with Real, Demo, or Bonus funds
+- **Balance Integration**: FTD automatically adds funds to client account and creates transaction record
+- **Audit Logging**: All FTD actions logged with amount, fund type, and notes
+- **Form Architecture**: Mark FTD dialog uses proper useForm + Form + zodResolver pattern for validation
+
+**Database Schema Updates:**
+- Added FTD tracking columns to `clients` table: `has_ftd`, `ftd_date`, `ftd_amount`, `ftd_fund_type`
+- Created `symbol_groups` table for organizing trading symbols
+- Created `trading_symbols` table for managing available symbols
+- Created `calendar_events` table for scheduling follow-ups
+- Created `email_templates` table for standardized communications
+
+**Navigation Updates:**
+- Added "Sales Clients", "Retention Clients" to main navigation
+- Added "Open Positions", "Closed Positions" for global trading views
+- Added "Sales Dashboard" for leadership metrics
+
+**Files Created/Modified:**
+- `client/src/pages/sales.tsx` - Sales clients page with Mark FTD dialog
+- `client/src/pages/retention.tsx` - Retention clients page
+- `client/src/pages/global-open-positions.tsx` - Global open positions view
+- `client/src/pages/global-closed-positions.tsx` - Global closed positions view
+- `client/src/pages/sales-dashboard.tsx` - Sales metrics dashboard
+- `client/src/App.tsx` - Added 6 new routes with role guards
+- `client/src/components/app-sidebar.tsx` - Added navigation menu items
+- `server/routes.ts` - Added 5 new API endpoints
+
+**Architect Approved:** ✅ Form refactoring and backend endpoints reviewed and verified correct
+
 ## External Dependencies
 
 **Market Data Provider**:

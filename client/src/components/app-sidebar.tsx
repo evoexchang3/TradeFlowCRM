@@ -1,7 +1,10 @@
 import { 
   LayoutDashboard, 
   Users, 
+  UserCheck,
+  UserPlus,
   TrendingUp, 
+  TrendingDown,
   DollarSign, 
   Shield, 
   UsersRound,
@@ -10,7 +13,8 @@ import {
   FileDown,
   History,
   Settings,
-  LogOut
+  LogOut,
+  BarChart3
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -44,9 +48,29 @@ const menuItems: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Clients",
+    title: "Sales Clients",
+    url: "/clients/sales",
+    icon: UserPlus,
+  },
+  {
+    title: "Retention Clients",
+    url: "/clients/retention",
+    icon: UserCheck,
+  },
+  {
+    title: "All Clients",
     url: "/clients",
     icon: Users,
+  },
+  {
+    title: "Open Positions",
+    url: "/trading/open-positions",
+    icon: TrendingUp,
+  },
+  {
+    title: "Closed Positions",
+    url: "/trading/closed-positions",
+    icon: TrendingDown,
   },
   {
     title: "Trading",
@@ -57,6 +81,12 @@ const menuItems: MenuItem[] = [
     title: "Transactions",
     url: "/transactions",
     icon: DollarSign,
+  },
+  {
+    title: "Sales Dashboard",
+    url: "/reports/sales",
+    icon: BarChart3,
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
 ];
 

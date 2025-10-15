@@ -15,9 +15,14 @@ import CRMDashboard from "@/pages/crm-dashboard";
 import TeamDashboard from "@/pages/team-dashboard";
 import AgentDashboard from "@/pages/agent-dashboard";
 import Clients from "@/pages/clients";
+import SalesClients from "@/pages/sales";
+import RetentionClients from "@/pages/retention";
 import ClientDetail from "@/pages/client-detail";
 import ClientForm from "@/pages/client-form";
 import Trading from "@/pages/trading";
+import GlobalOpenPositions from "@/pages/global-open-positions";
+import GlobalClosedPositions from "@/pages/global-closed-positions";
+import SalesDashboard from "@/pages/sales-dashboard";
 import Transactions from "@/pages/transactions";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
@@ -82,6 +87,16 @@ function Router() {
       </Route>
 
       {/* Client management - all staff roles */}
+      <Route path="/clients/sales">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <SalesClients />
+        </RouteGuard>
+      </Route>
+      <Route path="/clients/retention">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <RetentionClients />
+        </RouteGuard>
+      </Route>
       <Route path="/clients">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
           <Clients />
@@ -104,6 +119,16 @@ function Router() {
       </Route>
 
       {/* Trading - all staff roles */}
+      <Route path="/trading/open-positions">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <GlobalOpenPositions />
+        </RouteGuard>
+      </Route>
+      <Route path="/trading/closed-positions">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <GlobalClosedPositions />
+        </RouteGuard>
+      </Route>
       <Route path="/trading">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
           <Trading />
@@ -166,6 +191,13 @@ function Router() {
       <Route path="/audit">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <AuditLogs />
+        </RouteGuard>
+      </Route>
+
+      {/* Reports */}
+      <Route path="/reports/sales">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <SalesDashboard />
         </RouteGuard>
       </Route>
 

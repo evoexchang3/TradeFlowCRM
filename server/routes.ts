@@ -753,6 +753,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== SALES & RETENTION WORKFLOW =====
+  app.get("/api/clients/sales", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type === 'client') {
+        return res.status(403).json({ error: 'Unauthorized: Client access not allowed' });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const db = storage.db;
+      let query = db.select().from(clients).where(eq(clients.hasFTD, false));
+      
+      // Apply role-based filtering
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        if (roleName === 'agent') {
+          query = query.where(and(eq(clients.hasFTD, false), eq(clients.assignedAgentId, user.id)));
+        } else if (roleName === 'team leader' && user.teamId) {
+          query = query.where(and(eq(clients.hasFTD, false), eq(clients.teamId, user.teamId)));
+        }
+      }
+
+      const salesClients = await query;
+
+      // Enrich with agent, team, account info
+      const enriched = await Promise.all(salesClients.map(async (client) => {
+        const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
+        const team = client.teamId ? await storage.getTeam(client.teamId) : null;
+        const account = await storage.getAccountByClientId(client.id);
+        return {
+          ...client,
+          assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
+          team: team ? { id: team.id, name: team.name } : null,
+          account: account || null,
+        };
+      }));
+
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/clients/retention", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type === 'client') {
+        return res.status(403).json({ error: 'Unauthorized: Client access not allowed' });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const db = storage.db;
+      let query = db.select().from(clients).where(eq(clients.hasFTD, true));
+      
+      // Apply role-based filtering
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        if (roleName === 'agent') {
+          query = query.where(and(eq(clients.hasFTD, true), eq(clients.assignedAgentId, user.id)));
+        } else if (roleName === 'team leader' && user.teamId) {
+          query = query.where(and(eq(clients.hasFTD, true), eq(clients.teamId, user.teamId)));
+        }
+      }
+
+      const retentionClients = await query;
+
+      // Enrich with agent, team, account info
+      const enriched = await Promise.all(retentionClients.map(async (client) => {
+        const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
+        const team = client.teamId ? await storage.getTeam(client.teamId) : null;
+        const account = await storage.getAccountByClientId(client.id);
+        return {
+          ...client,
+          assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
+          team: team ? { id: team.id, name: team.name } : null,
+          account: account || null,
+        };
+      }));
+
+      res.json(enriched);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/:id/mark-ftd", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type === 'client') {
+        return res.status(403).json({ error: 'Unauthorized: Client access not allowed' });
+      }
+
+      const { amount, fundType, notes } = req.body;
+      
+      if (!amount || parseFloat(amount) <= 0) {
+        return res.status(400).json({ error: "Valid amount is required" });
+      }
+
+      const client = await storage.getClient(req.params.id);
+      if (!client) {
+        return res.status(404).json({ error: "Client not found" });
+      }
+
+      if (client.hasFTD) {
+        return res.status(400).json({ error: "Client already has FTD marked" });
+      }
+
+      // Update client FTD status
+      const updatedClient = await storage.updateClient(client.id, {
+        hasFTD: true,
+        ftdDate: new Date().toISOString(),
+        ftdAmount: amount,
+        ftdFundType: fundType || 'real',
+      });
+
+      // Add funds to account
+      const account = await storage.getAccountByClientId(client.id);
+      if (account) {
+        const fundAmount = parseFloat(amount);
+        const updates: any = {};
+        
+        if (fundType === 'demo') {
+          updates.demoBalance = (parseFloat(account.demoBalance) + fundAmount).toString();
+        } else if (fundType === 'bonus') {
+          updates.bonusBalance = (parseFloat(account.bonusBalance) + fundAmount).toString();
+        } else {
+          updates.realBalance = (parseFloat(account.realBalance) + fundAmount).toString();
+        }
+
+        await storage.updateAccount(account.id, updates);
+
+        // Create transaction record
+        await storage.createTransaction({
+          subaccountId: account.id,
+          type: 'deposit',
+          amount: amount,
+          fundType: fundType || 'real',
+          reference: `FTD: First Time Deposit${notes ? ` - ${notes}` : ''}`,
+        });
+      }
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user?.id,
+        action: 'mark_ftd',
+        targetType: 'client',
+        targetId: client.id,
+        details: { amount, fundType, notes },
+      });
+
+      res.json(updatedClient);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== CLIENT TRANSFER =====
   app.post("/api/clients/:id/transfer", authMiddleware, async (req: AuthRequest, res) => {
     try {
@@ -1959,7 +2124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all open positions
-      const allPositions = await storage.getAllPositions();
+      const allPositions = await storage.getPositions({});
       const openPositions = allPositions.filter(p => p.status === 'open');
 
       // Enrich with client data
@@ -2021,7 +2186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all closed positions
-      const allPositions = await storage.getAllPositions();
+      const allPositions = await storage.getPositions({});
       const closedPositions = allPositions.filter(p => p.status === 'closed');
 
       // Enrich with client data
