@@ -46,6 +46,30 @@ Preferred communication style: Simple, everyday language.
 - **Admin Features:** Admin-only access for `Adjust Balance` (specifying fund type) and `Leverage Management`. Both actions are audited.
 - **Trading Platform Integration:** Features a Webhook Receiver, Service API, and SSO Impersonation. The systems share a PostgreSQL database for real-time synchronization.
 
+## Recent Updates (October 15, 2025)
+
+### Initial Balance Fix ✅
+- Changed new client initial balance from $10,000 to $0
+- Fixed in both webhook handler and manual client creation
+- Fixed webhook audit log bug (undefined clientId reference)
+
+### Trading Platform Integration Package ✅
+Created complete integration documentation with actual credentials:
+
+**Files Created:**
+1. `SHARE_WITH_TRADING_PLATFORM.md` - Master summary and package overview
+2. `TRADING_PLATFORM_QUICKSTART.md` - Quick start guide with all credentials included
+3. `TRADING_PLATFORM_ENV.txt` - Copy-paste ready .env file with actual values
+4. `TRADING_PLATFORM_INTEGRATION.md` - Complete technical integration guide
+5. `TRADING_PLATFORM_CREDENTIALS.md` - Credential access and security guide
+
+**Credentials Generated:**
+- DATABASE_URL: Shared PostgreSQL connection (included in files)
+- WEBHOOK_SECRET: HMAC signature secret (included in files)
+- CRM_SERVICE_TOKEN: Bearer token for API calls (included in files)
+
+**Ready to Share:** All files contain actual credentials - no manual setup needed!
+
 ## External Dependencies
 
 **Market Data Provider**:

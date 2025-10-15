@@ -1,19 +1,8 @@
 # Trading Platform Integration - Quick Start
 
-## 📋 Prerequisites Checklist
+## 🔐 Complete Credentials (Ready to Use)
 
-### ✅ What You Already Have
-- [x] CRM Base URL: `https://evo-crm.replit.app/api`
-- [x] CRM Service Token (Bearer token)
-- [x] JWT Access Secret
-- [x] JWT Refresh Secret
-
-### 🔴 What You Need from CRM Admin
-
-Contact **apitwelve001@gmail.com** to request:
-
-1. **DATABASE_URL** - Shared PostgreSQL connection string
-2. **WEBHOOK_SECRET** - HMAC signature secret (64-char hex)
+All credentials are generated and ready! Copy the `.env` section below directly into your Trading Platform.
 
 ---
 
@@ -21,22 +10,28 @@ Contact **apitwelve001@gmail.com** to request:
 
 ### Step 1: Add Environment Variables
 
+**Copy this EXACTLY into your `.env` file:**
+
 ```bash
 # .env file for Trading Platform
 
-# ===== GET FROM CRM ADMIN =====
-DATABASE_URL=<request-this>
-WEBHOOK_SECRET=<request-this>
+# ===== SHARED DATABASE (PROVIDED BY CRM) =====
+DATABASE_URL=postgresql://neondb_owner:npg_lhwn1VNO7pmf@ep-cool-river-afkask7t.c-2.us-west-2.aws.neon.tech/neondb?sslmode=require
 
-# ===== YOU ALREADY HAVE =====
+# ===== WEBHOOK SECURITY (PROVIDED BY CRM) =====
+WEBHOOK_SECRET=78c61a3b5f15221d5e6a8a84fb8276f64fd1320bfe589597167f0a1e26ceb7b9
+CRM_WEBHOOK_URL=https://evo-crm.replit.app/api/webhooks/site
+
+# ===== SERVICE API (PROVIDED BY CRM) =====
 CRM_BASE_URL=https://evo-crm.replit.app/api
-CRM_SERVICE_TOKEN=<your-existing-token>
+CRM_SERVICE_TOKEN=851cc194f38855d4bd3f75526dcd7defc722862c96d9a2b0bcccb8f1c170a7e3
+
+# ===== YOUR JWT SECRETS (YOU ALREADY HAVE) =====
 JWT_ACCESS_SECRET=<your-existing-secret>
 JWT_REFRESH_SECRET=<your-existing-secret>
-
-# ===== WEBHOOK ENDPOINT =====
-CRM_WEBHOOK_URL=https://evo-crm.replit.app/api/webhooks/site
 ```
+
+⚠️ **IMPORTANT:** Keep these credentials secure! Never commit to Git.
 
 ### Step 2: Install Dependencies
 
@@ -218,10 +213,25 @@ Send these events TO the CRM:
 - Project: evo-crm on Replit
 
 **Common Issues:**
-- Database connection fails → Check DATABASE_URL has `?sslmode=require`
-- Webhook rejected → Verify WEBHOOK_SECRET matches CRM
+- Database connection fails → Verify DATABASE_URL is copied correctly with `?sslmode=require`
+- Webhook rejected → Verify WEBHOOK_SECRET matches exactly (no extra spaces)
 - Position not showing → Ensure `account_id` is correct
 
 ---
 
-**Ready to integrate? Start with Step 1: Request credentials from CRM admin! 🚀**
+## 📋 Credentials Summary
+
+✅ **Provided in this file:**
+- `DATABASE_URL` - Shared PostgreSQL database connection
+- `WEBHOOK_SECRET` - HMAC signature secret for webhooks
+- `CRM_WEBHOOK_URL` - CRM webhook endpoint
+- `CRM_BASE_URL` - CRM API base URL  
+- `CRM_SERVICE_TOKEN` - Bearer token for API calls
+
+⚠️ **You need to add:**
+- `JWT_ACCESS_SECRET` - Your existing JWT access secret
+- `JWT_REFRESH_SECRET` - Your existing JWT refresh secret
+
+---
+
+**Ready to integrate? All CRM credentials are included above - just copy and start! 🚀**
