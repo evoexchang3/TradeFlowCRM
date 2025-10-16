@@ -28,6 +28,7 @@ import TradingSymbolGroups from "@/pages/trading-symbol-groups";
 import CFDAccounts from "@/pages/cfd-accounts";
 import Transactions from "@/pages/transactions";
 import Calendar from "@/pages/calendar";
+import EmailTemplates from "@/pages/email-templates";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -217,6 +218,13 @@ function Router() {
       <Route path="/audit">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <AuditLogs />
+        </RouteGuard>
+      </Route>
+
+      {/* Email Templates - admin, CRM manager */}
+      <Route path="/configuration/email-templates">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <EmailTemplates />
         </RouteGuard>
       </Route>
 

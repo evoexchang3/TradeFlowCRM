@@ -18,7 +18,8 @@ import {
   Layers,
   FolderOpen,
   Wallet,
-  Calendar
+  Calendar,
+  Mail
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -158,6 +159,12 @@ const managementItems: MenuItem[] = [
     title: "Audit Logs",
     url: "/audit",
     icon: History,
+    roles: ['administrator', 'crm manager'],
+  },
+  {
+    title: "Email Templates",
+    url: "/configuration/email-templates",
+    icon: Mail,
     roles: ['administrator', 'crm manager'],
   },
 ];
