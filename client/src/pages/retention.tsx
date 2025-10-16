@@ -72,7 +72,7 @@ export default function RetentionClients() {
   });
 
   const { data: agents = [] } = useQuery({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/users/agents'],
   });
 
   const { data: customStatuses = [] } = useQuery<CustomStatus[]>({
