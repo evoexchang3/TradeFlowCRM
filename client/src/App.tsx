@@ -37,6 +37,8 @@ import Hierarchy from "@/pages/hierarchy";
 import KYCQuestions from "@/pages/kyc-questions";
 import TemplateVariables from "@/pages/template-variables";
 import SecuritySettings from "@/pages/security-settings";
+import SmtpSettings from "@/pages/smtp-settings";
+import PaymentProviders from "@/pages/payment-providers";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -272,9 +274,21 @@ function Router() {
         </RouteGuard>
       </Route>
 
-      <Route path="/configuration/security">
+      <Route path="/configuration/security-settings">
         <RouteGuard allowedRoles={['Administrator']}>
           <SecuritySettings />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/smtp-settings">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <SmtpSettings />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/payment-providers">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <PaymentProviders />
         </RouteGuard>
       </Route>
 
