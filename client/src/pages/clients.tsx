@@ -113,9 +113,9 @@ export default function Clients() {
       }
     }
 
-    // Status filter
+    // Status filter (using custom statusId)
     if (filterStatus && filterStatus !== 'all') {
-      if (client.status !== filterStatus) return false;
+      if (client.statusId !== filterStatus) return false;
     }
 
     return true;
@@ -361,18 +361,11 @@ export default function Clients() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="reassigned">Reassigned</SelectItem>
-                  <SelectItem value="potential">Potential</SelectItem>
-                  <SelectItem value="low_potential">Low Potential</SelectItem>
-                  <SelectItem value="mid_potential">Mid Potential</SelectItem>
-                  <SelectItem value="high_potential">High Potential</SelectItem>
-                  <SelectItem value="no_answer">No Answer</SelectItem>
-                  <SelectItem value="voicemail">Voicemail</SelectItem>
-                  <SelectItem value="callback_requested">Callback Requested</SelectItem>
-                  <SelectItem value="not_interested">Not Interested</SelectItem>
-                  <SelectItem value="converted">Converted</SelectItem>
-                  <SelectItem value="lost">Lost</SelectItem>
+                  {customStatuses.map((status) => (
+                    <SelectItem key={status.id} value={status.id}>
+                      {status.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
