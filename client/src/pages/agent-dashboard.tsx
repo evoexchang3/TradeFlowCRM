@@ -1,144 +1,286 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { useLocation } from "wouter";
-import { useAuth } from "@/lib/auth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, ClipboardList, TrendingUp, CheckCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarIcon, TrendingUp, Phone, MessageSquare, Target, DollarSign, Activity } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+
+interface PerformanceMetrics {
+  agentId: string;
+  agentName: string;
+  teamId?: string;
+  teamName?: string;
+  department?: string;
+  
+  totalClients: number;
+  ftdCount: number;
+  ftdConversionRate: number;
+  totalFtdVolume: number;
+  avgFtdAmount: number;
+  
+  totalCalls: number;
+  totalCallDuration: number;
+  avgCallDuration: number;
+  totalComments: number;
+  totalLogins: number;
+  
+  avgResponseTime: number;
+  performanceScore: number;
+}
 
 export default function AgentDashboard() {
-  const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setLocation('/');
-    }
-  }, [isAuthenticated, setLocation]);
-
-  const { data: stats } = useQuery({
-    queryKey: ['/api/dashboard/stats'],
+  const { data: metrics, isLoading } = useQuery<PerformanceMetrics>({
+    queryKey: ['/api/dashboard/my-performance', startDate?.toISOString(), endDate?.toISOString()],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate.toISOString());
+      if (endDate) params.append('endDate', endDate.toISOString());
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const response = await fetch(`/api/dashboard/my-performance${query}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch performance metrics');
+      return response.json();
+    },
   });
 
-  const statCards = [
-    {
-      title: "My Clients",
-      value: stats?.myClients || 0,
-      icon: Users,
-      change: "+4 new this week",
-      color: "text-primary",
-    },
-    {
-      title: "Open Tasks",
-      value: stats?.openTasks || 0,
-      icon: ClipboardList,
-      change: "3 due today",
-      color: "text-warning",
-    },
-    {
-      title: "Client Trades",
-      value: stats?.clientTrades || 0,
-      icon: TrendingUp,
-      change: "+12% from last week",
-      color: "text-success",
-    },
-    {
-      title: "Completed Today",
-      value: stats?.completedToday || 0,
-      icon: CheckCircle,
-      change: "6 tasks remaining",
-      color: "text-info",
-    },
-  ];
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  const getPerformanceColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 dark:text-green-400';
+    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  const clearDateFilters = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <div className="p-8">
+        <div className="text-center text-muted-foreground">
+          No performance data available
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold" data-testid="text-dashboard-title">Agent Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage your assigned clients and daily tasks
-        </p>
+    <div className="p-8 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold" data-testid="heading-agent-dashboard">
+            My Performance
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {metrics.teamName && <span className="text-sm">Team: {metrics.teamName}</span>}
+            {metrics.department && <Badge variant="outline" className="ml-2 capitalize">{metrics.department}</Badge>}
+          </p>
+        </div>
+        
+        {/* Date Range Filter */}
+        <div className="flex items-center gap-2">
+          {(startDate || endDate) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearDateFilters}
+              data-testid="button-clear-dates"
+            >
+              Clear Dates
+            </Button>
+          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" data-testid="button-start-date">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, 'PP') : 'Start Date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={setStartDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" data-testid="button-end-date">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {endDate ? format(endDate, 'PP') : 'End Date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={endDate}
+                onSelect={setEndDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, index) => (
-          <Card key={index} className="hover-elevate">
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+      {/* Performance Score Card */}
+      <Card data-testid="card-performance-score">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Overall Performance Score
+          </CardTitle>
+          <CardDescription>
+            Your performance rating based on FTD conversion, activity, and response time
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className={`text-5xl font-bold ${getPerformanceColor(metrics.performanceScore)}`} data-testid="text-performance-score">
+            {metrics.performanceScore}
+            <span className="text-2xl text-muted-foreground">/100</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* FTD Metrics */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">FTD Performance</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card data-testid="card-total-clients">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono" data-testid={`text-stat-${stat.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                {stat.value}
+              <div className="text-2xl font-bold" data-testid="text-total-clients">{metrics.totalClients}</div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-ftd-count">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">FTD Count</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-ftd-count">{metrics.ftdCount}</div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-conversion-rate">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-conversion-rate">{metrics.ftdConversionRate.toFixed(1)}%</div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-ftd-volume">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total FTD Volume</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-ftd-volume">
+                ${metrics.totalFtdVolume.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {stat.change}
+                Avg: ${metrics.avgFtdAmount.toFixed(0)}
               </p>
             </CardContent>
           </Card>
-        ))}
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Client Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats?.recentActivity?.map((activity: any, index: number) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <div>
-                    <p className="font-medium">{activity.description}</p>
-                    <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-md text-xs ${
-                    activity.type === 'trade' ? 'bg-success/10 text-success' :
-                    activity.type === 'deposit' ? 'bg-info/10 text-info' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
-                    {activity.type}
-                  </span>
-                </div>
-              )) || (
-                <p className="text-sm text-muted-foreground">No recent activity</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Activity Metrics */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Activity Metrics</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card data-testid="card-total-calls">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+              <Phone className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-total-calls">{metrics.totalCalls}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Avg duration: {formatDuration(metrics.avgCallDuration)}
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>My Top Clients</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats?.topPerformers?.map((performer: any, index: number) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-medium text-primary">
-                        {performer.name?.charAt(0)}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{performer.name}</p>
-                      <p className="text-xs text-muted-foreground">{performer.trades} trades</p>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-mono font-medium ${
-                    performer.pnl >= 0 ? 'text-success' : 'text-destructive'
-                  }`}>
-                    {performer.pnl >= 0 ? '+' : ''}{performer.pnl}%
-                  </span>
-                </div>
-              )) || (
-                <p className="text-sm text-muted-foreground">No data available</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+          <Card data-testid="card-call-duration">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Call Time</CardTitle>
+              <Phone className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-call-duration">
+                {formatDuration(metrics.totalCallDuration)}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-total-comments">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Comments Added</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-total-comments">{metrics.totalComments}</div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-response-time">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="text-response-time">
+                {formatDuration(metrics.avgResponseTime)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                First contact time
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
