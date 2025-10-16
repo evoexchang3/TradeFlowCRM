@@ -1,0 +1,357 @@
+🎯 EXTENDED COMPREHENSIVE IMPLEMENTATION PLAN
+Complete CRM Feature Set Based on Competitor Analysis
+After reviewing both screenshots carefully, I've identified 21 additional features beyond the initial Sales/Retention/Trading views. Here's the COMPLETE feature list organized by category:
+
+📋 COMPLETE FEATURE INVENTORY
+CLIENT MANAGEMENT (Already planned ✓)
+* ✅ Sales (clients without FTD)
+* ✅ Retention (clients with FTD)
+* ✅ All Clients (existing)
+COMMUNICATION (NEW)
+* 📧 Chat - Internal team chat + client messaging
+* 📅 Calendar - Appointments, follow-ups, meetings
+* 📞 VOIP - Integrated calling system
+* 📨 SMTP - Email server configuration
+* 📄 Email Templates - Template library for client communications
+TRADING SECTION (Partially planned)
+* ✅ Open CFD Orders (planned)
+* ✅ CFD Orders History (planned)
+* 📊 Symbols - Manage trading instruments (EUR/USD, BTC/USD, etc.)
+* 🗂️ Symbol Groups - Group symbols by category (Forex, Crypto, Metals)
+* ⚙️ Symbol Settings - Configure spreads, leverage, trading hours per symbol
+* 💼 CFD Accounts - Admin view of all client accounts
+REPORTS SECTION (NEW)
+* 📈 Sales Dashboard - Conversion metrics, pipeline analytics
+* 🤝 Affiliate Dashboard - IB/Affiliate performance tracking
+* 📋 Activity (Clients) - Client engagement logs, login history
+CONFIGURATION SECTION (Partially exists)
+* ✅ CRM Users (exists as "User Management")
+* 🏢 Hierarchy - Multi-level organizational structure (beyond teams)
+* 🤝 Affiliates - Affiliate/IB management system
+* 🔒 Security - 2FA, IP whitelisting, session management
+* 💳 PSP - Payment Service Provider integration
+* 🔄 Other PSPs - Additional payment processors
+* 📊 Statuses - Custom status definitions (sales pipeline stages)
+* ❓ KYC Questions - Configurable KYC questionnaire builder
+* 🔤 Variables - Dynamic variables for templates ({{client_name}}, etc.)
+* 💰 Currencies - Multi-currency support
+
+🎯 PHASED IMPLEMENTATION STRATEGY
+Given the scope, I recommend implementing in 6 strategic phases:
+PHASE 1: Sales & Retention Foundation (Keep original plan)
+Priority: CRITICAL | Time: 12-17 hours
+* Sales page (clients without FTD)
+* Retention page (clients with FTD)
+* Mark FTD workflow with balance adjustment
+* Global Open/Closed Positions views
+* Backend permissions and filtering
+Why First: Core business requirement, immediate ROI
+
+PHASE 2: Trading Infrastructure
+Priority: HIGH | Time: 10-14 hours
+2.1 Symbols Management (/trading/symbols)
+Database Schema:
+export const tradingSymbols = pgTable("trading_symbols", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+symbol: text("symbol").notNull().unique(), // EUR/USD
+displayName: text("display_name").notNull(),
+category: text("category").notNull(), // forex, crypto, metals, indices
+groupId: varchar("group_id").references(() => symbolGroups.id),
+baseAsset: text("base_asset"), // EUR
+quoteAsset: text("quote_asset"), // USD
+contractSize: decimal("contract_size").notNull().default('100000'),
+minLotSize: decimal("min_lot_size").notNull().default('0.01'),
+maxLotSize: decimal("max_lot_size").notNull().default('100'),
+spreadDefault: decimal("spread_default").notNull(), // in pips
+commissionRate: decimal("commission_rate").notNull().default('0'),
+leverage: integer("leverage").notNull().default(100),
+tradingHoursStart: text("trading_hours_start"), // JSON array
+tradingHoursEnd: text("trading_hours_end"),
+isActive: boolean("is_active").notNull().default(true),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+Features:
+* CRUD operations for symbols
+* Real-time price feed integration (already have Twelve Data)
+* Bulk import from CSV
+* Symbol status toggle (enable/disable trading)
+2.2 Symbol Groups (/trading/symbol-groups)
+Database Schema:
+export const symbolGroups = pgTable("symbol_groups", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+name: text("name").notNull().unique(),
+description: text("description"),
+defaultSpread: decimal("default_spread"),
+defaultLeverage: integer("default_leverage"),
+sortOrder: integer("sort_order").notNull().default(0),
+isActive: boolean("is_active").notNull().default(true),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+Features:
+* Group symbols (Forex, Crypto, Metals, Indices, Commodities)
+* Apply bulk settings to all symbols in group
+* Drag-and-drop reordering
+2.3 Symbol Settings (/trading/symbol-settings)
+Features:
+* Global spread adjustments
+* Trading hours configuration
+* Leverage limits per symbol
+* Margin requirements
+* Commission structure
+2.4 CFD Accounts (/trading/cfd-accounts)
+Features:
+* Admin view of ALL client accounts
+* Bulk balance adjustments
+* Account health monitoring (margin calls)
+* Export account reports
+
+PHASE 3: Communication & Scheduling
+Priority: HIGH | Time: 14-18 hours
+3.1 Chat System (/chat)
+Database Schema:
+export const chatRooms = pgTable("chat_rooms", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+type: text("type").notNull(), // 'internal', 'client_support'
+clientId: varchar("client_id").references(() => clients.id),
+name: text("name"),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const chatMessages = pgTable("chat_messages", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+roomId: varchar("room_id").notNull().references(() => chatRooms.id),
+senderId: varchar("sender_id").notNull(), // User or Client ID
+senderType: text("sender_type").notNull(), // 'user', 'client'
+message: text("message").notNull(),
+attachments: jsonb("attachments").default('[]'),
+isRead: boolean("is_read").notNull().default(false),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+Features:
+* Real-time WebSocket chat (already have WS setup)
+* Internal team channels
+* Client support tickets as chat threads
+* File attachments
+* Read receipts
+* @mentions
+3.2 Calendar (/calendar)
+Database Schema:
+export const calendarEvents = pgTable("calendar_events", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+title: text("title").notNull(),
+description: text("description"),
+eventType: text("event_type").notNull(), // 'meeting', 'call', 'follow_up', 'demo'
+userId: varchar("user_id").references(() => users.id),
+clientId: varchar("client_id").references(() => clients.id),
+startTime: timestamp("start_time").notNull(),
+endTime: timestamp("end_time").notNull(),
+status: text("status").notNull().default('scheduled'), // scheduled, completed, cancelled
+reminders: jsonb("reminders").default('[]'), // Reminder times
+notes: text("notes"),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+Features:
+* Calendar view (day/week/month)
+* Event creation with client linking
+* Follow-up reminders
+* Team calendar visibility
+* Export to iCal
+3.3 Email Templates (/configuration/email-templates)
+Database Schema:
+export const emailTemplates = pgTable("email_templates", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+name: text("name").notNull().unique(),
+subject: text("subject").notNull(),
+body: text("body").notNull(), // HTML content
+category: text("category"), // welcome, verification, follow_up
+variables: jsonb("variables").default('[]'), // Available {{variables}}
+isActive: boolean("is_active").notNull().default(true),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+Features:
+* Rich text editor
+* Variable insertion ({{client_name}}, {{balance}}, etc.)
+* Preview with sample data
+* Template categories
+* Send test email
+3.4 VOIP Integration (/configuration/voip)
+Features:
+* Integration with VOIP provider (Twilio, Plivo)
+* Click-to-call from client detail page
+* Call logging and recording
+* Call history per client
+* Call analytics dashboard
+
+PHASE 4: Reports & Analytics
+Priority: MEDIUM | Time: 12-16 hours
+4.1 Sales Dashboard (/reports/sales-dashboard)
+Metrics:
+* New leads (daily/weekly/monthly)
+* FTD conversion rate
+* Average FTD amount
+* Pipeline stage distribution
+* Agent performance leaderboard
+* Revenue by team
+* Top performing agents
+Visualizations:
+* Conversion funnel chart
+* Time series graphs
+* Agent comparison tables
+* Geographic distribution map
+4.2 Affiliate Dashboard (/reports/affiliate-dashboard)
+Database Schema:
+export const affiliates = pgTable("affiliates", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+code: text("code").notNull().unique(), // Referral code
+name: text("name").notNull(),
+email: text("email").notNull(),
+commissionRate: decimal("commission_rate").notNull(), // Percentage
+paymentMethod: text("payment_method"),
+status: text("status").notNull().default('active'),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const affiliateReferrals = pgTable("affiliate_referrals", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+affiliateId: varchar("affiliate_id").references(() => affiliates.id),
+clientId: varchar("client_id").references(() => clients.id),
+commissionEarned: decimal("commission_earned"),
+status: text("status").notNull().default('pending'),
+createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+Features:
+* Referral tracking
+* Commission calculations
+* Payout management
+* Affiliate performance metrics
+4.3 Activity (Clients) (/reports/activity)
+Features:
+* Client login history
+* Page view tracking
+* Action logs (deposits, trades, withdrawals)
+* Engagement scoring
+* Inactive client alerts
+
+PHASE 5: Advanced Configuration
+Priority: MEDIUM | Time: 10-14 hours
+5.1 Hierarchy (/configuration/hierarchy)
+Enhanced organizational structure beyond basic teams:
+* Multi-level team hierarchy (Region → Country → Team → Agent)
+* Commission splits across hierarchy
+* Performance rollups to managers
+* Visualization tree diagram
+5.2 Custom Statuses (/configuration/statuses)
+Features:
+* Define custom client statuses beyond defaults
+* Configure status colors and icons
+* Set status transition rules
+* Status-based automation triggers
+5.3 KYC Questions (/configuration/kyc-questions)
+Database Schema:
+export const kycQuestions = pgTable("kyc_questions", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+question: text("question").notNull(),
+questionType: text("question_type").notNull(), // text, select, radio, file
+options: jsonb("options").default('[]'), // For select/radio
+isRequired: boolean("is_required").notNull().default(true),
+sortOrder: integer("sort_order").notNull(),
+isActive: boolean("is_active").notNull().default(true),
+});
+
+Features:
+* Drag-and-drop question builder
+* Conditional logic (show question if...)
+* File upload fields for documents
+* Response validation rules
+5.4 Variables (/configuration/variables)
+Features:
+* Define custom variables for templates
+* System variables (client data, account data)
+* Custom computed variables
+* Variable testing interface
+5.5 Security Settings (/configuration/security)
+Features:
+* Two-Factor Authentication (2FA) enforcement
+* IP whitelist management
+* Session timeout configuration
+* Password policies
+* Login attempt limits
+* Audit log retention settings
+5.6 Currencies (/configuration/currencies)
+Database Schema:
+export const currencies = pgTable("currencies", {
+id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+code: text("code").notNull().unique(), // USD, EUR, GBP
+name: text("name").notNull(),
+symbol: text("symbol").notNull(), // $, €, £
+exchangeRate: decimal("exchange_rate").notNull(), // vs USD
+isActive: boolean("is_active").notNull().default(true),
+updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+Features:
+* Multi-currency account support
+* Exchange rate management
+* Auto-update from external API
+* Currency conversion calculator
+
+PHASE 6: Payment Integration
+Priority: LOW | Time: 8-12 hours
+6.1 SMTP Configuration (/configuration/smtp)
+Features:
+* Configure SMTP server details
+* Test email delivery
+* Email sending limits
+* Bounce handling
+* Email queue management
+6.2 PSP Integration (/configuration/psp)
+Features:
+* Primary payment processor integration
+* Deposit/withdrawal automation
+* Transaction webhooks
+* KYC/AML compliance checks
+6.3 Other PSPs (/configuration/other-psps)
+Features:
+* Multiple payment processor support
+* Smart routing (choose processor based on region/amount)
+* Fallback processor configuration
+* Transaction fee comparison
+
+📊 PRIORITIZATION MATRIX
+Phase	Priority	Business Impact	Technical Complexity	Time Estimate
+1. Sales & Retention	🔴 CRITICAL	🟢 Very High	🟡 Medium	12-17h
+2. Trading Infrastructure	🟠 HIGH	🟢 High	🟠 High	10-14h
+3. Communication	🟠 HIGH	🟢 High	🟠 High	14-18h
+4. Reports & Analytics	🟡 MEDIUM	🟡 Medium	🟡 Medium	12-16h
+5. Advanced Config	🟡 MEDIUM	🟡 Medium	🟡 Medium	10-14h
+6. Payment Integration	🟢 LOW	🟡 Medium	🟢 Low	8-12h
+Total Estimated Time: 66-91 hours (1.5-2 months of development)
+
+🎯 RECOMMENDED APPROACH
+I suggest we proceed in 3 implementation waves:
+WAVE 1: Core Business Features (Weeks 1-2)
+* Phase 1: Sales & Retention (immediate business value)
+* Start Phase 2: Symbols management (enables proper trading)
+WAVE 2: Communication & Insights (Weeks 3-4)
+* Phase 3: Chat, Calendar, Email Templates
+* Phase 4: Dashboards and reporting
+WAVE 3: Advanced Features (Weeks 5-6+)
+* Phase 5: Advanced configuration
+* Phase 6: Payment integrations
+
+✅ IMMEDIATE NEXT STEPS
+Option A: Start with Phase 1 (Sales & Retention) - Original plan, fastest ROI
+Option B: Combined Phase 1 + Symbols - Cover both client lifecycle AND trading infrastructure
+Option C: Full Wave 1 - Maximum impact, longer timeline
+
+Which approach would you like me to take?
+1. Start Phase 1 only (Sales/Retention/FTD) - 12-17 hours
+2. Start Wave 1 (Phase 1 + Symbols) - 22-31 hours
+3. Custom selection - You choose which features from the list
+Let me know your priority and I'll begin implementation!
