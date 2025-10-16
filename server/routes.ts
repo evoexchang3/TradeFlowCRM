@@ -5238,8 +5238,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SMTP Settings
   app.get("/api/smtp-settings", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
 
       const db = storage.db;
@@ -5252,39 +5254,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/smtp-settings", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
 
+      // Import insertSmtpSettingSchema from schema
+      const { insertSmtpSettingSchema } = await import("@shared/schema");
+      const validated = insertSmtpSettingSchema.parse(req.body);
+
       const db = storage.db;
-      const [result] = await db.insert(smtpSettings).values(req.body).returning();
+      const [result] = await db.insert(smtpSettings).values(validated).returning();
       res.json(result);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
 
   app.patch("/api/smtp-settings/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
+
+      // Import insertSmtpSettingSchema from schema
+      const { insertSmtpSettingSchema } = await import("@shared/schema");
+      const validated = insertSmtpSettingSchema.partial().parse(req.body);
 
       const db = storage.db;
       const [result] = await db.update(smtpSettings)
-        .set({ ...req.body, updatedAt: new Date() })
+        .set({ ...validated, updatedAt: new Date() })
         .where(eq(smtpSettings.id, req.params.id))
         .returning();
       res.json(result);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
 
   app.delete("/api/smtp-settings/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
 
       const db = storage.db;
@@ -5298,8 +5320,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payment Providers
   app.get("/api/payment-providers", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
 
       const db = storage.db;
@@ -5312,39 +5336,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/payment-providers", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
 
+      // Import insertPaymentProviderSchema from schema
+      const { insertPaymentProviderSchema } = await import("@shared/schema");
+      const validated = insertPaymentProviderSchema.parse(req.body);
+
       const db = storage.db;
-      const [result] = await db.insert(paymentProviders).values(req.body).returning();
+      const [result] = await db.insert(paymentProviders).values(validated).returning();
       res.json(result);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
 
   app.patch("/api/payment-providers/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
+
+      // Import insertPaymentProviderSchema from schema
+      const { insertPaymentProviderSchema } = await import("@shared/schema");
+      const validated = insertPaymentProviderSchema.partial().parse(req.body);
 
       const db = storage.db;
       const [result] = await db.update(paymentProviders)
-        .set({ ...req.body, updatedAt: new Date() })
+        .set({ ...validated, updatedAt: new Date() })
         .where(eq(paymentProviders.id, req.params.id))
         .returning();
       res.json(result);
     } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
 
   app.delete("/api/payment-providers/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
       }
 
       const db = storage.db;
