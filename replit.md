@@ -39,10 +39,16 @@ Preferred communication style: Simple, everyday language.
 10. **Reports & Analytics (Phase 4)**:
     -   **Enhanced Sales Dashboard**: Time series charts for FTD trends, conversion funnel visualization, agent performance comparison, date range filters (start/end), team/agent filters with custom queryFn pattern for proper parameter passing.
     -   **Affiliate Management System**: Complete affiliate program with database schema (affiliates, affiliate_referrals), backend API (9 endpoints for CRUD, referral tracking, commission calculation, payout management), management page, and dashboard with leaderboard and metrics visualization.
+11. **Advanced Configuration (Phase 5)**:
+    -   **Organizational Hierarchy**: Teams schema enhanced with parent-child relationships (parentTeamId, level, commissionSplit). Backend API supports org tree retrieval, child team queries, and performance rollup calculations.
+    -   **Custom Statuses System**: Complete CRUD system with custom_statuses table (color, icon, category, allowedTransitions, automationTriggers). Production-ready management page with color picker, transition rules (JSON), and automation configuration. Uses local state pattern for JSON editing with validation on blur and pre-submission.
+    -   **KYC Questions Builder**: Schema for dynamic KYC questions and responses (type, required, conditional logic). Backend API ready for question builder with reordering and response tracking.
+    -   **Template Variables**: System for email/SMS personalization with backend infrastructure for variable management and client data interpolation.
+    -   **Security Settings**: Infrastructure for IP whitelisting, session policies, and 2FA enforcement with backend API endpoints.
 
 ### Data Schema
--   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams, Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals.
--   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N).
+-   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings.
+-   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N), Teams to Parent Teams (hierarchical), Clients to KYC Responses (1:N).
 
 ## External Dependencies
 -   **Market Data Provider**: Twelve Data (WebSocket and REST API for real-time and historical data).
