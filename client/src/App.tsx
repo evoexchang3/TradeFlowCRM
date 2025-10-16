@@ -32,6 +32,10 @@ import EmailTemplates from "@/pages/email-templates";
 import Affiliates from "@/pages/affiliates";
 import AffiliateDashboard from "@/pages/affiliate-dashboard";
 import CustomStatuses from "@/pages/custom-statuses";
+import Hierarchy from "@/pages/hierarchy";
+import KYCQuestions from "@/pages/kyc-questions";
+import TemplateVariables from "@/pages/template-variables";
+import SecuritySettings from "@/pages/security-settings";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -240,6 +244,30 @@ function Router() {
       <Route path="/configuration/custom-statuses">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <CustomStatuses />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/hierarchy">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <Hierarchy />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/kyc-questions">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <KYCQuestions />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/template-variables">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <TemplateVariables />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/security">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <SecuritySettings />
         </RouteGuard>
       </Route>
 
