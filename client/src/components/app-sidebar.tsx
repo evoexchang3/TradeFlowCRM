@@ -17,7 +17,8 @@ import {
   BarChart3,
   Layers,
   FolderOpen,
-  Wallet
+  Wallet,
+  Calendar
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -102,6 +103,11 @@ const menuItems: MenuItem[] = [
     title: "Transactions",
     url: "/transactions",
     icon: DollarSign,
+  },
+  {
+    title: "Calendar",
+    url: "/calendar",
+    icon: Calendar,
   },
   {
     title: "Sales Dashboard",
