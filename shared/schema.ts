@@ -95,7 +95,7 @@ export const clients = pgTable("clients", {
   kycStatus: kycStatusEnum("kyc_status").notNull().default('pending'),
   kycDocuments: jsonb("kyc_documents").default('[]'), // Array of document URLs
   status: clientStatusEnum("status").notNull().default('new'),
-  pipelineStatus: pipelineStatusEnum("pipeline_status").notNull().default('new_lead'),
+  statusId: varchar("status_id").references(() => customStatuses.id), // Custom status reference
   nextFollowUpDate: timestamp("next_follow_up_date"),
   assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
   teamId: varchar("team_id").references(() => teams.id),
@@ -191,7 +191,7 @@ export const tradingSymbols = pgTable("trading_symbols", {
   symbol: text("symbol").notNull().unique(), // e.g., EUR/USD, BTC/USD
   displayName: text("display_name").notNull(),
   category: text("category").notNull(), // forex, crypto, metals, indices, commodities
-  groupId: varchar("group_id").references(() => symbolGroups.id),
+  symbolGroupId: varchar("symbol_group_id").references(() => symbolGroups.id),
   baseAsset: text("base_asset"), // EUR in EUR/USD
   quoteAsset: text("quote_asset"), // USD in EUR/USD
   contractSize: decimal("contract_size", { precision: 18, scale: 8 }).notNull().default('100000'), // Standard lot size
@@ -418,10 +418,11 @@ export const affiliateReferrals = pgTable("affiliate_referrals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   affiliateId: varchar("affiliate_id").notNull().references(() => affiliates.id),
   clientId: varchar("client_id").notNull().references(() => clients.id),
-  commissionEarned: decimal("commission_earned", { precision: 18, scale: 2 }).default('0'),
+  referralDate: timestamp("referral_date").notNull().defaultNow(),
   status: text("status").notNull().default('pending'), // pending, approved, paid
-  paidAt: timestamp("paid_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  commissionAmount: decimal("commission_amount", { precision: 18, scale: 2 }).default('0'),
+  commissionPaid: boolean("commission_paid").notNull().default(false),
+  notes: text("notes"),
 });
 
 // API Keys for external platform integration
