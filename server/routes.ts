@@ -19,7 +19,9 @@ import {
   symbolGroups, 
   tradingSymbols, 
   calendarEvents, 
-  emailTemplates 
+  emailTemplates,
+  chatRooms,
+  chatMessages
 } from "@shared/schema";
 import { eq, or, and, isNull } from "drizzle-orm";
 
@@ -4431,6 +4433,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== CHAT ROOMS & MESSAGES =====
+  app.get("/api/chat/rooms", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const rooms = await db.select().from(chatRooms);
+      res.json(rooms);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/chat/rooms", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [newRoom] = await db.insert(chatRooms).values({
+        type: req.body.type,
+        clientId: req.body.clientId || null,
+        name: req.body.name || null,
+      }).returning();
+
+      res.json(newRoom);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/chat/rooms/:id/messages", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const messages = await db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.roomId, req.params.id))
+        .orderBy(chatMessages.createdAt);
+      
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/chat/rooms/:id/messages", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      const db = storage.db;
+      
+      const [newMessage] = await db.insert(chatMessages).values({
+        roomId: req.params.id,
+        senderId: user?.id || req.user.id,
+        senderType: 'user',
+        message: req.body.message,
+        attachments: req.body.attachments || [],
+      }).returning();
+
+      // Update room's last message timestamp
+      await db.update(chatRooms)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(chatRooms.id, req.params.id));
+
+      res.json(newMessage);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/chat/messages/:id/read", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [updated] = await db.update(chatMessages)
+        .set({ isRead: true })
+        .where(eq(chatMessages.id, req.params.id))
+        .returning();
+
+      res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
