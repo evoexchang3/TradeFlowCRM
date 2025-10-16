@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Edit, KeyRound, UserCheck, UserX } from "lucide-react";
+import { Plus, Edit, KeyRound, UserCheck, UserX, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -68,14 +68,24 @@ const resetPasswordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const adjustWorkloadSchema = z.object({
+  currentWorkload: z.coerce.number().min(0, "Current workload cannot be negative"),
+  maxWorkload: z.coerce.number().min(1, "Max workload must be at least 1").max(200, "Max workload cannot exceed 200"),
+}).refine((data) => data.currentWorkload <= data.maxWorkload, {
+  message: "Current workload cannot exceed max workload",
+  path: ["currentWorkload"],
+});
+
 type CreateUserData = z.infer<typeof createUserSchema>;
 type EditUserData = z.infer<typeof editUserSchema>;
 type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
+type AdjustWorkloadData = z.infer<typeof adjustWorkloadSchema>;
 
 export default function UserManagement() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [adjustWorkloadDialogOpen, setAdjustWorkloadDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const { toast } = useToast();
 
@@ -119,6 +129,14 @@ export default function UserManagement() {
     defaultValues: {
       newPassword: "",
       confirmPassword: "",
+    },
+  });
+
+  const adjustWorkloadForm = useForm<AdjustWorkloadData>({
+    resolver: zodResolver(adjustWorkloadSchema),
+    defaultValues: {
+      currentWorkload: 0,
+      maxWorkload: 50,
     },
   });
 
@@ -220,6 +238,30 @@ export default function UserManagement() {
     },
   });
 
+  const adjustWorkloadMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: AdjustWorkloadData }) => {
+      const res = await apiRequest('PATCH', `/api/agents/${id}/workload`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Workload adjusted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setAdjustWorkloadDialogOpen(false);
+      setSelectedUser(null);
+      adjustWorkloadForm.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to adjust workload",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (user: any) => {
     setSelectedUser(user);
     editForm.reset({
@@ -236,6 +278,15 @@ export default function UserManagement() {
     setSelectedUser(user);
     resetPasswordForm.reset();
     setResetPasswordDialogOpen(true);
+  };
+
+  const handleAdjustWorkload = (user: any) => {
+    setSelectedUser(user);
+    adjustWorkloadForm.reset({
+      currentWorkload: user.currentWorkload || 0,
+      maxWorkload: user.maxWorkload || 50,
+    });
+    setAdjustWorkloadDialogOpen(true);
   };
 
   const handleToggleActive = (user: any) => {
@@ -282,6 +333,7 @@ export default function UserManagement() {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Team</TableHead>
+                  <TableHead>Workload</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Actions</TableHead>
@@ -299,6 +351,11 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell data-testid={`text-user-team-${user.id}`}>
                       {user.teamId ? getTeamName(user.teamId) : '-'}
+                    </TableCell>
+                    <TableCell data-testid={`text-user-workload-${user.id}`}>
+                      <span className="text-sm">
+                        {user.currentWorkload || 0} / {user.maxWorkload || 50}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {user.isActive ? (
@@ -329,6 +386,14 @@ export default function UserManagement() {
                           data-testid={`button-reset-password-${user.id}`}
                         >
                           <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleAdjustWorkload(user)}
+                          data-testid={`button-adjust-workload-${user.id}`}
+                        >
+                          <Settings className="h-4 w-4" />
                         </Button>
                         <Button
                           size="sm"
@@ -675,6 +740,67 @@ export default function UserManagement() {
                   data-testid="button-submit-reset"
                 >
                   {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Workload Dialog */}
+      <Dialog open={adjustWorkloadDialogOpen} onOpenChange={setAdjustWorkloadDialogOpen}>
+        <DialogContent data-testid="dialog-adjust-workload">
+          <DialogHeader>
+            <DialogTitle>Adjust Workload</DialogTitle>
+            <DialogDescription>
+              Update workload settings for {selectedUser?.firstName} {selectedUser?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...adjustWorkloadForm}>
+            <form onSubmit={adjustWorkloadForm.handleSubmit((data) => adjustWorkloadMutation.mutate({ id: selectedUser?.id, data }))} className="space-y-4">
+              <FormField
+                control={adjustWorkloadForm.control}
+                name="currentWorkload"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Workload</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} data-testid="input-current-workload" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={adjustWorkloadForm.control}
+                name="maxWorkload"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max Workload</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} data-testid="input-max-workload" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAdjustWorkloadDialogOpen(false)}
+                  data-testid="button-cancel-workload"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={adjustWorkloadMutation.isPending}
+                  data-testid="button-submit-workload"
+                >
+                  {adjustWorkloadMutation.isPending ? 'Adjusting...' : 'Adjust Workload'}
                 </Button>
               </DialogFooter>
             </form>
