@@ -31,19 +31,22 @@ export const transactionTypeEnum = pgEnum('transaction_type', ['deposit', 'withd
 export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'completed', 'rejected']);
 export const transferStatusEnum = pgEnum('transfer_status', ['pending', 'completed', 'rejected']);
 export const auditActionEnum = pgEnum('audit_action', [
-  'login', 'logout', 'client_create', 'client_edit', 'client_delete', 'client_ftd_marked',
+  'login', 'logout', 'client_create', 'client_edit', 'client_delete', 'client_ftd_marked', 'client_transferred',
   'trade_create', 'trade_edit', 'trade_close', 'trade_delete', 'balance_adjust',
   'role_create', 'role_edit', 'role_delete', 'permission_change',
   'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use',
   'symbol_create', 'symbol_edit', 'symbol_delete', 'symbol_group_create', 'symbol_group_edit', 'symbol_group_delete',
   'calendar_event_create', 'calendar_event_edit', 'calendar_event_delete',
-  'email_template_create', 'email_template_edit', 'email_template_delete', 'webhook_received'
+  'email_template_create', 'email_template_edit', 'email_template_delete', 'webhook_received',
+  'workload_adjusted', 'routing_rule_create', 'routing_rule_edit', 'routing_rule_delete',
+  'smart_assignment_toggle', 'smart_assignment_config'
 ]);
 export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
 export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
 export const tradeInitiatorTypeEnum = pgEnum('trade_initiator_type', ['client', 'agent', 'team_leader', 'crm_manager', 'admin', 'robot', 'system']);
 export const robotStatusEnum = pgEnum('robot_status', ['active', 'paused', 'stopped']);
 export const fundTypeEnum = pgEnum('fund_type', ['real', 'demo', 'bonus']);
+export const departmentEnum = pgEnum('department', ['sales', 'retention', 'support']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -55,6 +58,10 @@ export const users = pgTable("users", {
   teamId: varchar("team_id").references(() => teams.id),
   isActive: boolean("is_active").notNull().default(true),
   mustResetPassword: boolean("must_reset_password").notNull().default(false),
+  currentWorkload: integer("current_workload").notNull().default(0), // Auto-updated count of active clients
+  maxWorkload: integer("max_workload").notNull().default(200), // Adjustable by TL/Manager/Admin
+  isAvailable: boolean("is_available").notNull().default(true), // Online/offline status
+  performanceScore: decimal("performance_score", { precision: 5, scale: 2 }), // Calculated metric
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -77,6 +84,8 @@ export const teams = pgTable("teams", {
   level: text("level").notNull().default('team'), // region, country, team
   leaderId: varchar("leader_id").references(() => users.id),
   commissionSplit: decimal("commission_split", { precision: 5, scale: 2 }),
+  languageCode: varchar("language_code", { length: 10 }), // ISO language code: en, de, fr, es, etc.
+  department: departmentEnum("department"), // sales, retention, support
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -516,6 +525,50 @@ export const smtpSettings = pgTable("smtp_settings", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Team Routing Rules (Language-based auto-transfer)
+export const teamRoutingRules = pgTable("team_routing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  languageCode: varchar("language_code", { length: 10 }).notNull().unique(), // ISO language code
+  salesTeamId: varchar("sales_team_id").references(() => teams.id),
+  retentionTeamId: varchar("retention_team_id").references(() => teams.id),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Smart Assignment Settings
+export const smartAssignmentSettings = pgTable("smart_assignment_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isEnabled: boolean("is_enabled").notNull().default(false), // Disabled by default
+  useWorkloadBalance: boolean("use_workload_balance").notNull().default(true),
+  useLanguageMatch: boolean("use_language_match").notNull().default(true),
+  usePerformanceHistory: boolean("use_performance_history").notNull().default(true),
+  useAvailability: boolean("use_availability").notNull().default(true),
+  useRoundRobin: boolean("use_round_robin").notNull().default(true),
+  teamId: varchar("team_id").references(() => teams.id), // NULL = global settings
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Agent Performance Metrics
+export const agentPerformanceMetrics = pgTable("agent_performance_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agentId: varchar("agent_id").notNull().references(() => users.id),
+  teamId: varchar("team_id").references(() => teams.id),
+  department: departmentEnum("department"), // sales or retention
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  totalAssignedClients: integer("total_assigned_clients").notNull().default(0),
+  ftdConversions: integer("ftd_conversions").notNull().default(0),
+  conversionRate: decimal("conversion_rate", { precision: 5, scale: 2 }), // Percentage
+  avgResponseTimeMinutes: decimal("avg_response_time_minutes", { precision: 10, scale: 2 }),
+  totalCallsMade: integer("total_calls_made").notNull().default(0),
+  totalEmailsSent: integer("total_emails_sent").notNull().default(0),
+  activeClientsCount: integer("active_clients_count").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Payment Service Providers
 export const paymentProviders = pgTable("payment_providers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -887,6 +940,36 @@ export const insertPaymentProviderSchema = createInsertSchema(paymentProviders).
 
 export type PaymentProvider = typeof paymentProviders.$inferSelect;
 export type InsertPaymentProvider = z.infer<typeof insertPaymentProviderSchema>;
+
+// Team Routing Rules schemas
+export const insertTeamRoutingRuleSchema = createInsertSchema(teamRoutingRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type TeamRoutingRule = typeof teamRoutingRules.$inferSelect;
+export type InsertTeamRoutingRule = z.infer<typeof insertTeamRoutingRuleSchema>;
+
+// Smart Assignment Settings schemas
+export const insertSmartAssignmentSettingSchema = createInsertSchema(smartAssignmentSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SmartAssignmentSetting = typeof smartAssignmentSettings.$inferSelect;
+export type InsertSmartAssignmentSetting = z.infer<typeof insertSmartAssignmentSettingSchema>;
+
+// Agent Performance Metrics schemas
+export const insertAgentPerformanceMetricSchema = createInsertSchema(agentPerformanceMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AgentPerformanceMetric = typeof agentPerformanceMetrics.$inferSelect;
+export type InsertAgentPerformanceMetric = z.infer<typeof insertAgentPerformanceMetricSchema>;
 
 // Mark FTD schema
 export const markFTDSchema = z.object({
