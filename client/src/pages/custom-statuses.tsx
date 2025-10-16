@@ -14,21 +14,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Edit, Trash2, Circle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { insertCustomStatusSchema } from "@shared/schema";
 
-const statusSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  color: z.string().min(1, "Color is required"),
-  icon: z.string().optional(),
-  category: z.string().min(1, "Category is required"),
-  sortOrder: z.number().default(0),
-  isActive: z.boolean().default(true),
-});
+const statusSchema = insertCustomStatusSchema;
 
 type StatusFormData = z.infer<typeof statusSchema>;
 
 export default function CustomStatuses() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState<any>(null);
+  const [transitionsText, setTransitionsText] = useState("[]");
+  const [automationText, setAutomationText] = useState("[]");
   const { toast } = useToast();
 
   const { data: statuses = [], isLoading } = useQuery<any[]>({
@@ -42,6 +39,8 @@ export default function CustomStatuses() {
       color: "#3b82f6",
       icon: "",
       category: "sales",
+      allowedTransitions: [],
+      automationTriggers: [],
       sortOrder: 0,
       isActive: true,
     },
@@ -52,6 +51,8 @@ export default function CustomStatuses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
       toast({ title: "Success", description: "Status created successfully" });
+      setTransitionsText("[]");
+      setAutomationText("[]");
       setIsDialogOpen(false);
       form.reset();
     },
@@ -65,11 +66,13 @@ export default function CustomStatuses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
       toast({ title: "Success", description: "Status updated successfully" });
-      setIsDialogOpen(false);
       setEditingStatus(null);
+      setTransitionsText("[]");
+      setAutomationText("[]");
+      setIsDialogOpen(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -86,24 +89,55 @@ export default function CustomStatuses() {
   });
 
   const handleSubmit = (data: StatusFormData) => {
-    if (editingStatus) {
-      updateMutation.mutate({ id: editingStatus.id, ...data });
-    } else {
-      createMutation.mutate(data);
+    try {
+      const transitions = JSON.parse(transitionsText);
+      const automation = JSON.parse(automationText);
+      
+      const finalData = {
+        ...data,
+        allowedTransitions: transitions,
+        automationTriggers: automation,
+      };
+      
+      if (editingStatus) {
+        updateMutation.mutate({ id: editingStatus.id, ...finalData });
+      } else {
+        createMutation.mutate(finalData);
+      }
+    } catch (e) {
+      toast({ 
+        title: "Invalid JSON", 
+        description: "Please fix JSON syntax in transitions or automation fields", 
+        variant: "destructive" 
+      });
     }
   };
 
   const handleEdit = (status: any) => {
     setEditingStatus(status);
+    setTransitionsText(JSON.stringify(status.allowedTransitions || [], null, 2));
+    setAutomationText(JSON.stringify(status.automationTriggers || [], null, 2));
     form.reset({
       name: status.name,
       color: status.color,
       icon: status.icon || "",
       category: status.category,
+      allowedTransitions: status.allowedTransitions || [],
+      automationTriggers: status.automationTriggers || [],
       sortOrder: status.sortOrder,
       isActive: status.isActive,
     });
     setIsDialogOpen(true);
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setEditingStatus(null);
+      setTransitionsText("[]");
+      setAutomationText("[]");
+      form.reset();
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -119,13 +153,7 @@ export default function CustomStatuses() {
           <h1 className="text-3xl font-bold">Custom Statuses</h1>
           <p className="text-muted-foreground">Define custom client statuses for your workflow</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) {
-            setEditingStatus(null);
-            form.reset();
-          }
-        }}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-status">
               <Plus className="h-4 w-4 mr-2" />
@@ -195,6 +223,20 @@ export default function CustomStatuses() {
 
                 <FormField
                   control={form.control}
+                  name="icon"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Icon (Lucide icon name)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Star, Check, AlertCircle" data-testid="input-status-icon" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="sortOrder"
                   render={({ field }) => (
                     <FormItem>
@@ -205,6 +247,70 @@ export default function CustomStatuses() {
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                           data-testid="input-status-sort" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="allowedTransitions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allowed Transitions (JSON array of status IDs)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          value={transitionsText}
+                          onChange={(e) => setTransitionsText(e.target.value)}
+                          onBlur={() => {
+                            try {
+                              const parsed = JSON.parse(transitionsText);
+                              field.onChange(parsed);
+                            } catch (e) {
+                              toast({ 
+                                title: "Invalid JSON", 
+                                description: "Transitions must be valid JSON array", 
+                                variant: "destructive" 
+                              });
+                            }
+                          }}
+                          placeholder='["status-id-1", "status-id-2"]'
+                          data-testid="input-status-transitions"
+                          rows={2}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="automationTriggers"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Automation Triggers (JSON array)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          value={automationText}
+                          onChange={(e) => setAutomationText(e.target.value)}
+                          onBlur={() => {
+                            try {
+                              const parsed = JSON.parse(automationText);
+                              field.onChange(parsed);
+                            } catch (e) {
+                              toast({ 
+                                title: "Invalid JSON", 
+                                description: "Automation triggers must be valid JSON array", 
+                                variant: "destructive" 
+                              });
+                            }
+                          }}
+                          placeholder='[{"action": "send_email", "template": "welcome"}]'
+                          data-testid="input-status-automation"
+                          rows={2}
                         />
                       </FormControl>
                       <FormMessage />
