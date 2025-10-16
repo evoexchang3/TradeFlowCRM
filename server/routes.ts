@@ -28,7 +28,10 @@ import {
   paymentProviders,
   securitySettings,
   teamRoutingRules,
-  insertTeamRoutingRuleSchema
+  insertTeamRoutingRuleSchema,
+  teams,
+  smartAssignmentSettings,
+  insertSmartAssignmentSettingSchema
 } from "@shared/schema";
 import { eq, or, and, isNull, sql } from "drizzle-orm";
 
@@ -710,7 +713,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: { amount, fundType, notes },
       });
 
-      res.json(updatedClient);
+      // Auto-transfer logic: Sales -> Retention based on language
+      let transferResult = null;
+      if (client.teamId) {
+        const db = storage.db;
+        const clientTeam = await db.select().from(teams).where(eq(teams.id, client.teamId)).limit(1);
+        
+        if (clientTeam.length > 0) {
+          const team = clientTeam[0];
+          
+          // Check if this is a sales team with a language code
+          if (team.department === 'sales' && team.languageCode) {
+            // Find routing rule for this language
+            const routingRules = await db.select()
+              .from(teamRoutingRules)
+              .where(and(
+                eq(teamRoutingRules.languageCode, team.languageCode),
+                eq(teamRoutingRules.isActive, true)
+              ))
+              .limit(1);
+            
+            if (routingRules.length > 0 && routingRules[0].retentionTeamId) {
+              const routingRule = routingRules[0];
+              
+              // Transfer client to retention team
+              await storage.updateClient(client.id, {
+                teamId: routingRule.retentionTeamId,
+              });
+
+              // Log the transfer
+              await storage.createAuditLog({
+                userId: req.user?.id,
+                action: 'client_transferred',
+                targetType: 'client',
+                targetId: client.id,
+                details: { 
+                  fromTeamId: team.id,
+                  toTeamId: routingRule.retentionTeamId,
+                  reason: 'FTD auto-transfer (Sales to Retention)',
+                  languageCode: team.languageCode,
+                },
+              });
+
+              transferResult = {
+                transferred: true,
+                fromTeam: team.name,
+                toTeamId: routingRule.retentionTeamId,
+                languageCode: team.languageCode,
+              };
+            }
+          }
+        }
+      }
+
+      res.json({ 
+        ...updatedClient, 
+        autoTransfer: transferResult 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -5148,6 +5207,324 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Smart Assignment Settings
+  app.get("/api/smart-assignment-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const { teamId } = req.query;
+
+      let query = db.select().from(smartAssignmentSettings);
+      
+      if (teamId) {
+        query = query.where(eq(smartAssignmentSettings.teamId, teamId as string));
+      } else {
+        // Get global settings (where teamId is null)
+        query = query.where(sql`${smartAssignmentSettings.teamId} IS NULL`);
+      }
+
+      const settings = await query;
+      
+      if (settings.length === 0) {
+        // Return default settings if none exist
+        return res.json({
+          isEnabled: false,
+          useWorkloadBalance: true,
+          useLanguageMatch: true,
+          usePerformanceHistory: true,
+          useAvailability: true,
+          useRoundRobin: true,
+          teamId: teamId || null,
+        });
+      }
+
+      res.json(settings[0]);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/smart-assignment-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const validated = insertSmartAssignmentSettingSchema.parse(req.body);
+
+      const db = storage.db;
+      
+      // Check if settings already exist
+      const { teamId } = validated;
+      let existing;
+      
+      if (teamId) {
+        existing = await db.select()
+          .from(smartAssignmentSettings)
+          .where(eq(smartAssignmentSettings.teamId, teamId))
+          .limit(1);
+      } else {
+        existing = await db.select()
+          .from(smartAssignmentSettings)
+          .where(sql`${smartAssignmentSettings.teamId} IS NULL`)
+          .limit(1);
+      }
+
+      let result;
+      if (existing.length > 0) {
+        // Update existing settings
+        const [updated] = await db.update(smartAssignmentSettings)
+          .set({ ...validated, updatedAt: new Date() })
+          .where(eq(smartAssignmentSettings.id, existing[0].id))
+          .returning();
+        result = updated;
+      } else {
+        // Create new settings
+        const [created] = await db.insert(smartAssignmentSettings)
+          .values(validated)
+          .returning();
+        result = created;
+      }
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'smart_assignment_config',
+        details: { 
+          teamId: teamId || 'global',
+          settings: validated,
+        },
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/smart-assignment-settings/toggle", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const { isEnabled, teamId } = req.body;
+      const db = storage.db;
+
+      let settings;
+      if (teamId) {
+        settings = await db.select()
+          .from(smartAssignmentSettings)
+          .where(eq(smartAssignmentSettings.teamId, teamId))
+          .limit(1);
+      } else {
+        settings = await db.select()
+          .from(smartAssignmentSettings)
+          .where(sql`${smartAssignmentSettings.teamId} IS NULL`)
+          .limit(1);
+      }
+
+      let result;
+      if (settings.length > 0) {
+        const [updated] = await db.update(smartAssignmentSettings)
+          .set({ isEnabled, updatedAt: new Date() })
+          .where(eq(smartAssignmentSettings.id, settings[0].id))
+          .returning();
+        result = updated;
+      } else {
+        // Create with default settings
+        const [created] = await db.insert(smartAssignmentSettings)
+          .values({
+            isEnabled,
+            teamId: teamId || null,
+            useWorkloadBalance: true,
+            useLanguageMatch: true,
+            usePerformanceHistory: true,
+            useAvailability: true,
+            useRoundRobin: true,
+          })
+          .returning();
+        result = created;
+      }
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'smart_assignment_toggle',
+        details: { 
+          teamId: teamId || 'global',
+          isEnabled,
+        },
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Agent Workload Management
+  app.get("/api/agents/:id/workload", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      const roleName = role?.name?.toLowerCase();
+      
+      // Team leaders can view their team members' workload, managers/admins can view all
+      const agent = await storage.getUser(req.params.id);
+      if (!agent) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+
+      const canView = 
+        roleName === 'administrator' ||
+        roleName?.includes('manager') ||
+        (roleName === 'team leader' && user.teamId === agent.teamId) ||
+        user.id === agent.id; // Agent can view own workload
+
+      if (!canView) {
+        return res.status(403).json({ error: 'Unauthorized: Cannot view this agent\'s workload' });
+      }
+
+      // Get active clients count for this agent
+      const clients = await storage.getClients();
+      const activeClients = clients.filter(
+        c => c.assignedAgentId === agent.id && c.isActive
+      );
+
+      res.json({
+        agentId: agent.id,
+        agentName: agent.name,
+        currentWorkload: agent.currentWorkload,
+        maxWorkload: agent.maxWorkload,
+        actualActiveClients: activeClients.length,
+        isAvailable: agent.isAvailable,
+        utilizationRate: agent.maxWorkload > 0 
+          ? ((agent.currentWorkload / agent.maxWorkload) * 100).toFixed(2) 
+          : '0',
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/agents/:id/workload", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+      
+      // Only Team Leaders, Managers, and Admins can adjust workload
+      const agent = await storage.getUser(req.params.id);
+      if (!agent) {
+        return res.status(404).json({ error: 'Agent not found' });
+      }
+
+      const canAdjust = 
+        roleName === 'administrator' ||
+        roleName?.includes('manager') ||
+        (roleName === 'team leader' && user.teamId === agent.teamId);
+
+      if (!canAdjust) {
+        return res.status(403).json({ error: 'Unauthorized: Only Team Leaders, Managers, and Admins can adjust workload' });
+      }
+
+      const { maxWorkload, isAvailable } = req.body;
+      const db = storage.db;
+      const updates: any = {};
+
+      if (maxWorkload !== undefined) {
+        if (maxWorkload < 1 || maxWorkload > 1000) {
+          return res.status(400).json({ error: 'Max workload must be between 1 and 1000' });
+        }
+        updates.maxWorkload = maxWorkload;
+      }
+
+      if (isAvailable !== undefined) {
+        updates.isAvailable = isAvailable;
+      }
+
+      const [updated] = await db.update(users)
+        .set(updates)
+        .where(eq(users.id, req.params.id))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'workload_adjusted',
+        targetType: 'user',
+        targetId: agent.id,
+        details: { 
+          agentName: agent.name,
+          changes: updates,
+          previousMaxWorkload: agent.maxWorkload,
+          previousAvailability: agent.isAvailable,
+        },
+      });
+
+      res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
