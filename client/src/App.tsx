@@ -31,6 +31,7 @@ import Calendar from "@/pages/calendar";
 import EmailTemplates from "@/pages/email-templates";
 import Affiliates from "@/pages/affiliates";
 import AffiliateDashboard from "@/pages/affiliate-dashboard";
+import CustomStatuses from "@/pages/custom-statuses";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -233,6 +234,12 @@ function Router() {
       <Route path="/configuration/affiliates">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <Affiliates />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/custom-statuses">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <CustomStatuses />
         </RouteGuard>
       </Route>
 

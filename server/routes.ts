@@ -4880,5 +4880,355 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PHASE 5: ADVANCED CONFIGURATION ====================
+
+  // Organizational Hierarchy
+  app.get("/api/hierarchy/tree", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const allTeams = await db.select().from(teams);
+      
+      res.json(allTeams);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/teams/:id/children", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const childTeams = await db.select().from(teams)
+        .where(eq(teams.parentTeamId, req.params.id));
+      
+      res.json(childTeams);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/teams/:id/rollup", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const team = await db.select().from(teams).where(eq(teams.id, req.params.id)).limit(1);
+      if (!team.length) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+
+      const teamClients = await db.select().from(clients).where(eq(clients.teamId, req.params.id));
+      const ftdClients = teamClients.filter(c => c.hasFTD);
+      
+      const childTeams = await db.select().from(teams).where(eq(teams.parentTeamId, req.params.id));
+      const childMetrics = await Promise.all(childTeams.map(async (childTeam) => {
+        const childClients = await db.select().from(clients).where(eq(clients.teamId, childTeam.id));
+        return {
+          teamId: childTeam.id,
+          teamName: childTeam.name,
+          totalClients: childClients.length,
+          ftdCount: childClients.filter(c => c.hasFTD).length,
+        };
+      }));
+
+      res.json({
+        teamId: team[0].id,
+        teamName: team[0].name,
+        totalClients: teamClients.length,
+        ftdCount: ftdClients.length,
+        childTeams: childMetrics,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Custom Statuses
+  app.get("/api/custom-statuses", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const statusList = await db.select().from(customStatuses).orderBy(customStatuses.sortOrder);
+      res.json(statusList);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/custom-statuses", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [newStatus] = await db.insert(customStatuses).values({
+        name: req.body.name,
+        color: req.body.color,
+        icon: req.body.icon,
+        category: req.body.category,
+        allowedTransitions: req.body.allowedTransitions || [],
+        automationTriggers: req.body.automationTriggers || [],
+        sortOrder: req.body.sortOrder || 0,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+      }).returning();
+
+      res.json(newStatus);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/custom-statuses/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [updated] = await db.update(customStatuses)
+        .set(req.body)
+        .where(eq(customStatuses.id, req.params.id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/custom-statuses/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(customStatuses).where(eq(customStatuses.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // KYC Questions
+  app.get("/api/kyc-questions", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const questions = await db.select().from(kycQuestions).orderBy(kycQuestions.sortOrder);
+      res.json(questions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/kyc-questions", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [newQuestion] = await db.insert(kycQuestions).values({
+        question: req.body.question,
+        questionType: req.body.questionType,
+        options: req.body.options || [],
+        validation: req.body.validation || {},
+        conditionalLogic: req.body.conditionalLogic || {},
+        isRequired: req.body.isRequired !== undefined ? req.body.isRequired : true,
+        sortOrder: req.body.sortOrder,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+      }).returning();
+
+      res.json(newQuestion);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/kyc-questions/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [updated] = await db.update(kycQuestions)
+        .set(req.body)
+        .where(eq(kycQuestions.id, req.params.id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/kyc-questions/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(kycQuestions).where(eq(kycQuestions.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Template Variables
+  app.get("/api/template-variables", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const variables = await db.select().from(templateVariables);
+      res.json(variables);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/template-variables", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [newVariable] = await db.insert(templateVariables).values({
+        name: req.body.name,
+        description: req.body.description,
+        variableType: req.body.variableType,
+        dataSource: req.body.dataSource,
+        computationLogic: req.body.computationLogic,
+        isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+      }).returning();
+
+      res.json(newVariable);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/template-variables/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [updated] = await db.update(templateVariables)
+        .set(req.body)
+        .where(eq(templateVariables.id, req.params.id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/template-variables/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(templateVariables).where(eq(templateVariables.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Security Settings
+  app.get("/api/security-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const settings = await db.select().from(securitySettings);
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/security-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      
+      const existing = await db.select().from(securitySettings)
+        .where(eq(securitySettings.settingKey, req.body.settingKey))
+        .limit(1);
+
+      let result;
+      if (existing.length > 0) {
+        [result] = await db.update(securitySettings)
+          .set({
+            settingValue: req.body.settingValue,
+            description: req.body.description,
+            updatedBy: req.user?.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(securitySettings.settingKey, req.body.settingKey))
+          .returning();
+      } else {
+        [result] = await db.insert(securitySettings).values({
+          settingKey: req.body.settingKey,
+          settingValue: req.body.settingValue,
+          description: req.body.description,
+          updatedBy: req.user?.id,
+        }).returning();
+      }
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/security-settings/:key", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(securitySettings).where(eq(securitySettings.settingKey, req.params.key));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
