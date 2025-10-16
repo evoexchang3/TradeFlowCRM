@@ -22,6 +22,7 @@ import { formatDistanceToNow } from "date-fns";
 const roomFormSchema = z.object({
   type: z.string(),
   clientId: z.string().optional(),
+  participantId: z.string().optional(),
   name: z.string().optional(),
 });
 
@@ -31,9 +32,19 @@ interface ChatRoom {
   id: string;
   type: string;
   clientId: string | null;
+  participantId: string | null;
   name: string | null;
   createdAt: string;
   unreadCount?: number;
+  client?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+  participant?: {
+    id: string;
+    name: string;
+  };
 }
 
 interface ChatMessage {
@@ -89,6 +100,18 @@ function RoomListItem({ room, isActive, onClick }: {
   isActive: boolean;
   onClick: () => void;
 }) {
+  const getRoomName = () => {
+    if (room.name) return room.name;
+    if (room.type === 'internal') return 'Team Chat';
+    if (room.type === 'client_support' && room.client) {
+      return `${room.client.firstName} ${room.client.lastName}`;
+    }
+    if (room.type === 'direct' && room.participant) {
+      return room.participant.name;
+    }
+    return room.type === 'direct' ? 'Direct Message' : 'Client Support';
+  };
+
   return (
     <button
       onClick={onClick}
@@ -101,11 +124,13 @@ function RoomListItem({ room, isActive, onClick }: {
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {room.type === 'internal' ? (
             <Users className="h-4 w-4 flex-shrink-0" />
+          ) : room.type === 'direct' ? (
+            <MessageSquare className="h-4 w-4 flex-shrink-0" />
           ) : (
             <User className="h-4 w-4 flex-shrink-0" />
           )}
           <span className="font-medium truncate">
-            {room.name || `${room.type === 'internal' ? 'Team Chat' : 'Client Support'}`}
+            {getRoomName()}
           </span>
         </div>
         {room.unreadCount && room.unreadCount > 0 && (
@@ -122,6 +147,7 @@ export default function Chat() {
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
+  const [roomFilter, setRoomFilter] = useState<string>("all");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -137,6 +163,10 @@ export default function Chat() {
 
   const { data: clients = [] } = useQuery<any[]>({
     queryKey: ['/api/clients'],
+  });
+
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ['/api/users'],
   });
 
   const form = useForm<RoomFormData>({
@@ -209,6 +239,10 @@ export default function Chat() {
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
+  const filteredRooms = roomFilter === "all" 
+    ? rooms 
+    : rooms.filter(r => r.type === roomFilter);
+
   if (roomsLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -250,6 +284,7 @@ export default function Chat() {
                           <SelectContent>
                             <SelectItem value="internal">Internal Team Chat</SelectItem>
                             <SelectItem value="client_support">Client Support</SelectItem>
+                            <SelectItem value="direct">Direct Message</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -274,6 +309,33 @@ export default function Chat() {
                               {clients.map((client) => (
                                 <SelectItem key={client.id} value={client.id}>
                                   {client.firstName} {client.lastName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {form.watch("type") === "direct" && (
+                    <FormField
+                      control={form.control}
+                      name="participantId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>User</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-user">
+                                <SelectValue placeholder="Select user" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {users.filter(u => u.id !== user?.id).map((u) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                  {u.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -317,14 +379,57 @@ export default function Chat() {
           </Dialog>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0">
+          <div className="p-3 border-b">
+            <div className="flex gap-2">
+              <Button
+                variant={roomFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRoomFilter("all")}
+                data-testid="filter-all"
+                className="flex-1"
+              >
+                All
+              </Button>
+              <Button
+                variant={roomFilter === "internal" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRoomFilter("internal")}
+                data-testid="filter-internal"
+                className="flex-1"
+              >
+                Team
+              </Button>
+              <Button
+                variant={roomFilter === "client_support" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRoomFilter("client_support")}
+                data-testid="filter-clients"
+                className="flex-1"
+              >
+                Clients
+              </Button>
+              <Button
+                variant={roomFilter === "direct" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRoomFilter("direct")}
+                data-testid="filter-direct"
+                className="flex-1"
+              >
+                Direct
+              </Button>
+            </div>
+          </div>
           <ScrollArea className="h-full px-4">
-            {rooms.length === 0 ? (
+            {filteredRooms.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
-                No chat rooms yet. Create one to start messaging.
+                {roomFilter === "all" 
+                  ? "No chat rooms yet. Create one to start messaging."
+                  : `No ${roomFilter === "internal" ? "team" : roomFilter === "client_support" ? "client" : "direct"} chat rooms.`
+                }
               </p>
             ) : (
-              <div className="space-y-2 pb-4">
-                {rooms.map((room) => (
+              <div className="space-y-2 pb-4 pt-2">
+                {filteredRooms.map((room) => (
                   <RoomListItem
                     key={room.id}
                     room={room}
@@ -346,10 +451,24 @@ export default function Chat() {
               <div className="flex items-center gap-2">
                 {selectedRoom.type === 'internal' ? (
                   <Users className="h-5 w-5" />
+                ) : selectedRoom.type === 'direct' ? (
+                  <MessageSquare className="h-5 w-5" />
                 ) : (
                   <User className="h-5 w-5" />
                 )}
-                <CardTitle>{selectedRoom.name || `${selectedRoom.type === 'internal' ? 'Team Chat' : 'Client Support'}`}</CardTitle>
+                <CardTitle>
+                  {selectedRoom.name || (
+                    selectedRoom.type === 'internal' 
+                      ? 'Team Chat'
+                      : selectedRoom.type === 'direct' && selectedRoom.participant
+                        ? selectedRoom.participant.name
+                        : selectedRoom.type === 'client_support' && selectedRoom.client 
+                          ? `${selectedRoom.client.firstName} ${selectedRoom.client.lastName}`
+                          : selectedRoom.type === 'direct' 
+                            ? 'Direct Message'
+                            : 'Client Support'
+                  )}
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden p-0">
