@@ -15,6 +15,7 @@ import CRMDashboard from "@/pages/crm-dashboard";
 import TeamDashboard from "@/pages/team-dashboard";
 import AgentDashboard from "@/pages/agent-dashboard";
 import SalesManagerDashboard from "@/pages/sales-manager-dashboard";
+import RetentionManagerDashboard from "@/pages/retention-manager-dashboard";
 import Clients from "@/pages/clients";
 import SalesClients from "@/pages/sales";
 import RetentionClients from "@/pages/retention";
@@ -99,6 +100,11 @@ function Router() {
       <Route path="/dashboard/sales-manager">
         <RouteGuard allowedRoles={['CRM Manager', 'Administrator']}>
           <SalesManagerDashboard />
+        </RouteGuard>
+      </Route>
+      <Route path="/dashboard/retention-manager">
+        <RouteGuard allowedRoles={['CRM Manager', 'Administrator']}>
+          <RetentionManagerDashboard />
         </RouteGuard>
       </Route>
 
