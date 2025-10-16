@@ -5264,6 +5264,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all team-specific settings
+  app.get("/api/smart-assignment-settings/teams", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      
+      // Get all team-specific settings (where teamId is NOT NULL)
+      const settings = await db.select()
+        .from(smartAssignmentSettings)
+        .where(sql`${smartAssignmentSettings.teamId} IS NOT NULL`);
+
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/smart-assignment-settings", authMiddleware, async (req: AuthRequest, res) => {
     try {
       if (req.user?.type !== 'user') {
@@ -5403,6 +5435,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete team-specific smart assignment settings
+  app.delete("/api/smart-assignment-settings/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      await db.delete(smartAssignmentSettings).where(eq(smartAssignmentSettings.id, req.params.id));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'smart_assignment_delete',
+        details: { settingId: req.params.id },
+      });
+
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

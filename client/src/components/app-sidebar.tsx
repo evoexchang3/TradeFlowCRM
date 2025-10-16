@@ -29,7 +29,8 @@ import {
   Server,
   CreditCard,
   Share2,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Settings2
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -207,6 +208,12 @@ const configurationItems: MenuItem[] = [
     title: "Team Routing Rules",
     url: "/configuration/team-routing",
     icon: ArrowRightLeft,
+    roles: ['administrator', 'crm manager'],
+  },
+  {
+    title: "Smart Assignment",
+    url: "/configuration/smart-assignment",
+    icon: Settings2,
     roles: ['administrator', 'crm manager'],
   },
   {

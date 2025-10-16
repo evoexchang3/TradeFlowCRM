@@ -40,6 +40,7 @@ import SecuritySettings from "@/pages/security-settings";
 import SmtpSettings from "@/pages/smtp-settings";
 import PaymentProviders from "@/pages/payment-providers";
 import TeamRouting from "@/pages/team-routing";
+import SmartAssignmentSettings from "@/pages/smart-assignment-settings";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -296,6 +297,12 @@ function Router() {
       <Route path="/configuration/team-routing">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <TeamRouting />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/smart-assignment">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <SmartAssignmentSettings />
         </RouteGuard>
       </Route>
 
