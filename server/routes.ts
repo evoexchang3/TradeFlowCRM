@@ -28,7 +28,7 @@ import {
   paymentProviders,
   securitySettings
 } from "@shared/schema";
-import { eq, or, and, isNull } from "drizzle-orm";
+import { eq, or, and, isNull, sql } from "drizzle-orm";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -817,6 +817,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (updates.password) {
         updates.password = await bcrypt.hash(updates.password, 10);
         updates.mustResetPassword = true;
+      }
+
+      // FTD Automation: Check if status is changing to FTD
+      if (updates.statusId) {
+        const db = storage.db;
+        const status = await db.select().from(customStatuses).where(eq(customStatuses.id, updates.statusId)).limit(1);
+        
+        if (status.length > 0 && status[0].name.toUpperCase() === 'FTD') {
+          // Find retention team or CRM manager
+          const retentionTeams = await db.select().from(teams).where(sql`LOWER(${teams.name}) LIKE '%retention%'`).limit(1);
+          
+          let assigned = false;
+          
+          if (retentionTeams.length > 0 && retentionTeams[0].leaderId) {
+            // Assign to retention team leader
+            const retentionTeam = retentionTeams[0];
+            updates.teamId = retentionTeam.id;
+            updates.assignedAgentId = retentionTeam.leaderId;
+            assigned = true;
+          }
+          
+          // Fallback: Find CRM Manager if retention team has no leader
+          if (!assigned) {
+            const crmManagerRoles = await db.select().from(roles).where(sql`LOWER(${roles.name}) LIKE '%crm%manager%'`).limit(1);
+            
+            if (crmManagerRoles.length > 0) {
+              const crmManagers = await db.select().from(users).where(eq(users.roleId, crmManagerRoles[0].id)).limit(1);
+              if (crmManagers.length > 0) {
+                updates.assignedAgentId = crmManagers[0].id;
+                updates.teamId = crmManagers[0].teamId;
+              }
+            }
+          }
+        }
       }
 
       const client = await storage.updateClient(req.params.id, updates);
