@@ -10,7 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { ChevronDown, ChevronRight, Plus, Users, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Users, TrendingUp, Crown, User } from "lucide-react";
 import { insertTeamSchema } from "@shared/schema";
 import * as z from "zod";
 
@@ -45,7 +45,7 @@ interface TeamPerformance {
   }>;
 }
 
-function TeamTreeNode({ team, level = 0 }: { team: TeamNode; level?: number }) {
+function TeamTreeNode({ team, level = 0, allUsers = [] }: { team: TeamNode; level?: number; allUsers?: any[] }) {
   const [isExpanded, setIsExpanded] = useState(level === 0);
   const { toast } = useToast();
 
@@ -53,7 +53,11 @@ function TeamTreeNode({ team, level = 0 }: { team: TeamNode; level?: number }) {
     queryKey: ['/api/teams', team.id, 'performance'],
   });
 
+  const teamLeader = allUsers.find(u => u.id === team.leaderId);
+  const teamMembers = allUsers.filter(u => u.teamId === team.id);
+
   const hasChildren = team.children && team.children.length > 0;
+  const hasContent = hasChildren || teamMembers.length > 0;
 
   return (
     <div className="space-y-2">
@@ -61,7 +65,7 @@ function TeamTreeNode({ team, level = 0 }: { team: TeamNode; level?: number }) {
         <CardHeader className="p-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 flex-1">
-              {hasChildren && (
+              {hasContent && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -77,7 +81,10 @@ function TeamTreeNode({ team, level = 0 }: { team: TeamNode; level?: number }) {
                   {team.name}
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {team.level} {team.commissionSplit && `• ${team.commissionSplit}% commission`}
+                  {team.level}
+                  {teamLeader && ` • Leader: ${teamLeader.firstName} ${teamLeader.lastName}`}
+                  {teamMembers.length > 0 && ` • ${teamMembers.length} member${teamMembers.length !== 1 ? 's' : ''}`}
+                  {team.commissionSplit && ` • ${team.commissionSplit}% commission`}
                 </CardDescription>
               </div>
             </div>
@@ -101,10 +108,36 @@ function TeamTreeNode({ team, level = 0 }: { team: TeamNode; level?: number }) {
         </CardHeader>
       </Card>
 
-      {isExpanded && hasChildren && (
+      {isExpanded && (
         <div className="ml-8 space-y-2">
-          {team.children!.map((child) => (
-            <TeamTreeNode key={child.id} team={child} level={level + 1} />
+          {teamMembers.length > 0 && (
+            <Card>
+              <CardHeader className="p-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Team Members ({teamMembers.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 pt-0">
+                <div className="space-y-1">
+                  {teamMembers.map((member) => (
+                    <div key={member.id} className="flex items-center gap-2 text-sm p-2 rounded-md hover-elevate" data-testid={`text-member-${member.id}`}>
+                      {member.id === team.leaderId ? (
+                        <Crown className="h-3 w-3 text-yellow-600 dark:text-yellow-500" />
+                      ) : (
+                        <User className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      <span>{member.firstName} {member.lastName}</span>
+                      <span className="text-xs text-muted-foreground ml-auto">{member.email}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {hasChildren && team.children!.map((child) => (
+            <TeamTreeNode key={child.id} team={child} level={level + 1} allUsers={allUsers} />
           ))}
         </div>
       )}
@@ -327,7 +360,7 @@ export default function Hierarchy() {
             </CardContent>
           </Card>
         ) : (
-          hierarchyTree.map((team) => <TeamTreeNode key={team.id} team={team} />)
+          hierarchyTree.map((team) => <TeamTreeNode key={team.id} team={team} allUsers={users} />)
         )}
       </div>
     </div>
