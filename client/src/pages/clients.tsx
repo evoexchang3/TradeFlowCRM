@@ -40,6 +40,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 
+interface CustomStatus {
+  id: string;
+  name: string;
+  color: string;
+  icon?: string;
+  category: string;
+}
+
 export default function Clients() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTeamId, setFilterTeamId] = useState<string>('');
@@ -68,6 +76,10 @@ export default function Clients() {
 
   const { data: agents = [] } = useQuery({
     queryKey: ['/api/users/agents'],
+  });
+
+  const { data: customStatuses = [] } = useQuery<CustomStatus[]>({
+    queryKey: ['/api/custom-statuses'],
   });
 
   // Apply client-side filtering
@@ -173,20 +185,20 @@ export default function Clients() {
     },
   });
 
-  const updatePipelineStatusMutation = useMutation({
-    mutationFn: ({ clientId, pipelineStatus }: { clientId: string; pipelineStatus: string | null }) =>
-      apiRequest('PATCH', `/api/clients/${clientId}`, { pipelineStatus }),
+  const updateCustomStatusMutation = useMutation({
+    mutationFn: ({ clientId, statusId }: { clientId: string; statusId: string | null }) =>
+      apiRequest('PATCH', `/api/clients/${clientId}`, { statusId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "Pipeline status updated",
-        description: "Client pipeline status has been updated.",
+        title: "Status updated",
+        description: "Client status has been updated.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update pipeline status.",
+        description: error.message || "Failed to update status.",
         variant: "destructive",
       });
     },
@@ -437,7 +449,7 @@ export default function Clients() {
                   <TableHead>Client</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Account</TableHead>
-                  <TableHead>Pipeline Status</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>KYC Status</TableHead>
                   <TableHead>Balance</TableHead>
                   <TableHead>Agent</TableHead>
@@ -493,24 +505,22 @@ export default function Clients() {
                     </TableCell>
                     <TableCell>
                       <Select
-                        value={client.pipelineStatus || 'none'}
-                        onValueChange={(value) => updatePipelineStatusMutation.mutate({
+                        value={client.statusId || 'none'}
+                        onValueChange={(value) => updateCustomStatusMutation.mutate({
                           clientId: client.id,
-                          pipelineStatus: value === 'none' ? null : value
+                          statusId: value === 'none' ? null : value
                         })}
                       >
-                        <SelectTrigger className="w-[150px] h-8 text-xs" data-testid={`select-pipeline-${client.id}`}>
+                        <SelectTrigger className="w-[150px] h-8 text-xs" data-testid={`select-status-${client.id}`}>
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">None</SelectItem>
-                          <SelectItem value="new_lead">New Lead</SelectItem>
-                          <SelectItem value="contact_attempted">Contact Attempted</SelectItem>
-                          <SelectItem value="in_discussion">In Discussion</SelectItem>
-                          <SelectItem value="kyc_pending">KYC Pending</SelectItem>
-                          <SelectItem value="active_client">Active Client</SelectItem>
-                          <SelectItem value="cold_inactive">Cold/Inactive</SelectItem>
-                          <SelectItem value="lost">Lost</SelectItem>
+                          {customStatuses.map((status: CustomStatus) => (
+                            <SelectItem key={status.id} value={status.id}>
+                              {status.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
