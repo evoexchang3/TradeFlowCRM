@@ -26,7 +26,9 @@ import {
   affiliateReferrals,
   smtpSettings,
   paymentProviders,
-  securitySettings
+  securitySettings,
+  teamRoutingRules,
+  insertTeamRoutingRuleSchema
 } from "@shared/schema";
 import { eq, or, and, isNull, sql } from "drizzle-orm";
 
@@ -5012,6 +5014,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ftdCount: ftdClients.length,
         childTeams: childMetrics,
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Team Routing Rules (Language-based auto-transfer)
+  app.get("/api/team-routing-rules", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const rules = await db.select().from(teamRoutingRules);
+      res.json(rules);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/team-routing-rules", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const validated = insertTeamRoutingRuleSchema.parse(req.body);
+
+      const db = storage.db;
+      const [newRule] = await db.insert(teamRoutingRules).values(validated).returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'routing_rule_create',
+        details: { rule: newRule },
+      });
+
+      res.json(newRule);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/team-routing-rules/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      const [updatedRule] = await db.update(teamRoutingRules)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(teamRoutingRules.id, req.params.id))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'routing_rule_edit',
+        details: { ruleId: req.params.id, changes: req.body },
+      });
+
+      res.json(updatedRule);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/team-routing-rules/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('team.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const db = storage.db;
+      await db.delete(teamRoutingRules).where(eq(teamRoutingRules.id, req.params.id));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'routing_rule_delete',
+        details: { ruleId: req.params.id },
+      });
+
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
