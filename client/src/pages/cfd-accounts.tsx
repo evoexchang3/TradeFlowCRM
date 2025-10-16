@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useUser } from "@/hooks/use-user";
+import { useAuth } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ interface CFDAccountWithClient extends Account {
 }
 
 export default function CFDAccountsPage() {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all accounts (admin view)
