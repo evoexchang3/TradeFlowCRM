@@ -35,7 +35,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import type { Role } from "@shared/schema";
+import type { Role, Team } from "@shared/schema";
 
 import {
   Sidebar,
@@ -67,16 +67,19 @@ const menuItems: MenuItem[] = [
     title: "Sales Clients",
     url: "/clients/sales",
     icon: UserPlus,
+    roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
   },
   {
     title: "Retention Clients",
     url: "/clients/retention",
     icon: UserCheck,
+    roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
   },
   {
     title: "All Clients",
     url: "/clients",
     icon: Users,
+    roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
   },
   {
     title: "Trading Symbols",
@@ -100,26 +103,31 @@ const menuItems: MenuItem[] = [
     title: "Open Positions",
     url: "/trading/open-positions",
     icon: TrendingUp,
+    roles: ['administrator', 'crm manager', 'team leader'], // Not for agents
   },
   {
     title: "Closed Positions",
     url: "/trading/closed-positions",
     icon: TrendingDown,
+    roles: ['administrator', 'crm manager', 'team leader'], // Not for agents
   },
   {
     title: "Trading",
     url: "/trading",
     icon: TrendingUp,
+    // Available to all roles including agents
   },
   {
     title: "Transactions",
     url: "/transactions",
     icon: DollarSign,
+    roles: ['administrator', 'crm manager', 'team leader'], // Not for agents
   },
   {
     title: "Calendar",
     url: "/calendar",
     icon: Calendar,
+    // Available to all roles including agents
   },
   {
     title: "Sales Dashboard",
@@ -137,6 +145,7 @@ const menuItems: MenuItem[] = [
     title: "Chat",
     url: "/chat",
     icon: MessageSquare,
+    // Available to all roles including agents
   },
 ];
 
@@ -258,28 +267,66 @@ export function AppSidebar() {
     enabled: !!user?.roleId,
   });
 
+  // Fetch user's team to determine department
+  const { data: team } = useQuery<Team>({
+    queryKey: [`/api/teams/${user?.teamId}`],
+    enabled: !!user?.teamId,
+  });
+
   const roleName = role?.name?.toLowerCase() || '';
+  const department = team?.department;
 
   const handleLogout = () => {
     logout();
     setLocation('/');
   };
 
-  // Filter menu items based on role
-  const filterByRole = (item: MenuItem) => {
-    if (!item.roles) return true; // No role restriction
-    return item.roles.includes(roleName);
+  // Filter menu items based on role and department
+  const filterByRoleAndDepartment = (item: MenuItem) => {
+    // Check role restriction first
+    if (item.roles && !item.roles.includes(roleName)) {
+      return false; // Role not allowed
+    }
+
+    // Department-specific filtering for CRM Managers
+    if (roleName === 'crm manager' && department) {
+      // Sales CRM Managers only see Sales Clients
+      if (item.title === 'Sales Clients' && department !== 'sales') {
+        return false;
+      }
+      // Retention CRM Managers only see Retention Clients
+      if (item.title === 'Retention Clients' && department !== 'retention') {
+        return false;
+      }
+      // If CRM Manager has a specific department, hide the "All Clients" aggregated view
+      // They should use their department-specific view
+      if (item.title === 'All Clients' && (department === 'sales' || department === 'retention')) {
+        return false;
+      }
+    }
+
+    return true; // All other cases pass through
   };
 
-  const filteredMenuItems = menuItems.filter(filterByRole);
-  const filteredManagementItems = managementItems.filter(filterByRole);
-  const filteredConfigurationItems = configurationItems.filter(filterByRole);
+  const filteredMenuItems = menuItems.filter(filterByRoleAndDepartment);
+  const filteredManagementItems = managementItems.filter(filterByRoleAndDepartment);
+  const filteredConfigurationItems = configurationItems.filter(filterByRoleAndDepartment);
 
-  // Determine dashboard URL based on role
-  const dashboardUrl = roleName === 'administrator' ? '/admin' :
-                       roleName === 'crm manager' ? '/crm' :
-                       roleName === 'team leader' ? '/team' :
-                       roleName === 'agent' ? '/agent' : '/dashboard';
+  // Determine dashboard URL based on role and department
+  const getDashboardUrl = () => {
+    if (roleName === 'administrator') return '/admin';
+    if (roleName === 'agent') return '/dashboard/agent';
+    if (roleName === 'team leader') return '/dashboard/team';
+    if (roleName === 'crm manager') {
+      // CRM Manager dashboard varies by department
+      if (department === 'sales') return '/dashboard/sales-manager';
+      if (department === 'retention') return '/dashboard/retention-manager';
+      return '/dashboard/crm'; // Unified dashboard for other departments or no department
+    }
+    return '/dashboard';
+  };
+
+  const dashboardUrl = getDashboardUrl();
 
   return (
     <Sidebar>
