@@ -73,7 +73,10 @@ export const roles = pgTable("roles", {
 export const teams = pgTable("teams", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
+  parentTeamId: varchar("parent_team_id").references((): any => teams.id),
+  level: text("level").notNull().default('team'), // region, country, team
   leaderId: varchar("leader_id").references(() => users.id),
+  commissionSplit: decimal("commission_split", { precision: 5, scale: 2 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -435,6 +438,67 @@ export const apiKeys = pgTable("api_keys", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Phase 5: Advanced Configuration
+
+// Custom Statuses
+export const customStatuses = pgTable("custom_statuses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull(), // hex color
+  icon: text("icon"), // lucide icon name
+  category: text("category").notNull(), // sales, retention, kyc, etc.
+  allowedTransitions: jsonb("allowed_transitions").default('[]'), // Array of status IDs
+  automationTriggers: jsonb("automation_triggers").default('[]'),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// KYC Questions Builder
+export const kycQuestions = pgTable("kyc_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  question: text("question").notNull(),
+  questionType: text("question_type").notNull(), // text, select, radio, checkbox, file
+  options: jsonb("options").default('[]'),
+  validation: jsonb("validation").default('{}'), // min, max, pattern, etc.
+  conditionalLogic: jsonb("conditional_logic").default('{}'), // Show if...
+  isRequired: boolean("is_required").notNull().default(true),
+  sortOrder: integer("sort_order").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const kycResponses = pgTable("kyc_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  questionId: varchar("question_id").notNull().references(() => kycQuestions.id),
+  response: text("response").notNull(),
+  fileUrls: jsonb("file_urls").default('[]'), // For file uploads
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Template Variables
+export const templateVariables = pgTable("template_variables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // client_name, balance, etc.
+  description: text("description"),
+  variableType: text("variable_type").notNull(), // system, custom, computed
+  dataSource: text("data_source"), // clients.first_name, accounts.balance
+  computationLogic: text("computation_logic"), // For computed variables
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Security Settings
+export const securitySettings = pgTable("security_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settingKey: text("setting_key").notNull().unique(),
+  settingValue: jsonb("setting_value").notNull(),
+  description: text("description"),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, { fields: [users.roleId], references: [roles.id] }),
@@ -729,6 +793,46 @@ export const insertAffiliateReferralSchema = createInsertSchema(affiliateReferra
 
 export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
 export type InsertAffiliateReferral = z.infer<typeof insertAffiliateReferralSchema>;
+
+// Phase 5: Advanced Configuration Schemas
+export const insertCustomStatusSchema = createInsertSchema(customStatuses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type CustomStatus = typeof customStatuses.$inferSelect;
+export type InsertCustomStatus = z.infer<typeof insertCustomStatusSchema>;
+
+export const insertKycQuestionSchema = createInsertSchema(kycQuestions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type KycQuestion = typeof kycQuestions.$inferSelect;
+export type InsertKycQuestion = z.infer<typeof insertKycQuestionSchema>;
+
+export const insertKycResponseSchema = createInsertSchema(kycResponses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type KycResponse = typeof kycResponses.$inferSelect;
+export type InsertKycResponse = z.infer<typeof insertKycResponseSchema>;
+
+export const insertTemplateVariableSchema = createInsertSchema(templateVariables).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type TemplateVariable = typeof templateVariables.$inferSelect;
+export type InsertTemplateVariable = z.infer<typeof insertTemplateVariableSchema>;
+
+export const insertSecuritySettingSchema = createInsertSchema(securitySettings).omit({
+  id: true,
+});
+
+export type SecuritySetting = typeof securitySettings.$inferSelect;
+export type InsertSecuritySetting = z.infer<typeof insertSecuritySettingSchema>;
 
 // Mark FTD schema
 export const markFTDSchema = z.object({
