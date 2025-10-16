@@ -19,7 +19,16 @@ import {
   FolderOpen,
   Wallet,
   Calendar,
-  Mail
+  Mail,
+  MessageSquare,
+  Network,
+  Palette,
+  ClipboardList,
+  Variable,
+  Lock,
+  Server,
+  CreditCard,
+  Share2
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -116,6 +125,17 @@ const menuItems: MenuItem[] = [
     icon: BarChart3,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
+  {
+    title: "Affiliates",
+    url: "/affiliates",
+    icon: Share2,
+    roles: ['administrator', 'crm manager'],
+  },
+  {
+    title: "Chat",
+    url: "/chat",
+    icon: MessageSquare,
+  },
 ];
 
 const managementItems: MenuItem[] = [
@@ -169,6 +189,51 @@ const managementItems: MenuItem[] = [
   },
 ];
 
+const configurationItems: MenuItem[] = [
+  {
+    title: "Organizational Hierarchy",
+    url: "/configuration/hierarchy",
+    icon: Network,
+    roles: ['administrator'],
+  },
+  {
+    title: "Custom Statuses",
+    url: "/configuration/custom-statuses",
+    icon: Palette,
+    roles: ['administrator'],
+  },
+  {
+    title: "KYC Questions Builder",
+    url: "/configuration/kyc-questions",
+    icon: ClipboardList,
+    roles: ['administrator'],
+  },
+  {
+    title: "Template Variables",
+    url: "/configuration/template-variables",
+    icon: Variable,
+    roles: ['administrator'],
+  },
+  {
+    title: "Security Settings",
+    url: "/configuration/security-settings",
+    icon: Lock,
+    roles: ['administrator'],
+  },
+  {
+    title: "SMTP Settings",
+    url: "/configuration/smtp-settings",
+    icon: Server,
+    roles: ['administrator'],
+  },
+  {
+    title: "Payment Providers",
+    url: "/configuration/payment-providers",
+    icon: CreditCard,
+    roles: ['administrator'],
+  },
+];
+
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { logout, user } = useAuth();
@@ -194,6 +259,7 @@ export function AppSidebar() {
 
   const filteredMenuItems = menuItems.filter(filterByRole);
   const filteredManagementItems = managementItems.filter(filterByRole);
+  const filteredConfigurationItems = configurationItems.filter(filterByRole);
 
   // Determine dashboard URL based on role
   const dashboardUrl = roleName === 'administrator' ? '/admin' :
@@ -259,6 +325,33 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {filteredManagementItems.map((item) => {
+                  const isActive = location === item.url;
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={isActive}
+                        data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                      >
+                        <Link href={item.url}>
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {filteredConfigurationItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Configuration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {filteredConfigurationItems.map((item) => {
                   const isActive = location === item.url;
                   return (
                     <SidebarMenuItem key={item.title}>

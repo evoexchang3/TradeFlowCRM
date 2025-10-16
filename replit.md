@@ -40,15 +40,39 @@ Preferred communication style: Simple, everyday language.
     -   **Enhanced Sales Dashboard**: Time series charts for FTD trends, conversion funnel visualization, agent performance comparison, date range filters (start/end), team/agent filters with custom queryFn pattern for proper parameter passing.
     -   **Affiliate Management System**: Complete affiliate program with database schema (affiliates, affiliate_referrals), backend API (9 endpoints for CRUD, referral tracking, commission calculation, payout management), management page, and dashboard with leaderboard and metrics visualization.
 11. **Advanced Configuration (Phase 5)**:
-    -   **Organizational Hierarchy**: Teams schema enhanced with parent-child relationships (parentTeamId, level, commissionSplit). Backend API supports org tree retrieval, child team queries, and performance rollup calculations.
+    -   **Organizational Hierarchy**: Teams schema enhanced with parent-child relationships (parentTeamId, level, commissionSplit). Backend API supports org tree retrieval, child team queries, and performance rollup calculations. Frontend page with tree visualization and management UI.
     -   **Custom Statuses System**: Complete CRUD system with custom_statuses table (color, icon, category, allowedTransitions, automationTriggers). Production-ready management page with color picker, transition rules (JSON), and automation configuration. Uses local state pattern for JSON editing with validation on blur and pre-submission.
-    -   **KYC Questions Builder**: Schema for dynamic KYC questions and responses (type, required, conditional logic). Backend API ready for question builder with reordering and response tracking.
-    -   **Template Variables**: System for email/SMS personalization with backend infrastructure for variable management and client data interpolation.
-    -   **Security Settings**: Infrastructure for IP whitelisting, session policies, and 2FA enforcement with backend API endpoints.
+    -   **KYC Questions Builder**: Schema for dynamic KYC questions and responses (type, required, conditional logic). Backend API ready for question builder with reordering and response tracking. Frontend page with question builder UI.
+    -   **Template Variables**: System for email/SMS personalization with backend infrastructure for variable management and client data interpolation. Frontend page for variable management.
+    -   **Security Settings**: Infrastructure for IP whitelisting, session policies, and 2FA enforcement with backend API endpoints. Frontend page for security configuration.
+12. **Communication & Payment Integration (Phase 6)**:
+    -   **Chat System**: Full-featured chat application with REST API (6 endpoints for rooms and messages), real-time messaging UI, room management, and read status tracking. Frontend integrated with backend API.
+    -   **SMTP Settings**: Email delivery configuration system with smtp_settings table (host, port, encryption, credentials). Backend API (4 CRUD endpoints) with Zod validation and admin authorization. Ready for frontend implementation.
+    -   **Payment Providers**: Multi-provider payment integration with payment_providers table (name, type, API credentials, routing rules). Backend API (4 CRUD endpoints) with Zod validation and admin authorization. Ready for frontend implementation.
 
 ### Data Schema
--   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings.
+-   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings, SMTP Settings, Payment Providers.
 -   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N), Teams to Parent Teams (hierarchical), Clients to KYC Responses (1:N).
+
+### Navigation Structure
+The application sidebar is organized into four main sections:
+
+1. **Main Menu**: Core operations including Dashboard, Client views (Sales/Retention/All), Trading views (Symbols, Groups, CFD Accounts, Positions), Trading terminal, Transactions, Calendar, Sales Dashboard, Affiliates, and Chat.
+
+2. **Management**: Administrative tools including User Management, Roles & Permissions, Teams, API Keys, Import/Export Data, Audit Logs, and Email Templates. Role-based access control restricts visibility to authorized users.
+
+3. **Configuration** (Admin-only): Advanced system settings including:
+   - Organizational Hierarchy (team structure and commission splits)
+   - Custom Statuses (workflow status customization)
+   - KYC Questions Builder (dynamic form creation)
+   - Template Variables (personalization tokens)
+   - Security Settings (IP whitelisting, 2FA policies)
+   - SMTP Settings (email delivery configuration)
+   - Payment Providers (PSP integration management)
+
+4. **Footer**: User logout functionality.
+
+All navigation items use role-based filtering to ensure users only see features they have permission to access.
 
 ## External Dependencies
 -   **Market Data Provider**: Twelve Data (WebSocket and REST API for real-time and historical data).
