@@ -21,7 +21,9 @@ import {
   calendarEvents, 
   emailTemplates,
   chatRooms,
-  chatMessages
+  chatMessages,
+  affiliates,
+  affiliateReferrals
 } from "@shared/schema";
 import { eq, or, and, isNull } from "drizzle-orm";
 
@@ -4553,6 +4555,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const permissions = (role?.permissions as string[]) || [];
       const roleName = role?.name?.toLowerCase();
 
+      // Parse query parameters for filtering
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : new Date();
+      const teamFilter = req.query.teamId as string | undefined;
+      const agentFilter = req.query.agentId as string | undefined;
+
       // Get all clients based on role
       let allClients = await storage.getClients();
       
@@ -4560,6 +4568,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allClients = allClients.filter(c => c.teamId === user.teamId);
       } else if (roleName === 'team leader' && user.teamId) {
         allClients = allClients.filter(c => c.teamId === user.teamId);
+      }
+
+      // Apply filters
+      if (teamFilter) {
+        allClients = allClients.filter(c => c.teamId === teamFilter);
+      }
+      if (agentFilter) {
+        allClients = allClients.filter(c => c.assignedTo === agentFilter);
       }
 
       // Calculate metrics
@@ -4572,17 +4588,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const totalFTDAmount = ftdClients.reduce((sum, c) => sum + (parseFloat(c.ftdAmount || '0')), 0);
       const avgFTDAmount = ftdClients.length > 0 ? totalFTDAmount / ftdClients.length : 0;
 
-      // Recent FTDs (last 30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentFTDs = ftdClients.filter(c => c.ftdDate && new Date(c.ftdDate) >= thirtyDaysAgo);
+      // Recent FTDs (within date range)
+      const recentFTDs = ftdClients.filter(c => {
+        if (!c.ftdDate) return false;
+        const ftdDate = new Date(c.ftdDate);
+        return ftdDate >= startDate && ftdDate <= endDate;
+      });
 
-      // Pipeline status distribution
+      // Pipeline status distribution (conversion funnel)
       const pipelineDistribution = allClients.reduce((acc: any, client) => {
         const status = client.pipelineStatus || 'new_lead';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {});
+
+      // Time series data (daily FTD counts)
+      const timeSeries: any[] = [];
+      const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      for (let i = 0; i <= daysDiff; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const dayFTDs = ftdClients.filter(c => {
+          if (!c.ftdDate) return false;
+          return c.ftdDate.split('T')[0] === dateStr;
+        });
+
+        timeSeries.push({
+          date: dateStr,
+          ftdCount: dayFTDs.length,
+          ftdAmount: dayFTDs.reduce((sum, c) => sum + parseFloat(c.ftdAmount || '0'), 0),
+          newClients: allClients.filter(c => c.createdAt?.split('T')[0] === dateStr).length,
+        });
+      }
+
+      // Agent performance
+      const users = await storage.getUsers();
+      const agentPerformance = users
+        .filter(u => u.type === 'user')
+        .map(agent => {
+          const agentClients = allClients.filter(c => c.assignedTo === agent.id);
+          const agentFTDs = agentClients.filter(c => c.hasFTD);
+          
+          return {
+            agentId: agent.id,
+            agentName: `${agent.firstName} ${agent.lastName}`,
+            totalClients: agentClients.length,
+            ftdCount: agentFTDs.length,
+            ftdAmount: agentFTDs.reduce((sum, c) => sum + parseFloat(c.ftdAmount || '0'), 0),
+            conversionRate: agentClients.length > 0 ? (agentFTDs.length / agentClients.length * 100).toFixed(2) : 0,
+          };
+        })
+        .filter(a => a.totalClients > 0)
+        .sort((a, b) => b.ftdAmount - a.ftdAmount);
+
+      // Conversion funnel stages
+      const conversionFunnel = [
+        { stage: 'New Leads', count: pipelineDistribution.new_lead || 0 },
+        { stage: 'Contacted', count: pipelineDistribution.contacted || 0 },
+        { stage: 'Qualified', count: pipelineDistribution.qualified || 0 },
+        { stage: 'Deposited (FTD)', count: retentionClients },
+      ];
 
       res.json({
         totalClients,
@@ -4593,6 +4661,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
         avgFTDAmount: avgFTDAmount.toFixed(2),
         recentFTDsCount: recentFTDs.length,
         pipelineDistribution,
+        timeSeries,
+        conversionFunnel,
+        agentPerformance,
+        dateRange: {
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== AFFILIATE MANAGEMENT =====
+  app.get("/api/affiliates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const affiliatesList = await db.select().from(affiliates);
+      res.json(affiliatesList);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/affiliates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [newAffiliate] = await db.insert(affiliates).values({
+        code: req.body.code,
+        name: req.body.name,
+        email: req.body.email,
+        commissionRate: req.body.commissionRate || '10.00',
+        paymentMethod: req.body.paymentMethod,
+        bankDetails: req.body.bankDetails,
+        status: req.body.status || 'active',
+      }).returning();
+
+      res.json(newAffiliate);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/affiliates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [updated] = await db.update(affiliates)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(affiliates.id, req.params.id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/affiliates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(affiliates).where(eq(affiliates.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/affiliates/:id/referrals", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const referrals = await db.select().from(affiliateReferrals)
+        .where(eq(affiliateReferrals.affiliateId, req.params.id));
+      res.json(referrals);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/affiliates/:id/referrals", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [newReferral] = await db.insert(affiliateReferrals).values({
+        affiliateId: req.params.id,
+        clientId: req.body.clientId,
+        commissionEarned: req.body.commissionEarned || '0',
+        status: req.body.status || 'pending',
+      }).returning();
+
+      res.json(newReferral);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/affiliates/:id/commissions", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const referrals = await db.select().from(affiliateReferrals)
+        .where(eq(affiliateReferrals.affiliateId, req.params.id));
+
+      const total = referrals.reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+      const pending = referrals.filter(r => r.status === 'pending').reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+      const paid = referrals.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+
+      res.json({
+        total: total.toFixed(2),
+        pending: pending.toFixed(2),
+        paid: paid.toFixed(2),
+        referralCount: referrals.length,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/affiliates/:id/payout", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const referralIds = req.body.referralIds || [];
+
+      await db.update(affiliateReferrals)
+        .set({
+          status: 'paid',
+          paidAt: new Date(),
+        })
+        .where(and(
+          eq(affiliateReferrals.affiliateId, req.params.id),
+          eq(affiliateReferrals.status, 'pending')
+        ));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/reports/affiliate-dashboard", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const affiliatesList = await db.select().from(affiliates);
+      
+      const leaderboard = await Promise.all(
+        affiliatesList.map(async (affiliate) => {
+          const referrals = await db.select().from(affiliateReferrals)
+            .where(eq(affiliateReferrals.affiliateId, affiliate.id));
+
+          const totalCommission = referrals.reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+          const pendingCommission = referrals.filter(r => r.status === 'pending').reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+
+          return {
+            affiliateId: affiliate.id,
+            affiliateName: affiliate.name,
+            code: affiliate.code,
+            referralCount: referrals.length,
+            totalCommission: totalCommission.toFixed(2),
+            pendingCommission: pendingCommission.toFixed(2),
+            commissionRate: affiliate.commissionRate,
+          };
+        })
+      );
+
+      leaderboard.sort((a, b) => parseFloat(b.totalCommission) - parseFloat(a.totalCommission));
+
+      const allReferrals = await db.select().from(affiliateReferrals);
+      const totalCommissions = allReferrals.reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+      const pendingPayouts = allReferrals.filter(r => r.status === 'pending').reduce((sum, r) => sum + parseFloat(r.commissionEarned || '0'), 0);
+
+      res.json({
+        totalAffiliates: affiliatesList.length,
+        activeAffiliates: affiliatesList.filter(a => a.status === 'active').length,
+        totalReferrals: allReferrals.length,
+        totalCommissions: totalCommissions.toFixed(2),
+        pendingPayouts: pendingPayouts.toFixed(2),
+        leaderboard,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

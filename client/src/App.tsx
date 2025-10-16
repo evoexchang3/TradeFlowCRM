@@ -29,6 +29,8 @@ import CFDAccounts from "@/pages/cfd-accounts";
 import Transactions from "@/pages/transactions";
 import Calendar from "@/pages/calendar";
 import EmailTemplates from "@/pages/email-templates";
+import Affiliates from "@/pages/affiliates";
+import AffiliateDashboard from "@/pages/affiliate-dashboard";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -228,7 +230,19 @@ function Router() {
         </RouteGuard>
       </Route>
 
+      <Route path="/configuration/affiliates">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <Affiliates />
+        </RouteGuard>
+      </Route>
+
       {/* Reports */}
+      <Route path="/reports/affiliates">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <AffiliateDashboard />
+        </RouteGuard>
+      </Route>
+
       <Route path="/reports/sales">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
           <SalesDashboard />
