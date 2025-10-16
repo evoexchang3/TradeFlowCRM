@@ -76,8 +76,10 @@ interface TradingSymbol {
   id: string;
   symbol: string;
   displayName: string;
-  category: string;
-  groupId: string | null;
+  category: "forex" | "crypto" | "metals" | "indices" | "commodities";
+  groupId?: string;
+  baseAsset?: string;
+  quoteAsset?: string;
   twelveDataSymbol: string;
   contractSize: string;
   minLotSize: string;
@@ -118,10 +120,7 @@ export default function TradingSymbolsPage() {
   // Create symbol mutation
   const createMutation = useMutation({
     mutationFn: async (data: SymbolFormData) => {
-      return await apiRequest("/api/symbols", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("POST", "/api/symbols", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbols"] });
@@ -143,10 +142,7 @@ export default function TradingSymbolsPage() {
   // Update symbol mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<SymbolFormData> }) => {
-      return await apiRequest(`/api/symbols/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("PATCH", `/api/symbols/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbols"] });
@@ -168,9 +164,7 @@ export default function TradingSymbolsPage() {
   // Delete symbol mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/symbols/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/symbols/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbols"] });

@@ -62,9 +62,9 @@ interface SymbolGroup {
   id: string;
   name: string;
   displayName: string;
-  description: string | null;
-  defaultSpread: string | null;
-  defaultLeverage: number | null;
+  description?: string;
+  defaultSpread?: string;
+  defaultLeverage?: number;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
@@ -85,10 +85,7 @@ export default function TradingSymbolGroupsPage() {
   // Create group mutation
   const createMutation = useMutation({
     mutationFn: async (data: GroupFormData) => {
-      return await apiRequest("/api/symbol-groups", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("POST", "/api/symbol-groups", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbol-groups"] });
@@ -110,10 +107,7 @@ export default function TradingSymbolGroupsPage() {
   // Update group mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<GroupFormData> }) => {
-      return await apiRequest(`/api/symbol-groups/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("PATCH", `/api/symbol-groups/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbol-groups"] });
@@ -135,9 +129,7 @@ export default function TradingSymbolGroupsPage() {
   // Delete group mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest(`/api/symbol-groups/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/symbol-groups/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbol-groups"] });
