@@ -39,6 +39,7 @@ import TemplateVariables from "@/pages/template-variables";
 import SecuritySettings from "@/pages/security-settings";
 import SmtpSettings from "@/pages/smtp-settings";
 import PaymentProviders from "@/pages/payment-providers";
+import TeamRouting from "@/pages/team-routing";
 import Roles from "@/pages/roles";
 import Teams from "@/pages/teams";
 import TeamDetail from "@/pages/team-detail";
@@ -289,6 +290,12 @@ function Router() {
       <Route path="/configuration/payment-providers">
         <RouteGuard allowedRoles={['Administrator']}>
           <PaymentProviders />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/configuration/team-routing">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
+          <TeamRouting />
         </RouteGuard>
       </Route>
 

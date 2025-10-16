@@ -28,7 +28,8 @@ import {
   Lock,
   Server,
   CreditCard,
-  Share2
+  Share2,
+  ArrowRightLeft
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -201,6 +202,12 @@ const configurationItems: MenuItem[] = [
     url: "/configuration/custom-statuses",
     icon: Palette,
     roles: ['administrator'],
+  },
+  {
+    title: "Team Routing Rules",
+    url: "/configuration/team-routing",
+    icon: ArrowRightLeft,
+    roles: ['administrator', 'crm manager'],
   },
   {
     title: "KYC Questions Builder",
