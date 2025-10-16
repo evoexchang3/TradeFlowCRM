@@ -1,0 +1,410 @@
+import { useState, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { MessageSquare, Plus, Send, Users, User, CheckCheck, Check } from "lucide-react";
+import * as z from "zod";
+import { useAuth } from "@/lib/auth";
+import { formatDistanceToNow } from "date-fns";
+
+const roomFormSchema = z.object({
+  type: z.string(),
+  clientId: z.string().optional(),
+  name: z.string().optional(),
+});
+
+type RoomFormData = z.infer<typeof roomFormSchema>;
+
+interface ChatRoom {
+  id: string;
+  type: string;
+  clientId: string | null;
+  name: string | null;
+  createdAt: string;
+  unreadCount?: number;
+}
+
+interface ChatMessage {
+  id: string;
+  roomId: string;
+  senderId: string;
+  senderType: string;
+  message: string;
+  attachments: any;
+  isRead: boolean;
+  createdAt: string;
+}
+
+function MessageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+  return (
+    <div className={`flex items-start gap-2 mb-4 ${isOwn ? 'flex-row-reverse' : ''}`}>
+      <Avatar className="h-8 w-8">
+        <AvatarFallback>
+          {message.senderType === 'user' ? 'U' : 'C'}
+        </AvatarFallback>
+      </Avatar>
+      <div className={`flex flex-col gap-1 max-w-[70%] ${isOwn ? 'items-end' : 'items-start'}`}>
+        <div
+          className={`rounded-lg px-3 py-2 ${
+            isOwn 
+              ? 'bg-primary text-primary-foreground' 
+              : 'bg-muted'
+          }`}
+        >
+          <p className="text-sm whitespace-pre-wrap" data-testid={`message-${message.id}`}>
+            {message.message}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}</span>
+          {isOwn && (
+            <span>
+              {message.isRead ? (
+                <CheckCheck className="h-3 w-3 text-primary" />
+              ) : (
+                <Check className="h-3 w-3" />
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoomListItem({ room, isActive, onClick }: {
+  room: ChatRoom;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full p-3 text-left hover-elevate rounded-md transition-colors ${
+        isActive ? 'bg-accent' : ''
+      }`}
+      data-testid={`room-${room.id}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {room.type === 'internal' ? (
+            <Users className="h-4 w-4 flex-shrink-0" />
+          ) : (
+            <User className="h-4 w-4 flex-shrink-0" />
+          )}
+          <span className="font-medium truncate">
+            {room.name || `${room.type === 'internal' ? 'Team Chat' : 'Client Support'}`}
+          </span>
+        </div>
+        {room.unreadCount && room.unreadCount > 0 && (
+          <Badge variant="default" className="ml-2">
+            {room.unreadCount}
+          </Badge>
+        )}
+      </div>
+    </button>
+  );
+}
+
+export default function Chat() {
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const { data: rooms = [], isLoading: roomsLoading } = useQuery<ChatRoom[]>({
+    queryKey: ['/api/chat/rooms'],
+  });
+
+  const { data: messages = [], isLoading: messagesLoading } = useQuery<ChatMessage[]>({
+    queryKey: ['/api/chat/rooms', selectedRoomId, 'messages'],
+    enabled: !!selectedRoomId,
+  });
+
+  const { data: clients = [] } = useQuery<any[]>({
+    queryKey: ['/api/clients'],
+  });
+
+  const form = useForm<RoomFormData>({
+    resolver: zodResolver(roomFormSchema),
+    defaultValues: {
+      type: "internal",
+      clientId: undefined,
+      name: "",
+    },
+  });
+
+  const createRoomMutation = useMutation({
+    mutationFn: (data: RoomFormData) => apiRequest('/api/chat/rooms', 'POST', data),
+    onSuccess: (newRoom: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });
+      toast({ title: "Success", description: "Chat room created successfully" });
+      if (newRoom?.id) {
+        setSelectedRoomId(newRoom.id);
+      }
+      setIsDialogOpen(false);
+      form.reset();
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: (data: { roomId: string; message: string }) =>
+      apiRequest(`/api/chat/rooms/${data.roomId}/messages`, 'POST', { message: data.message }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms', selectedRoomId, 'messages'] });
+      setMessageText("");
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: (messageId: string) =>
+      apiRequest(`/api/chat/messages/${messageId}/read`, 'PATCH', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms', selectedRoomId, 'messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });
+    },
+  });
+
+  useEffect(() => {
+    if (messages.length > 0 && selectedRoomId) {
+      const unreadMessages = messages.filter(
+        m => !m.isRead && m.senderId !== user?.id
+      );
+      unreadMessages.forEach(m => markReadMutation.mutate(m.id));
+    }
+  }, [messages, selectedRoomId, user?.id]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSubmit = (data: RoomFormData) => {
+    createRoomMutation.mutate(data);
+  };
+
+  const handleSendMessage = () => {
+    if (!selectedRoomId || !messageText.trim()) return;
+    sendMessageMutation.mutate({ roomId: selectedRoomId, message: messageText });
+  };
+
+  const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+
+  if (roomsLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <p className="text-muted-foreground">Loading chat...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-8rem)] gap-4 p-6">
+      {/* Room List */}
+      <Card className="w-80 flex flex-col">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-lg">Chat Rooms</CardTitle>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="icon" variant="ghost" data-testid="button-new-room">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Chat Room</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Room Type</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-room-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="internal">Internal Team Chat</SelectItem>
+                            <SelectItem value="client_support">Client Support</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("type") === "client_support" && (
+                    <FormField
+                      control={form.control}
+                      name="clientId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-client">
+                                <SelectValue placeholder="Select client" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {clients.map((client) => (
+                                <SelectItem key={client.id} value={client.id}>
+                                  {client.firstName} {client.lastName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Room Name (Optional)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="General Discussion" data-testid="input-room-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
+                      data-testid="button-cancel"
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={createRoomMutation.isPending} data-testid="button-submit">
+                      {createRoomMutation.isPending ? "Creating..." : "Create Room"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden p-0">
+          <ScrollArea className="h-full px-4">
+            {rooms.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No chat rooms yet. Create one to start messaging.
+              </p>
+            ) : (
+              <div className="space-y-2 pb-4">
+                {rooms.map((room) => (
+                  <RoomListItem
+                    key={room.id}
+                    room={room}
+                    isActive={room.id === selectedRoomId}
+                    onClick={() => setSelectedRoomId(room.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      {/* Messages Area */}
+      <Card className="flex-1 flex flex-col">
+        {selectedRoom ? (
+          <>
+            <CardHeader className="border-b">
+              <div className="flex items-center gap-2">
+                {selectedRoom.type === 'internal' ? (
+                  <Users className="h-5 w-5" />
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
+                <CardTitle>{selectedRoom.name || `${selectedRoom.type === 'internal' ? 'Team Chat' : 'Client Support'}`}</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-hidden p-0">
+              <ScrollArea className="h-full p-4">
+                {messagesLoading ? (
+                  <p className="text-center text-muted-foreground">Loading messages...</p>
+                ) : messages.length === 0 ? (
+                  <p className="text-center text-muted-foreground">No messages yet. Start the conversation!</p>
+                ) : (
+                  <>
+                    {messages.map((message) => (
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        isOwn={message.senderId === user?.id}
+                      />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </ScrollArea>
+            </CardContent>
+            <div className="border-t p-4">
+              <div className="flex gap-2">
+                <Input
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  placeholder="Type a message..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  data-testid="input-message"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!messageText.trim() || sendMessageMutation.isPending}
+                  data-testid="button-send"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Select a chat room to start messaging</p>
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}

@@ -493,9 +493,42 @@ export const templateVariables = pgTable("template_variables", {
 export const securitySettings = pgTable("security_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   settingKey: text("setting_key").notNull().unique(),
-  settingValue: jsonb("setting_value").notNull(),
+  settingValue: text("setting_value").notNull(),
+  category: text("category").notNull(), // ip_whitelist, session, 2fa, password, other
   description: text("description"),
-  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// SMTP Configuration
+export const smtpSettings = pgTable("smtp_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  host: text("host").notNull(),
+  port: integer("port").notNull().default(587),
+  username: text("username").notNull(),
+  password: text("password").notNull(),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name").notNull(),
+  useTLS: boolean("use_tls").notNull().default(true),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Payment Service Providers
+export const paymentProviders = pgTable("payment_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  providerType: text("provider_type").notNull(), // stripe, paypal, crypto, bank_transfer
+  apiKey: text("api_key"),
+  apiSecret: text("api_secret"),
+  webhookSecret: text("webhook_secret"),
+  webhookUrl: text("webhook_url"),
+  configuration: jsonb("configuration").default('{}'),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  supportedCurrencies: jsonb("supported_currencies").default('[]'),
+  transactionFeePercent: decimal("transaction_fee_percent", { precision: 5, scale: 2 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
@@ -829,10 +862,29 @@ export type InsertTemplateVariable = z.infer<typeof insertTemplateVariableSchema
 
 export const insertSecuritySettingSchema = createInsertSchema(securitySettings).omit({
   id: true,
+  updatedAt: true,
 });
 
 export type SecuritySetting = typeof securitySettings.$inferSelect;
 export type InsertSecuritySetting = z.infer<typeof insertSecuritySettingSchema>;
+
+export const insertSmtpSettingSchema = createInsertSchema(smtpSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SmtpSetting = typeof smtpSettings.$inferSelect;
+export type InsertSmtpSetting = z.infer<typeof insertSmtpSettingSchema>;
+
+export const insertPaymentProviderSchema = createInsertSchema(paymentProviders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PaymentProvider = typeof paymentProviders.$inferSelect;
+export type InsertPaymentProvider = z.infer<typeof insertPaymentProviderSchema>;
 
 // Mark FTD schema
 export const markFTDSchema = z.object({

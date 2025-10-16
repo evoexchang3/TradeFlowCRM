@@ -23,7 +23,10 @@ import {
   chatRooms,
   chatMessages,
   affiliates,
-  affiliateReferrals
+  affiliateReferrals,
+  smtpSettings,
+  paymentProviders,
+  securitySettings
 } from "@shared/schema";
 import { eq, or, and, isNull } from "drizzle-orm";
 
@@ -5224,6 +5227,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const db = storage.db;
       await db.delete(securitySettings).where(eq(securitySettings.settingKey, req.params.key));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==================== PHASE 6: PAYMENT INTEGRATION ====================
+
+  // SMTP Settings
+  app.get("/api/smtp-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const settings = await db.select().from(smtpSettings);
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/smtp-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [result] = await db.insert(smtpSettings).values(req.body).returning();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/smtp-settings/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [result] = await db.update(smtpSettings)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(smtpSettings.id, req.params.id))
+        .returning();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/smtp-settings/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(smtpSettings).where(eq(smtpSettings.id, req.params.id));
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Payment Providers
+  app.get("/api/payment-providers", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const providers = await db.select().from(paymentProviders);
+      res.json(providers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/payment-providers", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [result] = await db.insert(paymentProviders).values(req.body).returning();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/payment-providers/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const [result] = await db.update(paymentProviders)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(paymentProviders.id, req.params.id))
+        .returning();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/payment-providers/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      await db.delete(paymentProviders).where(eq(paymentProviders.id, req.params.id));
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

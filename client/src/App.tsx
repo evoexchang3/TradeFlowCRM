@@ -28,6 +28,7 @@ import TradingSymbolGroups from "@/pages/trading-symbol-groups";
 import CFDAccounts from "@/pages/cfd-accounts";
 import Transactions from "@/pages/transactions";
 import Calendar from "@/pages/calendar";
+import Chat from "@/pages/chat";
 import EmailTemplates from "@/pages/email-templates";
 import Affiliates from "@/pages/affiliates";
 import AffiliateDashboard from "@/pages/affiliate-dashboard";
@@ -173,6 +174,12 @@ function Router() {
       <Route path="/calendar">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
           <Calendar />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/chat">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <Chat />
         </RouteGuard>
       </Route>
 
