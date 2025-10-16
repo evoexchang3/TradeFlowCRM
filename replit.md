@@ -32,10 +32,14 @@ Preferred communication style: Simple, everyday language.
 6.  **Trading Platform Integration**: Features a Webhook Receiver, Service API, and SSO Impersonation, sharing a PostgreSQL database for synchronization.
 7.  **Sales & Retention Workflow**: Implements client segmentation (Sales Clients, Retention Clients), FTD (First Time Deposit) workflow, and global trading views (Global Open/Closed Positions).
 8.  **Trading Infrastructure**: Manages trading symbols (full CRUD with configuration for contract size, spread, leverage, etc.), symbol groups, and CFD accounts monitoring (real-time balance, equity, margin levels).
+9.  **Communication & Scheduling (Phase 3)**: 
+    -   **Calendar System**: Full-featured calendar with day/week/month grid views, event CRUD operations, filtering by type/status, client/user assignment, and iCal export functionality.
+    -   **Email Templates**: Template management system with variable insertion for personalization, preview functionality, category organization, and search/filter capabilities.
+    -   **Chat Backend**: REST API infrastructure for chat rooms and messages with read status tracking (frontend UI deferred to future phase).
 
 ### Data Schema
--   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams, Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates.
--   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams.
+-   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams, Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages.
+-   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N).
 
 ## External Dependencies
 -   **Market Data Provider**: Twelve Data (WebSocket and REST API for real-time and historical data).
