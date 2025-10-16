@@ -10,6 +10,7 @@ import { storage } from "./storage";
 import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
 import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenMiddleware, type AuthRequest } from "./middleware/auth";
+import * as performanceMetrics from "./services/performance-metrics";
 import { previewImport, executeImport } from "./import";
 import { 
   modifyPositionSchema, 
@@ -2591,6 +2592,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
         topPerformers: [],
       });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== PERFORMANCE DASHBOARD APIs =====
+  
+  // Get current user's performance metrics
+  app.get("/api/dashboard/my-performance", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const metrics = await performanceMetrics.calculateAgentMetrics(req.user.id, startDate, endDate);
+      
+      if (!metrics) {
+        return res.status(404).json({ error: 'Metrics not found' });
+      }
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching my performance:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get specific agent's performance metrics (for managers/team leaders)
+  app.get("/api/dashboard/agent/:agentId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const { agentId } = req.params;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      // TODO: Add permission check - only allow if user is manager/team leader/admin
+      
+      const metrics = await performanceMetrics.calculateAgentMetrics(agentId, startDate, endDate);
+      
+      if (!metrics) {
+        return res.status(404).json({ error: 'Agent metrics not found' });
+      }
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching agent performance:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get team performance metrics
+  app.get("/api/dashboard/team/:teamId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const { teamId } = req.params;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      // TODO: Add permission check - only allow if user is team leader of this team or manager/admin
+      
+      const metrics = await performanceMetrics.calculateTeamMetrics(teamId, startDate, endDate);
+      
+      if (!metrics) {
+        return res.status(404).json({ error: 'Team metrics not found' });
+      }
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching team performance:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get department performance metrics
+  app.get("/api/dashboard/department/:department", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const { department } = req.params;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      if (!['sales', 'retention', 'support'].includes(department)) {
+        return res.status(400).json({ error: 'Invalid department' });
+      }
+
+      // TODO: Add permission check - only allow if user is manager of this department or admin
+      
+      const metrics = await performanceMetrics.calculateDepartmentMetrics(
+        department as 'sales' | 'retention' | 'support',
+        startDate,
+        endDate
+      );
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching department performance:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get language performance metrics
+  app.get("/api/dashboard/language/:languageCode", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const { languageCode } = req.params;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      // TODO: Add permission check - only allow managers/admin
+      
+      const metrics = await performanceMetrics.calculateLanguageMetrics(languageCode, startDate, endDate);
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching language performance:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get top performing agents
+  app.get("/api/dashboard/top-performers", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const topPerformers = await performanceMetrics.getTopPerformingAgents(limit, startDate, endDate);
+
+      res.json(topPerformers);
+    } catch (error: any) {
+      console.error('Error fetching top performers:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get global platform-wide metrics
+  app.get("/api/dashboard/global", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      // TODO: Add permission check - only allow managers/admin
+
+      const metrics = await performanceMetrics.calculateGlobalMetrics(startDate, endDate);
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching global metrics:', error);
       res.status(500).json({ error: error.message });
     }
   });
