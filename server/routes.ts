@@ -4718,7 +4718,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const db = storage.db;
       const roomsData = await db
         .select({
           id: chatRooms.id,
@@ -4759,7 +4758,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const db = storage.db;
       const [newRoom] = await db.insert(chatRooms).values({
         type: req.body.type,
         clientId: req.body.clientId || null,
@@ -4779,7 +4777,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const db = storage.db;
       const messages = await db
         .select()
         .from(chatMessages)
@@ -4799,7 +4796,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.getUser(req.user.id);
-      const db = storage.db;
       
       const [newMessage] = await db.insert(chatMessages).values({
         roomId: req.params.id,
@@ -4826,7 +4822,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const db = storage.db;
       const [updated] = await db.update(chatMessages)
         .set({ isRead: true })
         .where(eq(chatMessages.id, req.params.id))
