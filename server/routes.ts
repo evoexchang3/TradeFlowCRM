@@ -5075,6 +5075,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== RETENTION DASHBOARD =====
+  app.get("/api/reports/retention-dashboard", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      // Parse query parameters
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : new Date();
+      const teamFilter = req.query.teamId as string | undefined;
+      const agentFilter = req.query.agentId as string | undefined;
+
+      // Get retention clients (clients with FTD)
+      let retentionClients = (await storage.getClients()).filter(c => c.hasFTD);
+      
+      // Apply role-based filtering
+      if (isAgentRole(roleName) && user.teamId) {
+        retentionClients = retentionClients.filter(c => c.teamId === user.teamId);
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
+        retentionClients = retentionClients.filter(c => c.teamId === user.teamId);
+      }
+
+      // Apply filters
+      if (teamFilter) {
+        retentionClients = retentionClients.filter(c => c.teamId === teamFilter);
+      }
+      if (agentFilter) {
+        retentionClients = retentionClients.filter(c => c.assignedTo === agentFilter);
+      }
+
+      // Get all transactions to track STD
+      const allTransactions = await storage.getTransactions();
+      const depositsByClient = new Map<string, any[]>();
+      
+      // Group deposits by client
+      for (const txn of allTransactions) {
+        if (txn.type === 'deposit') {
+          const account = await storage.getAccount(txn.accountId);
+          if (account) {
+            if (!depositsByClient.has(account.clientId)) {
+              depositsByClient.set(account.clientId, []);
+            }
+            depositsByClient.get(account.clientId)!.push(txn);
+          }
+        }
+      }
+
+      // Calculate STD metrics
+      const clientsWithSTD = retentionClients.filter(client => {
+        const deposits = depositsByClient.get(client.id) || [];
+        return deposits.length >= 2; // Has 2+ deposits (FTD + STD)
+      });
+
+      const stdClients = clientsWithSTD.length;
+      const stdConversionRate = retentionClients.length > 0 ? (stdClients / retentionClients.length * 100) : 0;
+      
+      // Calculate total STD amount (all deposits after first)
+      let totalSTDAmount = 0;
+      clientsWithSTD.forEach(client => {
+        const deposits = (depositsByClient.get(client.id) || [])
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        
+        // Sum all deposits after the first one (FTD)
+        for (let i = 1; i < deposits.length; i++) {
+          totalSTDAmount += parseFloat(deposits[i].amount || '0');
+        }
+      });
+
+      const avgSTDAmount = stdClients > 0 ? totalSTDAmount / stdClients : 0;
+
+      // Recent STDs (clients who made 2nd deposit in date range)
+      const recentSTDs = clientsWithSTD.filter(client => {
+        const deposits = (depositsByClient.get(client.id) || [])
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        
+        if (deposits.length < 2) return false;
+        const secondDeposit = deposits[1];
+        const stdDate = new Date(secondDeposit.createdAt);
+        return stdDate >= startDate && stdDate <= endDate;
+      });
+
+      // Time series data (daily STD counts)
+      const timeSeries: any[] = [];
+      const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      for (let i = 0; i <= daysDiff; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        const daySTDs = clientsWithSTD.filter(client => {
+          const deposits = (depositsByClient.get(client.id) || [])
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          
+          if (deposits.length < 2) return false;
+          return deposits[1].createdAt?.split('T')[0] === dateStr;
+        });
+
+        const daySTDAmount = daySTDs.reduce((sum, client) => {
+          const deposits = (depositsByClient.get(client.id) || [])
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          return sum + parseFloat(deposits[1]?.amount || '0');
+        }, 0);
+
+        timeSeries.push({
+          date: dateStr,
+          stdCount: daySTDs.length,
+          stdAmount: daySTDAmount,
+        });
+      }
+
+      // Agent performance for retention
+      const users = await storage.getUsers();
+      const agentPerformance = users
+        .filter(u => u.type === 'user')
+        .map(agent => {
+          const agentRetClients = retentionClients.filter(c => c.assignedTo === agent.id);
+          const agentSTDs = agentRetClients.filter(c => {
+            const deposits = depositsByClient.get(c.id) || [];
+            return deposits.length >= 2;
+          });
+          
+          const agentSTDAmount = agentSTDs.reduce((sum, client) => {
+            const deposits = (depositsByClient.get(client.id) || [])
+              .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            let clientSTDTotal = 0;
+            for (let i = 1; i < deposits.length; i++) {
+              clientSTDTotal += parseFloat(deposits[i].amount || '0');
+            }
+            return sum + clientSTDTotal;
+          }, 0);
+          
+          return {
+            agentId: agent.id,
+            agentName: `${agent.firstName} ${agent.lastName}`,
+            totalRetentionClients: agentRetClients.length,
+            stdCount: agentSTDs.length,
+            stdAmount: agentSTDAmount,
+            stdConversionRate: agentRetClients.length > 0 ? (agentSTDs.length / agentRetClients.length * 100).toFixed(2) : 0,
+          };
+        })
+        .filter(a => a.totalRetentionClients > 0)
+        .sort((a, b) => b.stdAmount - a.stdAmount);
+
+      // Retention funnel
+      const retentionFunnel = [
+        { stage: 'FTD Clients', count: retentionClients.length },
+        { stage: 'Active (30d)', count: retentionClients.filter(c => {
+          const lastActivity = c.updatedAt || c.createdAt;
+          const daysSince = (Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24);
+          return daysSince <= 30;
+        }).length },
+        { stage: 'STD Achieved', count: stdClients },
+      ];
+
+      res.json({
+        totalRetentionClients: retentionClients.length,
+        stdClients,
+        stdConversionRate: stdConversionRate.toFixed(2),
+        totalSTDAmount: totalSTDAmount.toFixed(2),
+        avgSTDAmount: avgSTDAmount.toFixed(2),
+        recentSTDsCount: recentSTDs.length,
+        timeSeries,
+        retentionFunnel,
+        agentPerformance,
+        dateRange: {
+          start: startDate.toISOString(),
+          end: endDate.toISOString(),
+        },
+      });
+    } catch (error: any) {
+      console.error('[Retention Dashboard Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== AFFILIATE MANAGEMENT =====
   app.get("/api/affiliates", authMiddleware, async (req: AuthRequest, res) => {
     try {

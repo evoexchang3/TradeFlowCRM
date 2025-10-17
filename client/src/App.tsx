@@ -25,6 +25,7 @@ import Trading from "@/pages/trading";
 import GlobalOpenPositions from "@/pages/global-open-positions";
 import GlobalClosedPositions from "@/pages/global-closed-positions";
 import SalesDashboard from "@/pages/sales-dashboard";
+import RetentionDashboard from "@/pages/retention-dashboard";
 import TradingSymbols from "@/pages/trading-symbols";
 import TradingSymbolGroups from "@/pages/trading-symbol-groups";
 import CFDAccounts from "@/pages/cfd-accounts";
@@ -328,6 +329,12 @@ function Router() {
       <Route path="/reports/sales">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
           <SalesDashboard />
+        </RouteGuard>
+      </Route>
+
+      <Route path="/reports/retention">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <RetentionDashboard />
         </RouteGuard>
       </Route>
 

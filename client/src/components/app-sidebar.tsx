@@ -136,6 +136,12 @@ const menuItems: MenuItem[] = [
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
+    title: "Retention Dashboard",
+    url: "/reports/retention",
+    icon: TrendingUp,
+    roles: ['administrator', 'crm manager', 'team leader'],
+  },
+  {
     title: "Affiliates",
     url: "/affiliates",
     icon: Share2,
