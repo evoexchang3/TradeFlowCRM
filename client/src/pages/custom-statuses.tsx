@@ -47,7 +47,7 @@ export default function CustomStatuses() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => apiRequest('/api/custom-statuses', 'POST', data),
+    mutationFn: (data: StatusFormData) => apiRequest('/api/custom-statuses', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
       toast({ title: "Success", description: "Status created successfully" });
@@ -56,13 +56,13 @@ export default function CustomStatuses() {
       setIsDialogOpen(false);
       form.reset();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }) => apiRequest(`/api/custom-statuses/${id}`, 'PATCH', data),
+    mutationFn: ({ id, ...data }: StatusFormData & { id: string }) => apiRequest(`/api/custom-statuses/${id}`, 'PATCH', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
       toast({ title: "Success", description: "Status updated successfully" });
@@ -72,18 +72,18 @@ export default function CustomStatuses() {
       setIsDialogOpen(false);
       form.reset();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => apiRequest(`/api/custom-statuses/${id}`, 'DELETE'),
+    mutationFn: (id: string) => apiRequest(`/api/custom-statuses/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
       toast({ title: "Success", description: "Status deleted successfully" });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
@@ -228,7 +228,7 @@ export default function CustomStatuses() {
                     <FormItem>
                       <FormLabel>Icon (Lucide icon name)</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., Star, Check, AlertCircle" data-testid="input-status-icon" />
+                        <Input {...field} value={field.value || ""} placeholder="e.g., Star, Check, AlertCircle" data-testid="input-status-icon" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
