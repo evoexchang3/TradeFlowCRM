@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { HeaderSearch } from "@/components/header-search";
 import { AuthProvider } from "@/lib/auth";
 import { RouteGuard } from "@/components/route-guard";
 import Dashboard from "@/pages/dashboard";
@@ -377,8 +378,9 @@ function AppLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1">
-          <header className="flex items-center justify-between h-14 px-4 border-b sticky top-0 z-10 bg-background">
+          <header className="flex items-center justify-between h-14 px-4 border-b sticky top-0 z-10 bg-background gap-4">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <HeaderSearch />
             <div className="flex items-center gap-2">
               <NotificationBell />
               <ThemeToggle />

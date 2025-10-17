@@ -41,7 +41,7 @@ interface SavedFilter {
 }
 
 export default function GlobalSearch() {
-  const [, setLocation] = useLocation();
+  const [location, setLocationPath] = useLocation();
   const { toast } = useToast();
   const [filters, setFilters] = useState<SearchFilters>({});
   const [page, setPage] = useState(1);
@@ -49,21 +49,40 @@ export default function GlobalSearch() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [filterName, setFilterName] = useState("");
   const [setAsDefault, setSetAsDefault] = useState(false);
+  const [urlQueryHandled, setUrlQueryHandled] = useState(false);
 
   // Load saved filters
   const { data: savedFilters = [] } = useQuery<SavedFilter[]>({
     queryKey: ['/api/saved-filters'],
   });
 
-  // Load default filter on mount and auto-search
+  // Handle URL query parameter from header search
   useEffect(() => {
+    if (urlQueryHandled) return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryParam = urlParams.get('query');
+    
+    if (queryParam) {
+      setFilters({ searchQuery: queryParam });
+      setUrlQueryHandled(true);
+      // Trigger search with query from URL
+      searchMutation.mutate({ filters: { searchQuery: queryParam }, page: 1 });
+    }
+  }, [location, urlQueryHandled]);
+
+  // Load default filter on mount and auto-search (only if no URL query)
+  useEffect(() => {
+    if (urlQueryHandled) return;
+    
     const defaultFilter = savedFilters.find(f => f.isDefault);
     if (defaultFilter && Object.keys(filters).length === 0) {
       setFilters(defaultFilter.filters);
       // Auto-trigger search with default filter
       searchMutation.mutate({ filters: defaultFilter.filters, page: 1 });
+      setUrlQueryHandled(true);
     }
-  }, [savedFilters]);
+  }, [savedFilters, urlQueryHandled]);
 
   // Load filter options
   const { data: teams = [] } = useQuery<any[]>({
@@ -137,6 +156,9 @@ export default function GlobalSearch() {
   const handleClearFilters = () => {
     setFilters({});
     setPage(1);
+    setUrlQueryHandled(false);
+    // Clear URL query parameter
+    window.history.replaceState({}, '', window.location.pathname);
   };
 
   const handleLoadFilter = (savedFilter: SavedFilter) => {
