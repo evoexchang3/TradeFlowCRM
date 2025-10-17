@@ -49,15 +49,20 @@ Preferred communication style: Simple, everyday language.
     -   **Chat System**: Full-featured chat application with REST API (6 endpoints for rooms and messages), real-time messaging UI, room management, and read status tracking. Frontend integrated with backend API.
     -   **SMTP Settings**: Email delivery configuration system with smtp_settings table (host, port, encryption, credentials). Backend API (4 CRUD endpoints) with Zod validation and admin authorization. Ready for frontend implementation.
     -   **Payment Providers**: Multi-provider payment integration with payment_providers table (name, type, API credentials, routing rules). Backend API (4 CRUD endpoints) with Zod validation and admin authorization. Ready for frontend implementation.
+13. **Global Client Search (Task 12)**:
+    -   **Advanced Search Backend**: POST /api/clients/search endpoint with multi-criteria filtering (query text, team, agent, custom status, KYC status, FTD status, language, registration date range, FTD date range) with pagination support.
+    -   **Saved Filter Presets**: Complete CRUD system with saved_filters table for storing user-specific filter configurations. Backend API (4 endpoints: GET all, POST create, PATCH update, DELETE). Support for default filter per user with automatic application on page load.
+    -   **Global Search Page**: Full-featured search interface at /search/global with advanced filter form, results table displaying client details (name, email, status, team, agent, KYC status, FTD info), saved preset management with star/unstar for defaults, and pagination controls.
+    -   **Header Quick Search**: Omnipresent search input in header with live autocomplete (shows top 5 results), client navigation on result click, and "View All Results" link that navigates to global search with query parameter pre-populated. Implements click-outside-to-close and loading states for optimal UX.
 
 ### Data Schema
--   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings, SMTP Settings, Payment Providers.
--   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N), Teams to Parent Teams (hierarchical), Clients to KYC Responses (1:N).
+-   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings, SMTP Settings, Payment Providers, Saved Filters.
+-   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N), Teams to Parent Teams (hierarchical), Clients to KYC Responses (1:N), Saved Filters to Users (N:1).
 
 ### Navigation Structure
 The application sidebar is organized into four main sections:
 
-1. **Main Menu**: Core operations including Dashboard, Client views (Sales/Retention/All), Trading views (Symbols, Groups, CFD Accounts, Positions), Trading terminal, Transactions, Calendar, Sales Dashboard, Affiliates, and Chat.
+1. **Main Menu**: Core operations including Dashboard, Client views (Sales/Retention/All), Global Search, Trading views (Symbols, Groups, CFD Accounts, Positions), Trading terminal, Transactions, Calendar, Sales Dashboard, Affiliates, and Chat.
 
 2. **Management**: Administrative tools including User Management, Roles & Permissions, Teams, API Keys, Import/Export Data, Audit Logs, and Email Templates. Role-based access control restricts visibility to authorized users.
 
