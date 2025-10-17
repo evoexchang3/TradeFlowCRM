@@ -5290,7 +5290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const allTeams = await storage.getAllTeams();
+      const allTeams = await storage.getTeams();
       
       // Build hierarchical tree structure
       const teamMap = new Map();
