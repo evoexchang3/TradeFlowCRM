@@ -409,6 +409,20 @@ export const chatMessages = pgTable("chat_messages", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Notifications
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // 'client_assigned', 'ftd_achieved', 'comment_added', 'status_changed', 'balance_adjusted', 'system'
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  relatedClientId: varchar("related_client_id").references(() => clients.id),
+  relatedEntity: text("related_entity"), // 'client', 'trade', 'transaction'
+  relatedEntityId: varchar("related_entity_id"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Affiliate Management
 export const affiliates = pgTable("affiliates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -667,6 +681,11 @@ export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
   creator: one(users, { fields: [apiKeys.createdBy], references: [users.id] }),
 }));
 
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+  client: one(clients, { fields: [notifications.relatedClientId], references: [clients.id] }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -881,6 +900,14 @@ export const insertAffiliateReferralSchema = createInsertSchema(affiliateReferra
 
 export type AffiliateReferral = typeof affiliateReferrals.$inferSelect;
 export type InsertAffiliateReferral = z.infer<typeof insertAffiliateReferralSchema>;
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
 // Phase 5: Advanced Configuration Schemas
 export const insertCustomStatusSchema = createInsertSchema(customStatuses).omit({

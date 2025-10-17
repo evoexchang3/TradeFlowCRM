@@ -823,6 +823,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: { amount, fundType, notes },
       });
 
+      // Create notification for assigned agent and team leader
+      if (updatedClient.assignedTo) {
+        await db.insert(notifications).values({
+          userId: updatedClient.assignedTo,
+          type: 'ftd_achieved',
+          title: 'Client Achieved FTD',
+          message: `${updatedClient.firstName} ${updatedClient.lastName} made their first deposit of $${amount}`,
+          relatedClientId: updatedClient.id,
+          relatedEntity: 'client',
+          relatedEntityId: updatedClient.id,
+          isRead: false,
+        });
+      }
+
       // Auto-transfer logic: Sales -> Retention based on language
       let transferResult = null;
       if (client.teamId) {
@@ -1063,6 +1077,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { assignedAgentId, teamId } = req.body;
       
+      // Get current client to check for changes
+      const currentClient = await storage.getClient(req.params.id);
+      if (!currentClient) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+      
       // Only update fields that are provided in the request
       const updates: any = {};
       if (assignedAgentId !== undefined) updates.assignedAgentId = assignedAgentId || null;
@@ -1077,6 +1097,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         targetId: client.id,
         details: { assignedAgentId, teamId },
       });
+
+      // Create notification for assigned agent if assignment changed
+      if (assignedAgentId && assignedAgentId !== currentClient.assignedTo) {
+        const assignedAgent = await storage.getUser(assignedAgentId);
+        if (assignedAgent) {
+          await db.insert(notifications).values({
+            userId: assignedAgentId,
+            type: 'client_assigned',
+            title: 'New Client Assigned',
+            message: `${client.firstName} ${client.lastName} has been assigned to you`,
+            relatedClientId: client.id,
+            relatedEntity: 'client',
+            relatedEntityId: client.id,
+            isRead: false,
+          });
+        }
+      }
 
       res.json(client);
     } catch (error: any) {
@@ -1240,6 +1277,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id,
         comment: req.body.comment,
       });
+
+      // Create notification for assigned agent if comment is from someone else
+      const client = await storage.getClient(req.params.id);
+      if (client && client.assignedTo && client.assignedTo !== req.user.id) {
+        const commenter = await storage.getUser(req.user.id);
+        await db.insert(notifications).values({
+          userId: client.assignedTo,
+          type: 'comment_added',
+          title: 'New Comment Added',
+          message: `${commenter?.firstName} ${commenter?.lastName} commented on ${client.firstName} ${client.lastName}`,
+          relatedClientId: client.id,
+          relatedEntity: 'client',
+          relatedEntityId: client.id,
+          isRead: false,
+        });
+      }
 
       res.json(comment);
     } catch (error: any) {
@@ -5419,6 +5472,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('[Activity Feed Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== NOTIFICATIONS =====
+  // Get user's notifications
+  app.get("/api/notifications", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const limit = parseInt(req.query.limit as string || '50');
+      const unreadOnly = req.query.unreadOnly === 'true';
+
+      const conditions = [eq(notifications.userId, req.user.id)];
+      if (unreadOnly) {
+        conditions.push(eq(notifications.isRead, false));
+      }
+
+      const userNotifications = await db.select()
+        .from(notifications)
+        .where(and(...conditions))
+        .orderBy(desc(notifications.createdAt))
+        .limit(limit);
+
+      const unreadCount = await db.select({ count: count() })
+        .from(notifications)
+        .where(and(
+          eq(notifications.userId, req.user.id),
+          eq(notifications.isRead, false)
+        ));
+
+      res.json({
+        notifications: userNotifications,
+        unreadCount: unreadCount[0]?.count || 0,
+      });
+    } catch (error: any) {
+      console.error('[Notifications Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new notification
+  app.post("/api/notifications", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      // Only admins can create notifications for other users
+      if (roleName !== 'administrator' && req.body.userId !== req.user.id) {
+        return res.status(403).json({ error: 'Unauthorized: Only admins can create notifications for other users' });
+      }
+
+      const [newNotification] = await db.insert(notifications).values({
+        userId: req.body.userId,
+        type: req.body.type,
+        title: req.body.title,
+        message: req.body.message,
+        relatedClientId: req.body.relatedClientId,
+        relatedEntity: req.body.relatedEntity,
+        relatedEntityId: req.body.relatedEntityId,
+        isRead: false,
+      }).returning();
+
+      res.json(newNotification);
+    } catch (error: any) {
+      console.error('[Create Notification Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const [updated] = await db.update(notifications)
+        .set({ isRead: true })
+        .where(and(
+          eq(notifications.id, req.params.id),
+          eq(notifications.userId, req.user.id)
+        ))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error('[Mark Notification Read Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark all notifications as read
+  app.post("/api/notifications/read-all", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      await db.update(notifications)
+        .set({ isRead: true })
+        .where(and(
+          eq(notifications.userId, req.user.id),
+          eq(notifications.isRead, false)
+        ));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Mark All Read Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a notification
+  app.delete("/api/notifications/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const [deleted] = await db.delete(notifications)
+        .where(and(
+          eq(notifications.id, req.params.id),
+          eq(notifications.userId, req.user.id)
+        ))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Delete Notification Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
