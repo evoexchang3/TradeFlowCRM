@@ -37,7 +37,7 @@ import {
   insertSmartAssignmentSettingSchema,
   users
 } from "@shared/schema";
-import { eq, or, and, isNull, sql, desc } from "drizzle-orm";
+import { eq, or, and, isNull, sql, desc, gte, lte } from "drizzle-orm";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -940,6 +940,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const account = await storage.getAccountByClientId(client.id);
       const closedPositions = await storage.getPositions({ accountId: account?.id, status: 'closed' });
       res.json(closedPositions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Advanced Search Endpoint
+  app.post("/api/clients/search", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type === 'client') {
+        return res.status(403).json({ error: 'Unauthorized: Client access not allowed' });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      const {
+        searchQuery,
+        teamId,
+        agentId,
+        statusId,
+        kycStatus,
+        hasFTD,
+        language,
+        dateFrom,
+        dateTo,
+        ftdDateFrom,
+        ftdDateTo,
+        page = 1,
+        limit = 50,
+      } = req.body;
+
+      // Build WHERE conditions
+      const conditions: SQL<unknown>[] = [];
+
+      // Role-based filtering
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          // No team/agent restrictions
+        } else if (isTeamLeaderRole(roleName)) {
+          conditions.push(eq(clients.teamId, user.teamId!));
+        } else if (isAgentRole(roleName)) {
+          conditions.push(eq(clients.assignedAgentId, user.id));
+        } else {
+          conditions.push(eq(clients.assignedAgentId, user.id));
+        }
+      } else {
+        conditions.push(eq(clients.assignedAgentId, user.id));
+      }
+
+      // Search query (name, email, ID)
+      if (searchQuery && searchQuery.trim()) {
+        const searchLower = searchQuery.toLowerCase();
+        conditions.push(
+          or(
+            sql`LOWER(${clients.firstName}) LIKE ${`%${searchLower}%`}`,
+            sql`LOWER(${clients.lastName}) LIKE ${`%${searchLower}%`}`,
+            sql`LOWER(${clients.email}) LIKE ${`%${searchLower}%`}`,
+            sql`LOWER(${clients.id}) LIKE ${`%${searchLower}%`}`
+          )!
+        );
+      }
+
+      // Team filter
+      if (teamId && teamId !== 'all') {
+        if (teamId === 'unassigned') {
+          conditions.push(isNull(clients.teamId));
+        } else {
+          conditions.push(eq(clients.teamId, teamId));
+        }
+      }
+
+      // Agent filter
+      if (agentId && agentId !== 'all') {
+        if (agentId === 'unassigned') {
+          conditions.push(isNull(clients.assignedAgentId));
+        } else {
+          conditions.push(eq(clients.assignedAgentId, agentId));
+        }
+      }
+
+      // Status filter
+      if (statusId && statusId !== 'all') {
+        conditions.push(eq(clients.statusId, statusId));
+      }
+
+      // KYC status filter
+      if (kycStatus && kycStatus !== 'all') {
+        conditions.push(eq(clients.kycStatus, kycStatus as any));
+      }
+
+      // FTD filter
+      if (hasFTD !== undefined && hasFTD !== null && hasFTD !== 'all') {
+        conditions.push(eq(clients.hasFTD, hasFTD === true || hasFTD === 'true'));
+      }
+
+      // Language filter
+      if (language && language !== 'all') {
+        conditions.push(eq(clients.language, language));
+      }
+
+      // Registration date range
+      if (dateFrom) {
+        conditions.push(gte(clients.createdAt, new Date(dateFrom)));
+      }
+      if (dateTo) {
+        conditions.push(lte(clients.createdAt, new Date(dateTo)));
+      }
+
+      // FTD date range
+      if (ftdDateFrom) {
+        conditions.push(gte(clients.ftdDate, new Date(ftdDateFrom)));
+      }
+      if (ftdDateTo) {
+        conditions.push(lte(clients.ftdDate, new Date(ftdDateTo)));
+      }
+
+      // Build query
+      const offset = (page - 1) * limit;
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      // Get total count
+      const countQuery = whereClause
+        ? await db.select({ count: sql<number>`count(*)` }).from(clients).where(whereClause)
+        : await db.select({ count: sql<number>`count(*)` }).from(clients);
+      
+      const totalCount = Number(countQuery[0]?.count || 0);
+
+      // Get clients
+      const clientsQuery = db
+        .select()
+        .from(clients)
+        .leftJoin(users, eq(clients.assignedAgentId, users.id))
+        .leftJoin(teams, eq(clients.teamId, teams.id))
+        .leftJoin(accounts, eq(accounts.clientId, clients.id));
+
+      const resultsQuery = whereClause
+        ? clientsQuery.where(whereClause).limit(limit).offset(offset)
+        : clientsQuery.limit(limit).offset(offset);
+
+      const results = await resultsQuery;
+
+      // Get last comments
+      const clientIds = results.map(r => r.clients.id);
+      const lastCommentsByClient = new Map();
+
+      if (clientIds.length > 0) {
+        const lastCommentsQuery = await db
+          .select({
+            clientId: clientComments.clientId,
+            text: clientComments.text,
+            createdAt: clientComments.createdAt,
+          })
+          .from(clientComments)
+          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .orderBy(desc(clientComments.createdAt));
+
+        for (const comment of lastCommentsQuery) {
+          if (!lastCommentsByClient.has(comment.clientId)) {
+            lastCommentsByClient.set(comment.clientId, {
+              text: comment.text,
+              date: comment.createdAt,
+            });
+          }
+        }
+      }
+
+      // Format response
+      const formattedClients = results.map(r => {
+        const lastComment = lastCommentsByClient.get(r.clients.id);
+        return {
+          ...r.clients,
+          name: `${r.clients.firstName} ${r.clients.lastName}`,
+          assignedAgent: r.users ? { id: r.users.id, name: r.users.name } : null,
+          team: r.teams ? { id: r.teams.id, name: r.teams.name } : null,
+          account: r.accounts || null,
+          lastCommentDate: lastComment?.date || null,
+          lastCommentPreview: lastComment?.text ? (lastComment.text.length > 50 ? lastComment.text.substring(0, 50) + '...' : lastComment.text) : null,
+          registrationDate: r.clients.createdAt,
+        };
+      });
+
+      res.json({
+        clients: formattedClients,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -5621,6 +5816,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error: any) {
       console.error('[Delete Notification Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== SAVED FILTERS =====
+  // Get all saved filters for current user
+  app.get("/api/saved-filters", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const filters = await db.select()
+        .from(savedFilters)
+        .where(eq(savedFilters.userId, req.user.id))
+        .orderBy(desc(savedFilters.createdAt));
+
+      res.json(filters);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new saved filter
+  app.post("/api/saved-filters", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const { name, filters, isDefault } = req.body;
+
+      if (!name || !filters) {
+        return res.status(400).json({ error: 'Name and filters are required' });
+      }
+
+      // If setting as default, unset other defaults first
+      if (isDefault) {
+        await db.update(savedFilters)
+          .set({ isDefault: false })
+          .where(and(
+            eq(savedFilters.userId, req.user.id),
+            eq(savedFilters.isDefault, true)
+          ));
+      }
+
+      const [newFilter] = await db.insert(savedFilters)
+        .values({
+          userId: req.user.id,
+          name,
+          filters,
+          isDefault: isDefault || false,
+        })
+        .returning();
+
+      res.json(newFilter);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update a saved filter
+  app.patch("/api/saved-filters/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const { name, filters, isDefault } = req.body;
+      const updates: any = { updatedAt: new Date() };
+
+      if (name !== undefined) updates.name = name;
+      if (filters !== undefined) updates.filters = filters;
+      if (isDefault !== undefined) {
+        // If setting as default, unset other defaults first
+        if (isDefault) {
+          await db.update(savedFilters)
+            .set({ isDefault: false })
+            .where(and(
+              eq(savedFilters.userId, req.user.id),
+              eq(savedFilters.isDefault, true)
+            ));
+        }
+        updates.isDefault = isDefault;
+      }
+
+      const [updated] = await db.update(savedFilters)
+        .set(updates)
+        .where(and(
+          eq(savedFilters.id, req.params.id),
+          eq(savedFilters.userId, req.user.id)
+        ))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: 'Saved filter not found' });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Set a filter as default
+  app.patch("/api/saved-filters/:id/set-default", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Unset all defaults for this user
+      await db.update(savedFilters)
+        .set({ isDefault: false })
+        .where(and(
+          eq(savedFilters.userId, req.user.id),
+          eq(savedFilters.isDefault, true)
+        ));
+
+      // Set this one as default
+      const [updated] = await db.update(savedFilters)
+        .set({ isDefault: true, updatedAt: new Date() })
+        .where(and(
+          eq(savedFilters.id, req.params.id),
+          eq(savedFilters.userId, req.user.id)
+        ))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: 'Saved filter not found' });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a saved filter
+  app.delete("/api/saved-filters/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const [deleted] = await db.delete(savedFilters)
+        .where(and(
+          eq(savedFilters.id, req.params.id),
+          eq(savedFilters.userId, req.user.id)
+        ))
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: 'Saved filter not found' });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
