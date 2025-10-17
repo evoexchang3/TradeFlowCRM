@@ -5,6 +5,7 @@ interface AuthUser {
   email: string;
   type: 'user' | 'client';
   roleId?: string;
+  teamId?: string;
 }
 
 interface AuthContextType {
