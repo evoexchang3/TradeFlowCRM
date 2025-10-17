@@ -43,7 +43,10 @@ export default function SmtpSettings() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => apiRequest('/api/smtp-settings', 'POST', data),
+    mutationFn: async (data: SmtpFormData) => {
+      const res = await apiRequest('POST', '/api/smtp-settings', data);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
       toast({ title: "Success", description: "SMTP setting created successfully" });
@@ -56,7 +59,10 @@ export default function SmtpSettings() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }) => apiRequest(`/api/smtp-settings/${id}`, 'PATCH', data),
+    mutationFn: async ({ id, ...data }: { id: string } & SmtpFormData) => {
+      const res = await apiRequest('PATCH', `/api/smtp-settings/${id}`, data);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
       toast({ title: "Success", description: "SMTP setting updated successfully" });
@@ -70,7 +76,10 @@ export default function SmtpSettings() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => apiRequest(`/api/smtp-settings/${id}`, 'DELETE'),
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/smtp-settings/${id}`);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
       toast({ title: "Success", description: "SMTP setting deleted successfully" });

@@ -59,7 +59,10 @@ export default function PaymentProviders() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => apiRequest('/api/payment-providers', 'POST', data),
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/payment-providers', data);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/payment-providers'] });
       toast({ title: "Success", description: "Payment provider created successfully" });
@@ -74,7 +77,10 @@ export default function PaymentProviders() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }) => apiRequest(`/api/payment-providers/${id}`, 'PATCH', data),
+    mutationFn: async ({ id, ...data }: { id: string } & any) => {
+      const res = await apiRequest('PATCH', `/api/payment-providers/${id}`, data);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/payment-providers'] });
       toast({ title: "Success", description: "Payment provider updated successfully" });
@@ -90,7 +96,10 @@ export default function PaymentProviders() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => apiRequest(`/api/payment-providers/${id}`, 'DELETE'),
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/payment-providers/${id}`);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/payment-providers'] });
       toast({ title: "Success", description: "Payment provider deleted successfully" });
@@ -231,7 +240,7 @@ export default function PaymentProviders() {
                       <FormItem>
                         <FormLabel>API Key</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="pk_live_..." {...field} data-testid="input-api-key" />
+                          <Input type="password" placeholder="pk_live_..." {...field} value={field.value || ""} data-testid="input-api-key" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -245,7 +254,7 @@ export default function PaymentProviders() {
                       <FormItem>
                         <FormLabel>API Secret</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="sk_live_..." {...field} data-testid="input-api-secret" />
+                          <Input type="password" placeholder="sk_live_..." {...field} value={field.value || ""} data-testid="input-api-secret" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -261,7 +270,7 @@ export default function PaymentProviders() {
                       <FormItem>
                         <FormLabel>Webhook Secret</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="whsec_..." {...field} data-testid="input-webhook-secret" />
+                          <Input type="password" placeholder="whsec_..." {...field} value={field.value || ""} data-testid="input-webhook-secret" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -275,7 +284,7 @@ export default function PaymentProviders() {
                       <FormItem>
                         <FormLabel>Webhook URL</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://..." {...field} data-testid="input-webhook-url" />
+                          <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-webhook-url" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

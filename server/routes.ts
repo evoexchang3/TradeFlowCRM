@@ -35,7 +35,9 @@ import {
   teams,
   smartAssignmentSettings,
   insertSmartAssignmentSettingSchema,
-  users
+  users,
+  savedFilters,
+  customStatuses
 } from "@shared/schema";
 import { eq, or, and, isNull, sql, desc, gte, lte } from "drizzle-orm";
 
