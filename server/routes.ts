@@ -5260,6 +5260,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Activity Feed - real-time activity timeline for managers
+  app.get("/api/activity-feed", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      // Parse query parameters
+      const limit = parseInt(req.query.limit as string || '50');
+      const teamFilter = req.query.teamId as string | undefined;
+
+      // Get relevant audit log actions for activity feed
+      const relevantActions = [
+        'client_create',
+        'client_ftd_marked',
+        'client_edit',
+        'client_transferred',
+        'balance_adjust',
+        'trade_create',
+        'trade_close',
+      ];
+
+      // Fetch audit logs
+      const auditLogsData = await db.select().from(auditLogs)
+        .where(inArray(auditLogs.action, relevantActions))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit * 2); // Fetch more than needed for filtering
+
+      // Fetch recent comments
+      const recentComments = await db.select({
+        id: clientComments.id,
+        clientId: clientComments.clientId,
+        userId: clientComments.userId,
+        comment: clientComments.comment,
+        createdAt: clientComments.createdAt,
+      }).from(clientComments)
+        .orderBy(desc(clientComments.createdAt))
+        .limit(limit);
+
+      // Get all users for names
+      const allUsers = await storage.getUsers();
+      const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+      // Get all clients for filtering
+      const allClients = await storage.getClients();
+      const clientMap = new Map(allClients.map(c => [c.id, c]));
+
+      // Apply role-based filtering to clients
+      let visibleClientIds = new Set(allClients.map(c => c.id));
+      if (isAgentRole(roleName) && user.teamId) {
+        visibleClientIds = new Set(allClients.filter(c => c.teamId === user.teamId).map(c => c.id));
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
+        visibleClientIds = new Set(allClients.filter(c => c.teamId === user.teamId).map(c => c.id));
+      }
+
+      // Apply team filter
+      if (teamFilter) {
+        visibleClientIds = new Set(allClients.filter(c => c.teamId === teamFilter).map(c => c.id));
+      }
+
+      // Process audit logs into activities
+      const auditActivities = auditLogsData
+        .filter(log => {
+          // Filter by visible clients if targetType is client
+          if (log.targetType === 'client') {
+            return visibleClientIds.has(log.targetId || '');
+          }
+          return true;
+        })
+        .map(log => {
+          const actor = userMap.get(log.userId || '');
+          const client = log.targetType === 'client' ? clientMap.get(log.targetId || '') : null;
+          
+          let description = '';
+          switch (log.action) {
+            case 'client_create':
+              description = `created new client ${client?.firstName} ${client?.lastName}`;
+              break;
+            case 'client_ftd_marked':
+              description = `marked FTD for ${client?.firstName} ${client?.lastName}`;
+              break;
+            case 'client_edit':
+              const details = log.details as any;
+              if (details?.statusChanged) {
+                description = `changed status of ${client?.firstName} ${client?.lastName} to ${details.newStatus}`;
+              } else {
+                description = `updated client ${client?.firstName} ${client?.lastName}`;
+              }
+              break;
+            case 'client_transferred':
+              description = `transferred client ${client?.firstName} ${client?.lastName}`;
+              break;
+            case 'balance_adjust':
+              description = `adjusted balance for ${client?.firstName} ${client?.lastName}`;
+              break;
+            case 'trade_create':
+              description = `opened a new trade`;
+              break;
+            case 'trade_close':
+              description = `closed a trade`;
+              break;
+            default:
+              description = log.action.replace(/_/g, ' ');
+          }
+
+          return {
+            id: log.id,
+            type: 'audit',
+            action: log.action,
+            actorName: actor ? `${actor.firstName} ${actor.lastName}` : 'System',
+            actorId: log.userId,
+            description,
+            clientName: client ? `${client.firstName} ${client.lastName}` : null,
+            clientId: client?.id,
+            details: log.details,
+            createdAt: log.createdAt,
+          };
+        });
+
+      // Process comments into activities
+      const commentActivities = recentComments
+        .filter(comment => visibleClientIds.has(comment.clientId))
+        .map(comment => {
+          const actor = userMap.get(comment.userId);
+          const client = clientMap.get(comment.clientId);
+          
+          return {
+            id: comment.id,
+            type: 'comment',
+            action: 'comment_added',
+            actorName: actor ? `${actor.firstName} ${actor.lastName}` : 'Unknown',
+            actorId: comment.userId,
+            description: `added comment on ${client?.firstName} ${client?.lastName}`,
+            clientName: client ? `${client.firstName} ${client.lastName}` : null,
+            clientId: comment.clientId,
+            commentPreview: comment.comment.substring(0, 100),
+            createdAt: comment.createdAt,
+          };
+        });
+
+      // Combine and sort all activities
+      const allActivities = [...auditActivities, ...commentActivities]
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+        .slice(0, limit);
+
+      res.json({
+        activities: allActivities,
+        total: allActivities.length,
+      });
+    } catch (error: any) {
+      console.error('[Activity Feed Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== AFFILIATE MANAGEMENT =====
   app.get("/api/affiliates", authMiddleware, async (req: AuthRequest, res) => {
     try {

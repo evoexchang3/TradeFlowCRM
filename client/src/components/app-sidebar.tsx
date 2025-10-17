@@ -30,7 +30,8 @@ import {
   CreditCard,
   Share2,
   ArrowRightLeft,
-  Settings2
+  Settings2,
+  Activity
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -139,6 +140,12 @@ const menuItems: MenuItem[] = [
     title: "Retention Dashboard",
     url: "/reports/retention",
     icon: TrendingUp,
+    roles: ['administrator', 'crm manager', 'team leader'],
+  },
+  {
+    title: "Activity Feed",
+    url: "/activity-feed",
+    icon: Activity,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
