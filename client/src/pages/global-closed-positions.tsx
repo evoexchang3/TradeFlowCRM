@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Search, TrendingUp, TrendingDown } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,15 +21,164 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+
+const editClosedPositionSchema = z.object({
+  openPrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+    message: "Open price must be a positive number",
+  }).optional(),
+  closePrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+    message: "Close price must be a positive number",
+  }).optional(),
+  quantity: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+    message: "Quantity must be a positive number",
+  }).optional(),
+  realizedPnl: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
+    message: "Realized P/L must be a valid number",
+  }).optional(),
+});
+
+type EditClosedPositionData = z.infer<typeof editClosedPositionSchema>;
 
 export default function GlobalClosedPositions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSymbol, setFilterSymbol] = useState<string>('all');
   const [filterSide, setFilterSide] = useState<string>('all');
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<any>(null);
+  const { toast } = useToast();
   
   const { data: positions, isLoading } = useQuery({
     queryKey: ['/api/positions/all/closed'],
   });
+
+  const form = useForm<EditClosedPositionData>({
+    resolver: zodResolver(editClosedPositionSchema),
+    defaultValues: {
+      openPrice: "",
+      closePrice: "",
+      quantity: "",
+      realizedPnl: "",
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async (data: EditClosedPositionData) => {
+      // Filter out empty values and convert to proper format
+      const processedData: Record<string, any> = {};
+      
+      if (data.openPrice && data.openPrice !== "") {
+        processedData.openPrice = parseFloat(data.openPrice).toString();
+      }
+      if (data.closePrice && data.closePrice !== "") {
+        processedData.closePrice = parseFloat(data.closePrice).toString();
+      }
+      if (data.quantity && data.quantity !== "") {
+        processedData.quantity = parseFloat(data.quantity).toString();
+      }
+      if (data.realizedPnl && data.realizedPnl !== "") {
+        processedData.realizedPnl = parseFloat(data.realizedPnl).toString();
+      }
+      
+      return apiRequest(`/api/positions/${selectedPosition.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(processedData),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/positions/all/closed'] });
+      setEditDialogOpen(false);
+      toast({
+        title: "Position updated",
+        description: "The position has been successfully updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update position",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (positionId: string) => {
+      return apiRequest(`/api/positions/${positionId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/positions/all/closed'] });
+      setDeleteDialogOpen(false);
+      toast({
+        title: "Position deleted",
+        description: "The position has been successfully deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete position",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (position: any) => {
+    setSelectedPosition(position);
+    form.reset({
+      openPrice: position.openPrice || "",
+      closePrice: position.closePrice || "",
+      quantity: position.quantity || "",
+      realizedPnl: position.realizedPnl || "",
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = (position: any) => {
+    setSelectedPosition(position);
+    setDeleteDialogOpen(true);
+  };
+
+  const onEditSubmit = (data: EditClosedPositionData) => {
+    editMutation.mutate(data);
+  };
+
+  const onDeleteConfirm = () => {
+    if (selectedPosition) {
+      deleteMutation.mutate(selectedPosition.id);
+    }
+  };
 
   // Client-side filtering
   const filteredPositions = positions?.filter((position: any) => {
@@ -171,12 +321,13 @@ export default function GlobalClosedPositions() {
                 <TableHead>Close Price</TableHead>
                 <TableHead>Realized P/L</TableHead>
                 <TableHead>Closed</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPositions && filteredPositions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <p className="text-muted-foreground" data-testid="text-no-positions">No closed positions found</p>
                   </TableCell>
                 </TableRow>
@@ -214,6 +365,30 @@ export default function GlobalClosedPositions() {
                       <TableCell data-testid={`text-closed-${position.id}`}>
                         {position.closedAt ? new Date(position.closedAt).toLocaleString() : '-'}
                       </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`button-actions-${position.id}`}>
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEdit(position)} data-testid={`button-edit-${position.id}`}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Position
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(position)} 
+                              className="text-destructive"
+                              data-testid={`button-delete-${position.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Position
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -222,6 +397,113 @@ export default function GlobalClosedPositions() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent data-testid="dialog-edit-position">
+          <DialogHeader>
+            <DialogTitle>Edit Closed Position</DialogTitle>
+            <DialogDescription>
+              Update position details for {selectedPosition?.symbol}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="openPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Open Price</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-open-price" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="closePrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Close Price</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-close-price" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-quantity" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="realizedPnl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Realized P/L</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-realized-pnl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editMutation.isPending} data-testid="button-submit-edit">
+                  {editMutation.isPending ? "Updating..." : "Update Position"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-delete-position">
+          <DialogHeader>
+            <DialogTitle>Delete Position</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this position? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm"><strong>Symbol:</strong> {selectedPosition?.symbol}</p>
+            <p className="text-sm"><strong>Client:</strong> {selectedPosition?.clientName}</p>
+            <p className="text-sm"><strong>Quantity:</strong> {selectedPosition?.quantity}</p>
+            <p className="text-sm"><strong>Realized P/L:</strong> ${parseFloat(selectedPosition?.realizedPnl || '0').toFixed(2)}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete">
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={onDeleteConfirm} 
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Position"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
