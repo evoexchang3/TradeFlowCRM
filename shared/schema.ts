@@ -423,6 +423,17 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Saved Search Filters
+export const savedFilters = pgTable("saved_filters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  filters: jsonb("filters").notNull(), // { searchQuery, teamId, agentId, statusId, kycStatus, hasFTD, language, dateFrom, dateTo }
+  isDefault: boolean("is_default").notNull().default(false), // Auto-apply on page load
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Affiliate Management
 export const affiliates = pgTable("affiliates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -686,6 +697,10 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   client: one(clients, { fields: [notifications.relatedClientId], references: [clients.id] }),
 }));
 
+export const savedFiltersRelations = relations(savedFilters, ({ one }) => ({
+  user: one(users, { fields: [savedFilters.userId], references: [users.id] }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -908,6 +923,15 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export const insertSavedFilterSchema = createInsertSchema(savedFilters).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SavedFilter = typeof savedFilters.$inferSelect;
+export type InsertSavedFilter = z.infer<typeof insertSavedFilterSchema>;
 
 // Phase 5: Advanced Configuration Schemas
 export const insertCustomStatusSchema = createInsertSchema(customStatuses).omit({
