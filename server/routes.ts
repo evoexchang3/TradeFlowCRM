@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 import multer from "multer";
 import { z } from "zod";
 import crypto from "crypto";
+import { db } from "./db";
 import { storage } from "./storage";
 import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
@@ -32,7 +33,8 @@ import {
   insertTeamRoutingRuleSchema,
   teams,
   smartAssignmentSettings,
-  insertSmartAssignmentSettingSchema
+  insertSmartAssignmentSettingSchema,
+  users
 } from "@shared/schema";
 import { eq, or, and, isNull, sql } from "drizzle-orm";
 
@@ -4434,7 +4436,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      const db = storage.db;
       let query = db.select().from(calendarEvents);
 
       // Role-based filtering
@@ -4443,7 +4444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query = query.where(eq(calendarEvents.userId, user.id));
       } else if (roleName === 'team leader' && user.teamId) {
         // Team leaders see their own events and their team's events
-        const teamUsers = await storage.getUsersByTeamId(user.teamId);
+        const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
         const userIds = teamUsers.map(u => u.id);
         query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
       }
@@ -4451,6 +4452,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const events = await query;
       res.json(events);
     } catch (error: any) {
+      console.error('[Calendar Events GET Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4473,7 +4475,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      const db = storage.db;
       const [newEvent] = await db.insert(calendarEvents).values({
         title: req.body.title,
         description: req.body.description,
@@ -4492,6 +4493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(newEvent);
     } catch (error: any) {
+      console.error('[Calendar Events POST Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4514,7 +4516,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      const db = storage.db;
       const updateData: any = { ...req.body, updatedAt: new Date() };
       if (req.body.startTime) updateData.startTime = new Date(req.body.startTime);
       if (req.body.endTime) updateData.endTime = new Date(req.body.endTime);
@@ -4532,6 +4533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedEvent);
     } catch (error: any) {
+      console.error('[Calendar Events PATCH Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4554,7 +4556,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      const db = storage.db;
       await db.delete(calendarEvents).where(eq(calendarEvents.id, req.params.id));
 
       await storage.createAuditLog({
@@ -4565,6 +4566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true });
     } catch (error: any) {
+      console.error('[Calendar Events DELETE Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
