@@ -57,6 +57,7 @@ import Register from "@/pages/register";
 import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import UserManagement from "@/pages/user-management";
+import GlobalSearch from "@/pages/global-search";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -147,6 +148,11 @@ function Router() {
       <Route path="/clients/:id/edit">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <ClientForm />
+        </RouteGuard>
+      </Route>
+      <Route path="/search/global">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <GlobalSearch />
         </RouteGuard>
       </Route>
 

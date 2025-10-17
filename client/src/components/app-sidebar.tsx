@@ -31,7 +31,8 @@ import {
   Share2,
   ArrowRightLeft,
   Settings2,
-  Activity
+  Activity,
+  Search
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -81,6 +82,12 @@ const menuItems: MenuItem[] = [
     url: "/clients",
     icon: Users,
     roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
+  },
+  {
+    title: "Global Search",
+    url: "/search/global",
+    icon: Search,
+    roles: ['administrator', 'crm manager', 'team leader', 'agent'],
   },
   {
     title: "Trading Symbols",
