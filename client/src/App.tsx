@@ -59,6 +59,8 @@ import Login from "@/pages/login";
 import Landing from "@/pages/landing";
 import UserManagement from "@/pages/user-management";
 import GlobalSearch from "@/pages/global-search";
+import Leaderboard from "@/pages/leaderboard";
+import AuditReports from "@/pages/audit-reports";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -209,6 +211,13 @@ function Router() {
         </RouteGuard>
       </Route>
 
+      {/* Leaderboard - all staff roles */}
+      <Route path="/leaderboard">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+          <Leaderboard />
+        </RouteGuard>
+      </Route>
+
       {/* User Management - admin only */}
       <Route path="/users">
         <RouteGuard allowedRoles={['Administrator']}>
@@ -258,6 +267,13 @@ function Router() {
       <Route path="/audit">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <AuditLogs />
+        </RouteGuard>
+      </Route>
+
+      {/* Enhanced Audit Reports - admin only */}
+      <Route path="/audit/reports">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <AuditReports />
         </RouteGuard>
       </Route>
 

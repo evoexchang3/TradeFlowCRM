@@ -47,6 +47,8 @@ export const tradeInitiatorTypeEnum = pgEnum('trade_initiator_type', ['client', 
 export const robotStatusEnum = pgEnum('robot_status', ['active', 'paused', 'stopped']);
 export const fundTypeEnum = pgEnum('fund_type', ['real', 'demo', 'bonus']);
 export const departmentEnum = pgEnum('department', ['sales', 'retention', 'support']);
+export const targetPeriodEnum = pgEnum('target_period', ['daily', 'weekly', 'monthly', 'quarterly']);
+export const achievementTypeEnum = pgEnum('achievement_type', ['badge', 'streak', 'milestone', 'level']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -612,6 +614,40 @@ export const paymentProviders = pgTable("payment_providers", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Phase 6: Performance Targets & Gamification
+
+// Performance Targets
+export const performanceTargets = pgTable("performance_targets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  targetType: text("target_type").notNull(), // ftd, std, calls, revenue
+  period: targetPeriodEnum("period").notNull(),
+  targetValue: decimal("target_value", { precision: 18, scale: 2 }).notNull(),
+  agentId: varchar("agent_id").references(() => users.id), // Individual target
+  teamId: varchar("team_id").references(() => teams.id), // Team target
+  department: departmentEnum("department"), // Department-wide target
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  currentValue: decimal("current_value", { precision: 18, scale: 2 }).notNull().default('0'),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Achievements
+export const achievements = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  agentId: varchar("agent_id").notNull().references(() => users.id),
+  achievementType: achievementTypeEnum("achievement_type").notNull(),
+  name: text("name").notNull(), // "First FTD", "5 Day Streak", "Top Performer"
+  description: text("description"),
+  icon: text("icon"), // lucide icon name
+  badgeColor: text("badge_color"), // hex color
+  points: integer("points").notNull().default(0),
+  metadata: jsonb("metadata").default('{}'), // streak count, milestone value, etc.
+  earnedAt: timestamp("earned_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, { fields: [users.roleId], references: [roles.id] }),
@@ -991,6 +1027,24 @@ export const insertPaymentProviderSchema = createInsertSchema(paymentProviders).
 
 export type PaymentProvider = typeof paymentProviders.$inferSelect;
 export type InsertPaymentProvider = z.infer<typeof insertPaymentProviderSchema>;
+
+// Phase 6: Performance Targets & Gamification Schemas
+export const insertPerformanceTargetSchema = createInsertSchema(performanceTargets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PerformanceTarget = typeof performanceTargets.$inferSelect;
+export type InsertPerformanceTarget = z.infer<typeof insertPerformanceTargetSchema>;
+
+export const insertAchievementSchema = createInsertSchema(achievements).omit({
+  id: true,
+  earnedAt: true,
+});
+
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 
 // Team Routing Rules schemas
 export const insertTeamRoutingRuleSchema = createInsertSchema(teamRoutingRules).omit({

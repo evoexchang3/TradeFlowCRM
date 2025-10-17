@@ -32,7 +32,9 @@ import {
   ArrowRightLeft,
   Settings2,
   Activity,
-  Search
+  Search,
+  Trophy,
+  FileText
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -167,6 +169,12 @@ const menuItems: MenuItem[] = [
     icon: MessageSquare,
     // Available to all roles including agents
   },
+  {
+    title: "Leaderboard",
+    url: "/leaderboard",
+    icon: Trophy,
+    // Available to all roles including agents
+  },
 ];
 
 const managementItems: MenuItem[] = [
@@ -211,6 +219,12 @@ const managementItems: MenuItem[] = [
     url: "/audit",
     icon: History,
     roles: ['administrator', 'crm manager'],
+  },
+  {
+    title: "Audit Reports",
+    url: "/audit/reports",
+    icon: FileText,
+    roles: ['administrator'], // Admin only
   },
   {
     title: "Email Templates",

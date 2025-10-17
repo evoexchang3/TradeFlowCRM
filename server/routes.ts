@@ -7248,5 +7248,432 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PHASE 6: PERFORMANCE TARGETS & GAMIFICATION ====================
+
+  // Performance Targets CRUD
+  app.get("/api/targets", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const { performanceTargets } = await import("@shared/schema");
+      const db = storage.db;
+
+      // Get user's role to determine access
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      let targets;
+
+      if (roleName === 'administrator' || roleName === 'crm manager') {
+        // Admins see all targets
+        targets = await db.select().from(performanceTargets).orderBy(desc(performanceTargets.createdAt));
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
+        // Team leaders see team and their own targets
+        targets = await db.select().from(performanceTargets)
+          .where(or(
+            eq(performanceTargets.teamId, user.teamId),
+            eq(performanceTargets.agentId, user.id)
+          ))
+          .orderBy(desc(performanceTargets.createdAt));
+      } else {
+        // Agents see only their own targets
+        targets = await db.select().from(performanceTargets)
+          .where(eq(performanceTargets.agentId, user.id))
+          .orderBy(desc(performanceTargets.createdAt));
+      }
+
+      res.json(targets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/targets", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Only admins and team leaders can create targets
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      if (roleName !== 'administrator' && roleName !== 'crm manager' && !isTeamLeaderRole(roleName)) {
+        return res.status(403).json({ error: 'Unauthorized: Only managers and team leaders can create targets' });
+      }
+
+      const { insertPerformanceTargetSchema, performanceTargets } = await import("@shared/schema");
+      const validated = insertPerformanceTargetSchema.parse({
+        ...req.body,
+        createdBy: req.user.id,
+      });
+
+      const db = storage.db;
+      const [newTarget] = await db.insert(performanceTargets).values(validated).returning();
+
+      // Log target creation
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'client_create', // Using existing action for now
+        targetType: 'performance_target',
+        targetId: newTarget.id,
+        details: { targetType: newTarget.targetType, period: newTarget.period, targetValue: newTarget.targetValue },
+      });
+
+      res.json(newTarget);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/targets/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Only admins and team leaders can update targets
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      if (roleName !== 'administrator' && roleName !== 'crm manager' && !isTeamLeaderRole(roleName)) {
+        return res.status(403).json({ error: 'Unauthorized: Only managers and team leaders can update targets' });
+      }
+
+      const { insertPerformanceTargetSchema, performanceTargets } = await import("@shared/schema");
+      const validated = insertPerformanceTargetSchema.partial().parse(req.body);
+
+      const db = storage.db;
+      const [updatedTarget] = await db.update(performanceTargets)
+        .set({ ...validated, updatedAt: new Date() })
+        .where(eq(performanceTargets.id, req.params.id))
+        .returning();
+
+      res.json(updatedTarget);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/targets/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Only admins can delete targets
+      const hasPermission = await storage.hasPermission(req.user.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
+      }
+
+      const { performanceTargets } = await import("@shared/schema");
+      const db = storage.db;
+      await db.delete(performanceTargets).where(eq(performanceTargets.id, req.params.id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Achievements
+  app.get("/api/achievements", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const { achievements } = await import("@shared/schema");
+      const db = storage.db;
+      const agentId = req.query.agentId as string;
+
+      let userAchievements;
+      if (agentId) {
+        // Get specific agent's achievements
+        userAchievements = await db.select().from(achievements)
+          .where(eq(achievements.agentId, agentId))
+          .orderBy(desc(achievements.earnedAt));
+      } else {
+        // Get current user's achievements
+        userAchievements = await db.select().from(achievements)
+          .where(eq(achievements.agentId, req.user.id))
+          .orderBy(desc(achievements.earnedAt));
+      }
+
+      res.json(userAchievements);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/achievements", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Only admins can manually award achievements
+      const hasPermission = await storage.hasPermission(req.user.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
+      }
+
+      const { insertAchievementSchema, achievements } = await import("@shared/schema");
+      const validated = insertAchievementSchema.parse(req.body);
+
+      const db = storage.db;
+      const [newAchievement] = await db.insert(achievements).values(validated).returning();
+
+      res.json(newAchievement);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==================== PHASE 7: ENHANCED AUDIT TRAIL ====================
+
+  // Audit Reports with advanced filtering and export
+  app.get("/api/audit/reports", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Only admins can view audit reports
+      const hasPermission = await storage.hasPermission(req.user.id, 'audit.view');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
+      }
+
+      const { auditLogs } = await import("@shared/schema");
+      const db = storage.db;
+
+      // Parse filters
+      const userId = req.query.userId as string;
+      const actionType = req.query.actionType as string;
+      const targetType = req.query.targetType as string;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : null;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : null;
+      const exportFormat = req.query.export as string; // 'csv' or undefined
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      // Build query conditions
+      const conditions: any[] = [];
+
+      if (userId) {
+        conditions.push(eq(auditLogs.userId, userId));
+      }
+
+      if (actionType) {
+        conditions.push(eq(auditLogs.action, actionType as any));
+      }
+
+      if (targetType) {
+        conditions.push(eq(auditLogs.targetType, targetType));
+      }
+
+      if (startDate) {
+        conditions.push(gte(auditLogs.createdAt, startDate));
+      }
+
+      if (endDate) {
+        conditions.push(lte(auditLogs.createdAt, endDate));
+      }
+
+      // Fetch audit logs
+      let query = db.select().from(auditLogs);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const logs = await query
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Get user details for each log
+      const enrichedLogs = await Promise.all(
+        logs.map(async (log) => {
+          let user = null;
+          if (log.userId) {
+            user = await storage.getUser(log.userId);
+          }
+
+          return {
+            ...log,
+            userName: user ? user.name : 'System',
+            userEmail: user ? user.email : null,
+          };
+        })
+      );
+
+      // If CSV export requested
+      if (exportFormat === 'csv') {
+        const csvHeader = 'Date,Time,User,Email,Action,Target Type,Target ID,IP Address,Details\n';
+        const csvRows = enrichedLogs.map(log => {
+          const date = new Date(log.createdAt);
+          const dateStr = date.toLocaleDateString();
+          const timeStr = date.toLocaleTimeString();
+          const details = log.details ? JSON.stringify(log.details).replace(/"/g, '""') : '';
+          
+          return `"${dateStr}","${timeStr}","${log.userName}","${log.userEmail || ''}","${log.action}","${log.targetType || ''}","${log.targetId || ''}","${log.ipAddress || ''}","${details}"`;
+        }).join('\n');
+
+        const csv = csvHeader + csvRows;
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="audit-report-${new Date().toISOString()}.csv"`);
+        return res.send(csv);
+      }
+
+      // Get total count for pagination
+      let countQuery = db.select({ count: sql<number>`count(*)` }).from(auditLogs);
+      if (conditions.length > 0) {
+        countQuery = countQuery.where(and(...conditions)) as any;
+      }
+      const [{ count: total }] = await countQuery;
+
+      res.json({
+        logs: enrichedLogs,
+        pagination: {
+          total: Number(total),
+          limit,
+          offset,
+          hasMore: offset + logs.length < Number(total),
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Leaderboard
+  app.get("/api/leaderboard", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const { achievements, performanceTargets, users: usersTable } = await import("@shared/schema");
+      const db = storage.db;
+
+      const period = (req.query.period as string) || 'monthly';
+      const teamId = req.query.teamId as string;
+
+      // Calculate date range based on period
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (period) {
+        case 'daily':
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'weekly':
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'quarterly':
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 3);
+          break;
+        case 'monthly':
+        default:
+          startDate = new Date(now);
+          startDate.setMonth(now.getMonth() - 1);
+          break;
+      }
+
+      // Get achievements in period
+      let achievementsQuery = db.select({
+        agentId: achievements.agentId,
+        totalPoints: sql<number>`SUM(${achievements.points})`,
+        achievementCount: sql<number>`COUNT(*)`,
+      })
+      .from(achievements)
+      .where(gte(achievements.earnedAt, startDate))
+      .groupBy(achievements.agentId);
+
+      // Get targets progress
+      let targetsQuery = db.select({
+        agentId: performanceTargets.agentId,
+        targetsMet: sql<number>`SUM(CASE WHEN ${performanceTargets.currentValue} >= ${performanceTargets.targetValue} THEN 1 ELSE 0 END)`,
+        totalTargets: sql<number>`COUNT(*)`,
+      })
+      .from(performanceTargets)
+      .where(and(
+        gte(performanceTargets.startDate, startDate),
+        eq(performanceTargets.isActive, true),
+        isNull(performanceTargets.teamId) // Only individual targets
+      ))
+      .groupBy(performanceTargets.agentId);
+
+      const achievementsData = await achievementsQuery;
+      const targetsData = await targetsQuery;
+
+      // Get user details and combine data
+      const allUsers = await storage.getUsers();
+      
+      const leaderboardData = allUsers
+        .filter(u => u.type === 'user' && (!teamId || u.teamId === teamId))
+        .map(user => {
+          const userAchievements = achievementsData.find(a => a.agentId === user.id);
+          const userTargets = targetsData.find(t => t.agentId === user.id);
+
+          return {
+            agentId: user.id,
+            agentName: user.name,
+            team: user.teamId,
+            totalPoints: Number(userAchievements?.totalPoints || 0),
+            achievementCount: Number(userAchievements?.achievementCount || 0),
+            targetsMet: Number(userTargets?.targetsMet || 0),
+            totalTargets: Number(userTargets?.totalTargets || 0),
+            targetCompletionRate: userTargets?.totalTargets 
+              ? ((Number(userTargets.targetsMet) / Number(userTargets.totalTargets)) * 100).toFixed(1)
+              : '0',
+          };
+        })
+        .sort((a, b) => b.totalPoints - a.totalPoints);
+
+      res.json({
+        period,
+        startDate: startDate.toISOString(),
+        endDate: now.toISOString(),
+        leaderboard: leaderboardData,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

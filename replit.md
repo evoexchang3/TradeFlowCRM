@@ -54,17 +54,26 @@ Preferred communication style: Simple, everyday language.
     -   **Saved Filter Presets**: Complete CRUD system with saved_filters table for storing user-specific filter configurations. Backend API (4 endpoints: GET all, POST create, PATCH update, DELETE). Support for default filter per user with automatic application on page load.
     -   **Global Search Page**: Full-featured search interface at /search/global with advanced filter form, results table displaying client details (name, email, status, team, agent, KYC status, FTD info), saved preset management with star/unstar for defaults, and pagination controls.
     -   **Header Quick Search**: Omnipresent search input in header with live autocomplete (shows top 5 results), client navigation on result click, and "View All Results" link that navigates to global search with query parameter pre-populated. Implements click-outside-to-close and loading states for optimal UX.
+14. **Performance Targets & Gamification (Task 13)**:
+    -   **Database Schema**: performance_targets table with target metrics (FTD count, volume, revenue) by period (daily/weekly/monthly/quarterly), achievements table with badge/streak/milestone/level types, and targetPeriodEnum/achievementTypeEnum enums.
+    -   **Backend API**: /api/targets CRUD endpoints with Zod validation, /api/achievements endpoints for tracking, /api/leaderboard endpoint with agent/team/period filtering and ranking logic.
+    -   **Leaderboard Page**: Gamification UI with period filters, top 3 podium display, rankings table showing achievements and performance metrics, visual badges, and responsive design.
+15. **Enhanced Audit Trail (Task 14)**:
+    -   **Advanced Filtering**: /api/audit/reports endpoint with multi-criteria filtering (userId, actionType from auditActionEnum, targetType, date range) and pagination support.
+    -   **CSV Export**: Export functionality with proper parameter passing for filtered audit logs.
+    -   **Audit Report Viewer**: Enhanced page with filter form, results table with color-coded action badges (create/edit/delete), drill-down details dialog, and pagination. **Bug Fix**: Corrected ACTION_TYPES to match backend auditActionEnum (e.g., 'client_edit' not 'client_update', 'trade_create' not 'order_create') to prevent filtering/export breakage.
+    -   **Navigation**: Added Leaderboard to main menu (all roles), Audit Reports to management menu (admin only).
 
 ### Data Schema
--   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings, SMTP Settings, Payment Providers, Saved Filters.
--   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N), Teams to Parent Teams (hierarchical), Clients to KYC Responses (1:N), Saved Filters to Users (N:1).
+-   **Core Entities**: Users, Clients, Accounts, Subaccounts, Orders, Positions, Transactions, Roles & Permissions, Teams (with hierarchy), Audit Logs, API Keys, Market Data, Symbol Groups, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Chat Messages, Affiliates, Affiliate Referrals, Custom Statuses, KYC Questions, KYC Responses, Template Variables, Security Settings, SMTP Settings, Payment Providers, Saved Filters, Performance Targets, Achievements.
+-   **Key Relationships**: Clients to Accounts (1:1), Clients to Agents/Teams, Accounts to Subaccounts (1:N), Subaccounts to Orders/Positions (1:N), Users to Roles/Teams, Chat Rooms to Chat Messages (1:N), Affiliates to Affiliate Referrals (1:N), Teams to Parent Teams (hierarchical), Clients to KYC Responses (1:N), Saved Filters to Users (N:1), Performance Targets to Users (N:1), Achievements to Users (N:1).
 
 ### Navigation Structure
 The application sidebar is organized into four main sections:
 
-1. **Main Menu**: Core operations including Dashboard, Client views (Sales/Retention/All), Global Search, Trading views (Symbols, Groups, CFD Accounts, Positions), Trading terminal, Transactions, Calendar, Sales Dashboard, Affiliates, and Chat.
+1. **Main Menu**: Core operations including Dashboard, Client views (Sales/Retention/All), Global Search, Trading views (Symbols, Groups, CFD Accounts, Positions), Trading terminal, Transactions, Calendar, Sales Dashboard, Affiliates, Chat, and Leaderboard.
 
-2. **Management**: Administrative tools including User Management, Roles & Permissions, Teams, API Keys, Import/Export Data, Audit Logs, and Email Templates. Role-based access control restricts visibility to authorized users.
+2. **Management**: Administrative tools including User Management, Roles & Permissions, Teams, API Keys, Import/Export Data, Audit Logs, Audit Reports, and Email Templates. Role-based access control restricts visibility to authorized users.
 
 3. **Configuration** (Admin-only): Advanced system settings including:
    - Organizational Hierarchy (team structure and commission splits)
