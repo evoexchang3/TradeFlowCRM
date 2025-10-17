@@ -5186,11 +5186,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const db = storage.db;
-      const allTeams = await db.select().from(teams);
+      const allTeams = await storage.getAllTeams();
       
-      res.json(allTeams);
+      // Build hierarchical tree structure
+      const teamMap = new Map();
+      const rootTeams: any[] = [];
+      
+      // First pass: create map of all teams
+      allTeams.forEach(team => {
+        teamMap.set(team.id, { ...team, children: [] });
+      });
+      
+      // Second pass: build tree structure
+      allTeams.forEach(team => {
+        const teamNode = teamMap.get(team.id);
+        if (team.parentTeamId) {
+          const parent = teamMap.get(team.parentTeamId);
+          if (parent) {
+            parent.children.push(teamNode);
+          } else {
+            // Parent not found, treat as root
+            rootTeams.push(teamNode);
+          }
+        } else {
+          // No parent, this is a root team
+          rootTeams.push(teamNode);
+        }
+      });
+      
+      res.json(rootTeams);
     } catch (error: any) {
+      console.error('[Hierarchy Tree Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
