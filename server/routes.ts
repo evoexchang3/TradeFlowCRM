@@ -24,6 +24,7 @@ import {
   emailTemplates,
   chatRooms,
   chatMessages,
+  clientComments,
   affiliates,
   affiliateReferrals,
   smtpSettings,
@@ -36,7 +37,7 @@ import {
   insertSmartAssignmentSettingSchema,
   users
 } from "@shared/schema";
-import { eq, or, and, isNull, sql } from "drizzle-orm";
+import { eq, or, and, isNull, sql, desc } from "drizzle-orm";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -538,16 +539,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clients = clients.filter(c => c.assignedAgentId === user.id);
       }
 
-      // Enrich clients with agent, team, and account information
+      // Get last comments for all clients in one query
+      const clientIds = clients.map(c => c.id);
+      const lastCommentsByClient = new Map();
+      
+      if (clientIds.length > 0) {
+        const lastCommentsQuery = await db
+          .select({
+            clientId: clientComments.clientId,
+            text: clientComments.text,
+            createdAt: clientComments.createdAt,
+          })
+          .from(clientComments)
+          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .orderBy(desc(clientComments.createdAt));
+
+        // Group comments by client ID and get the most recent one
+        for (const comment of lastCommentsQuery) {
+          if (!lastCommentsByClient.has(comment.clientId)) {
+            lastCommentsByClient.set(comment.clientId, {
+              text: comment.text,
+              date: comment.createdAt,
+            });
+          }
+        }
+      }
+
+      // Enrich clients with agent, team, account, and comment information
       const enrichedClients = await Promise.all(clients.map(async (client) => {
         const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
         const team = client.teamId ? await storage.getTeam(client.teamId) : null;
         const account = await storage.getAccountByClientId(client.id);
+        const lastComment = lastCommentsByClient.get(client.id);
+        
         return {
           ...client,
           assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
           team: team ? { id: team.id, name: team.name } : null,
           account: account || null,
+          lastCommentDate: lastComment?.date || null,
+          lastCommentPreview: lastComment?.text ? (lastComment.text.length > 50 ? lastComment.text.substring(0, 50) + '...' : lastComment.text) : null,
+          registrationDate: client.createdAt,
         };
       }));
 
@@ -585,17 +617,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Enrich with agent, team, account info
+      // Get last comments for all clients in one query
+      const clientIds = salesClients.map(c => c.id);
+      const lastCommentsByClient = new Map();
+      
+      if (clientIds.length > 0) {
+        const lastCommentsQuery = await db
+          .select({
+            clientId: clientComments.clientId,
+            text: clientComments.text,
+            createdAt: clientComments.createdAt,
+          })
+          .from(clientComments)
+          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .orderBy(desc(clientComments.createdAt));
+
+        // Group comments by client ID and get the most recent one
+        for (const comment of lastCommentsQuery) {
+          if (!lastCommentsByClient.has(comment.clientId)) {
+            lastCommentsByClient.set(comment.clientId, {
+              text: comment.text,
+              date: comment.createdAt,
+            });
+          }
+        }
+      }
+
+      // Enrich with agent, team, account, and comment info
       const enriched = await Promise.all(salesClients.map(async (client) => {
         const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
         const team = client.teamId ? await storage.getTeam(client.teamId) : null;
         const account = await storage.getAccountByClientId(client.id);
+        const lastComment = lastCommentsByClient.get(client.id);
+        
         return {
           ...client,
           name: `${client.firstName} ${client.lastName}`,
           assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
           team: team ? { id: team.id, name: team.name } : null,
           account: account || null,
+          lastCommentDate: lastComment?.date || null,
+          lastCommentPreview: lastComment?.text ? (lastComment.text.length > 50 ? lastComment.text.substring(0, 50) + '...' : lastComment.text) : null,
+          registrationDate: client.createdAt,
         };
       }));
 
@@ -632,17 +695,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Enrich with agent, team, account info
+      // Get last comments for all clients in one query
+      const clientIds = retentionClients.map(c => c.id);
+      const lastCommentsByClient = new Map();
+      
+      if (clientIds.length > 0) {
+        const lastCommentsQuery = await db
+          .select({
+            clientId: clientComments.clientId,
+            text: clientComments.text,
+            createdAt: clientComments.createdAt,
+          })
+          .from(clientComments)
+          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .orderBy(desc(clientComments.createdAt));
+
+        // Group comments by client ID and get the most recent one
+        for (const comment of lastCommentsQuery) {
+          if (!lastCommentsByClient.has(comment.clientId)) {
+            lastCommentsByClient.set(comment.clientId, {
+              text: comment.text,
+              date: comment.createdAt,
+            });
+          }
+        }
+      }
+
+      // Enrich with agent, team, account, and comment info
       const enriched = await Promise.all(retentionClients.map(async (client) => {
         const assignedAgent = client.assignedAgentId ? await storage.getUser(client.assignedAgentId) : null;
         const team = client.teamId ? await storage.getTeam(client.teamId) : null;
         const account = await storage.getAccountByClientId(client.id);
+        const lastComment = lastCommentsByClient.get(client.id);
+        
         return {
           ...client,
           name: `${client.firstName} ${client.lastName}`,
           assignedAgent: assignedAgent ? { id: assignedAgent.id, name: assignedAgent.name } : null,
           team: team ? { id: team.id, name: team.name } : null,
           account: account || null,
+          lastCommentDate: lastComment?.date || null,
+          lastCommentPreview: lastComment?.text ? (lastComment.text.length > 50 ? lastComment.text.substring(0, 50) + '...' : lastComment.text) : null,
+          registrationDate: client.createdAt,
         };
       }));
 
