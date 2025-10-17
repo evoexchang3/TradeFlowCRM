@@ -30,9 +30,33 @@ async function seed() {
       console.log('Custom statuses already exist, skipping...');
     }
 
-    // Get the Administrator role
+    // Seed Department-Specific Roles (if they don't exist)
     const roles = await storage.getRoles();
-    const adminRole = roles.find(r => r.name === 'Administrator');
+    const existingRoleNames = roles.map(r => r.name);
+    
+    const departmentRoles = [
+      { name: 'Sales Agent', description: 'Handles sales leads and new client acquisition', permissions: ['client.view', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create'] },
+      { name: 'Retention Agent', description: 'Manages existing clients and retention efforts', permissions: ['client.view', 'client.edit', 'trade.view', 'trade.create'] },
+      { name: 'Sales Team Leader', description: 'Leads sales team and manages sales operations', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'team.view'] },
+      { name: 'Retention Team Leader', description: 'Leads retention team and manages client retention', permissions: ['client.view', 'client.view_all', 'client.edit', 'trade.view', 'trade.create', 'team.view'] },
+    ];
+
+    for (const roleData of departmentRoles) {
+      if (!existingRoleNames.includes(roleData.name)) {
+        await storage.createRole({
+          name: roleData.name,
+          description: roleData.description,
+          permissions: roleData.permissions,
+        });
+        console.log(`✅ Created role: ${roleData.name}`);
+      } else {
+        console.log(`Role ${roleData.name} already exists, skipping...`);
+      }
+    }
+
+    // Get the Administrator role
+    const updatedRoles = await storage.getRoles();
+    const adminRole = updatedRoles.find(r => r.name === 'Administrator');
     
     if (!adminRole) {
       throw new Error('Administrator role not found. Please create roles first.');

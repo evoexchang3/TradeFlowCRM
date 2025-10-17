@@ -44,6 +44,19 @@ function generateAccountNumber(): string {
   return 'ACC' + Date.now() + Math.floor(Math.random() * 1000);
 }
 
+// Helper functions for role checks
+function isAgentRole(roleName: string | undefined): boolean {
+  if (!roleName) return false;
+  const normalized = roleName.toLowerCase();
+  return normalized === 'agent' || normalized === 'sales agent' || normalized === 'retention agent';
+}
+
+function isTeamLeaderRole(roleName: string | undefined): boolean {
+  if (!roleName) return false;
+  const normalized = roleName.toLowerCase();
+  return normalized === 'team leader' || normalized === 'sales team leader' || normalized === 'retention team leader';
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Webhook endpoint MUST come before express.json() to preserve raw body for signature verification
   app.post("/api/webhooks/site", express.raw({ type: 'application/json' }), async (req, res) => {
@@ -523,11 +536,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // No filtering needed
         }
         // Team Leader sees only clients in their team
-        else if (roleName === 'team leader') {
+        else if (isTeamLeaderRole(roleName)) {
           clients = clients.filter(c => c.teamId === user.teamId);
         }
         // Agent sees only clients assigned to them
-        else if (roleName === 'agent') {
+        else if (isAgentRole(roleName)) {
           clients = clients.filter(c => c.assignedAgentId === user.id);
         }
         // Default: if role doesn't match known roles, show only assigned clients
@@ -610,9 +623,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
 
-        if (roleName === 'agent') {
+        if (isAgentRole(roleName)) {
           salesClients = salesClients.filter(c => c.assignedAgentId === user.id);
-        } else if (roleName === 'team leader' && user.teamId) {
+        } else if (isTeamLeaderRole(roleName) && user.teamId) {
           salesClients = salesClients.filter(c => c.teamId === user.teamId);
         }
       }
@@ -688,9 +701,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
 
-        if (roleName === 'agent') {
+        if (isAgentRole(roleName)) {
           retentionClients = retentionClients.filter(c => c.assignedAgentId === user.id);
-        } else if (roleName === 'team leader' && user.teamId) {
+        } else if (isTeamLeaderRole(roleName) && user.teamId) {
           retentionClients = retentionClients.filter(c => c.teamId === user.teamId);
         }
       }
@@ -1315,10 +1328,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ftdFilter = or(eq(clients.hasFTD, false), isNull(clients.hasFTD));
       
       let salesClients;
-      if (roleName === 'agent' && user.teamId) {
+      if (isAgentRole(roleName) && user.teamId) {
         salesClients = await db.select().from(clients)
           .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         salesClients = await db.select().from(clients)
           .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
       } else {
@@ -1356,10 +1369,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ftdFilter = eq(clients.hasFTD, true);
       
       let retentionClients;
-      if (roleName === 'agent' && user.teamId) {
+      if (isAgentRole(roleName) && user.teamId) {
         retentionClients = await db.select().from(clients)
           .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         retentionClients = await db.select().from(clients)
           .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
       } else {
@@ -2015,9 +2028,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             initiatorType = 'admin';
           } else if (roleName === 'crm manager') {
             initiatorType = 'crm_manager';
-          } else if (roleName === 'team leader') {
+          } else if (isTeamLeaderRole(roleName)) {
             initiatorType = 'team_leader';
-          } else if (roleName === 'agent') {
+          } else if (isAgentRole(roleName)) {
             initiatorType = 'agent';
           }
         }
@@ -2340,7 +2353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Role-based filtering
       const roleName = role?.name?.toLowerCase();
-      if (roleName === 'agent' && user.teamId) {
+      if (isAgentRole(roleName) && user.teamId) {
         const filteredPositions = await Promise.all(
           enrichedPositions.filter(async (p) => {
             const account = await storage.getAccount(p.accountId);
@@ -2349,7 +2362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
         return res.json(filteredPositions);
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         const filteredPositions = await Promise.all(
           enrichedPositions.filter(async (p) => {
             const account = await storage.getAccount(p.accountId);
@@ -2402,7 +2415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Role-based filtering
       const roleName = role?.name?.toLowerCase();
-      if (roleName === 'agent' && user.teamId) {
+      if (isAgentRole(roleName) && user.teamId) {
         const filteredPositions = await Promise.all(
           enrichedPositions.filter(async (p) => {
             const account = await storage.getAccount(p.accountId);
@@ -2411,7 +2424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         );
         return res.json(filteredPositions);
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         const filteredPositions = await Promise.all(
           enrichedPositions.filter(async (p) => {
             const account = await storage.getAccount(p.accountId);
@@ -2879,9 +2892,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
 
-        if (roleName === 'team leader') {
+        if (isTeamLeaderRole(roleName)) {
           clients = clients.filter(c => c.teamId === user.teamId);
-        } else if (roleName === 'agent') {
+        } else if (isAgentRole(roleName)) {
           clients = clients.filter(c => c.assignedAgentId === user.id);
         }
       }
@@ -2960,9 +2973,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
 
-        if (roleName === 'team leader') {
+        if (isTeamLeaderRole(roleName)) {
           clients = clients.filter(c => c.teamId === user.teamId);
-        } else if (roleName === 'agent') {
+        } else if (isAgentRole(roleName)) {
           clients = clients.filter(c => c.assignedAgentId === user.id);
         }
       }
@@ -3153,9 +3166,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
 
-        if (roleName === 'team leader') {
+        if (isTeamLeaderRole(roleName)) {
           clients = clients.filter(c => c.teamId === user.teamId);
-        } else if (roleName === 'agent') {
+        } else if (isAgentRole(roleName)) {
           clients = clients.filter(c => c.assignedAgentId === user.id);
         }
       }
@@ -4211,11 +4224,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let accounts = await storage.getAccounts();
       
       // Role-based filtering
-      if (roleName === 'agent' && user.teamId) {
+      if (isAgentRole(roleName) && user.teamId) {
         const teamClients = (await storage.getClients()).filter(c => c.teamId === user.teamId);
         const teamClientIds = new Set(teamClients.map(c => c.id));
         accounts = accounts.filter(a => teamClientIds.has(a.clientId));
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         const teamClients = (await storage.getClients()).filter(c => c.teamId === user.teamId);
         const teamClientIds = new Set(teamClients.map(c => c.id));
         accounts = accounts.filter(a => teamClientIds.has(a.clientId));
@@ -4536,7 +4549,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const roleName = role?.name?.toLowerCase();
       if (roleName === 'agent') {
         query = query.where(eq(calendarEvents.userId, user.id));
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         // Team leaders see their own events and their team's events
         const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
         const userIds = teamUsers.map(u => u.id);
@@ -4952,9 +4965,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all clients based on role
       let allClients = await storage.getClients();
       
-      if (roleName === 'agent' && user.teamId) {
+      if (isAgentRole(roleName) && user.teamId) {
         allClients = allClients.filter(c => c.teamId === user.teamId);
-      } else if (roleName === 'team leader' && user.teamId) {
+      } else if (isTeamLeaderRole(roleName) && user.teamId) {
         allClients = allClients.filter(c => c.teamId === user.teamId);
       }
 
