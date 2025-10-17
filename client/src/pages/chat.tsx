@@ -179,7 +179,7 @@ export default function Chat() {
   });
 
   const createRoomMutation = useMutation({
-    mutationFn: (data: RoomFormData) => apiRequest('/api/chat/rooms', 'POST', data),
+    mutationFn: (data: RoomFormData) => apiRequest('POST', '/api/chat/rooms', data),
     onSuccess: (newRoom: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });
       toast({ title: "Success", description: "Chat room created successfully" });
@@ -196,7 +196,7 @@ export default function Chat() {
 
   const sendMessageMutation = useMutation({
     mutationFn: (data: { roomId: string; message: string }) =>
-      apiRequest(`/api/chat/rooms/${data.roomId}/messages`, 'POST', { message: data.message }),
+      apiRequest('POST', `/api/chat/rooms/${data.roomId}/messages`, { message: data.message }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms', selectedRoomId, 'messages'] });
       setMessageText("");
@@ -208,7 +208,7 @@ export default function Chat() {
 
   const markReadMutation = useMutation({
     mutationFn: (messageId: string) =>
-      apiRequest(`/api/chat/messages/${messageId}/read`, 'PATCH', {}),
+      apiRequest('PATCH', `/api/chat/messages/${messageId}/read`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms', selectedRoomId, 'messages'] });
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });

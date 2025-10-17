@@ -4840,6 +4840,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.body.userId || user.id,
         clientId: req.body.clientId || null,
         eventType: req.body.eventType,
+        status: req.body.status || 'scheduled',
+        location: req.body.location || null,
       }).returning();
 
       await storage.createAuditLog({

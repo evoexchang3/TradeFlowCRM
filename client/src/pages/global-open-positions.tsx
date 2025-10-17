@@ -76,7 +76,7 @@ export default function GlobalOpenPositions() {
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const { toast } = useToast();
   
-  const { data: positions, isLoading } = useQuery({
+  const { data: positions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/positions/all/open'],
   });
 
@@ -108,11 +108,7 @@ export default function GlobalOpenPositions() {
         processedData.unrealizedPnl = parseFloat(data.unrealizedPnl).toString();
       }
       
-      return apiRequest(`/api/positions/${selectedPosition.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(processedData),
-      });
+      return apiRequest('PATCH', `/api/positions/${selectedPosition.id}`, processedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });
@@ -133,9 +129,7 @@ export default function GlobalOpenPositions() {
 
   const deleteMutation = useMutation({
     mutationFn: async (positionId: string) => {
-      return apiRequest(`/api/positions/${positionId}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/positions/${positionId}`, undefined);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });

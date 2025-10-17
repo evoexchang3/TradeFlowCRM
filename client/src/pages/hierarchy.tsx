@@ -173,7 +173,7 @@ export default function Hierarchy() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: TeamFormData) => apiRequest('/api/teams', 'POST', data),
+    mutationFn: (data: TeamFormData) => apiRequest('POST', '/api/teams', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/hierarchy/tree'] });
       queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
