@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Notification {
   id: string;
@@ -26,6 +27,7 @@ interface Notification {
 }
 
 export function NotificationBell() {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
 
   const { data: response } = useQuery<{ notifications: Notification[]; unreadCount: number }>({
@@ -125,7 +127,7 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent className="w-96 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">Notifications</h3>
+          <h3 className="font-semibold">{t('notifications.title')}</h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -134,7 +136,7 @@ export function NotificationBell() {
               data-testid="button-mark-all-read"
             >
               <Check className="h-4 w-4 mr-2" />
-              Mark all as read
+              {t('notifications.mark.all.read')}
             </Button>
           )}
         </div>
@@ -194,7 +196,7 @@ export function NotificationBell() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-12">
               <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No notifications</p>
+              <p className="text-muted-foreground">{t('notifications.no.notifications')}</p>
             </div>
           )}
         </ScrollArea>

@@ -19,6 +19,11 @@ export const nl = {
   'common.back': 'Terug',
   'common.next': 'Volgende',
   'common.previous': 'Vorige',
+  'common.previous.page': 'Ga naar vorige pagina',
+  'common.next.page': 'Ga naar volgende pagina',
+  'common.more.pages': 'Meer pagina\'s',
+  'common.previous.slide': 'Vorige dia',
+  'common.next.slide': 'Volgende dia',
   'common.yes': 'Ja',
   'common.no': 'Nee',
   'common.actions': 'Acties',
@@ -61,6 +66,7 @@ export const nl = {
   'common.total.count': 'Totaal: {{count}}',
   'common.page.of': 'Pagina {{current}} van {{total}}',
   'common.showing': 'Weergave {{from}}-{{to}} van {{total}}',
+  'common.searching': 'Zoeken...',
 
   // Navigation
   'nav.dashboard': 'Dashboard',
@@ -993,6 +999,9 @@ export const nl = {
   // Global Search
   'global.search.title': 'Globaal Klanten Zoeken',
   'global.search.subtitle': 'Geavanceerd zoeken met filters',
+  'search.quick.placeholder': 'Snel klanten zoeken...',
+  'search.view.all.results': 'Alle resultaten weergeven voor',
+  'search.no.clients': 'Geen klanten gevonden',
   'global.search.query': 'Zoekopdracht',
   'global.search.advanced.filters': 'Geavanceerde Filters',
   'global.search.saved.filters': 'Opgeslagen Filters',
@@ -1007,6 +1016,11 @@ export const nl = {
   'global.search.ftd.status': 'FTD Status',
   'global.search.has.ftd': 'Heeft FTD',
   'global.search.no.ftd': 'Geen FTD',
+
+  // Notifications
+  'notifications.title': 'Meldingen',
+  'notifications.mark.all.read': 'Alles markeren als gelezen',
+  'notifications.no.notifications': 'Geen meldingen',
 
   // Not Found
   'notfound.title': '404 Pagina Niet Gevonden',

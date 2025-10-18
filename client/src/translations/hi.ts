@@ -19,6 +19,11 @@ export const hi = {
   'common.back': 'वापस',
   'common.next': 'अगला',
   'common.previous': 'पिछला',
+  'common.previous.page': 'पिछले पृष्ठ पर जाएं',
+  'common.next.page': 'अगले पृष्ठ पर जाएं',
+  'common.more.pages': 'अधिक पृष्ठ',
+  'common.previous.slide': 'पिछली स्लाइड',
+  'common.next.slide': 'अगली स्लाइड',
   'common.yes': 'हाँ',
   'common.no': 'नहीं',
   'common.actions': 'कार्रवाई',
@@ -61,6 +66,7 @@ export const hi = {
   'common.total.count': 'कुल: {{count}}',
   'common.page.of': 'पृष्ठ {{current}} का {{total}}',
   'common.showing': '{{total}} में से {{from}}-{{to}} दिखाया जा रहा है',
+  'common.searching': 'खोज रहा है...',
 
   // Navigation
   'nav.dashboard': 'डैशबोर्ड',
@@ -983,6 +989,9 @@ export const hi = {
   // Global Search
   'global.search.title': 'वैश्विक ग्राहक खोज',
   'global.search.subtitle': 'फ़िल्टर के साथ उन्नत खोज',
+  'search.quick.placeholder': 'ग्राहकों की त्वरित खोज...',
+  'search.view.all.results': 'सभी परिणाम देखें',
+  'search.no.clients': 'कोई ग्राहक नहीं मिला',
   'global.search.query': 'खोज क्वेरी',
   'global.search.advanced.filters': 'उन्नत फ़िल्टर',
   'global.search.saved.filters': 'सहेजे गए फ़िल्टर',
@@ -997,6 +1006,11 @@ export const hi = {
   'global.search.ftd.status': 'एफटीडी स्थिति',
   'global.search.has.ftd': 'एफटीडी है',
   'global.search.no.ftd': 'कोई एफटीडी नहीं',
+
+  // Notifications
+  'notifications.title': 'सूचनाएं',
+  'notifications.mark.all.read': 'सभी को पढ़ा हुआ चिह्नित करें',
+  'notifications.no.notifications': 'कोई सूचना नहीं',
 
   // Not Found
   'notfound.title': '404 पृष्ठ नहीं मिला',

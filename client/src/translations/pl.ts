@@ -19,6 +19,11 @@ export const pl = {
   'common.back': 'Wstecz',
   'common.next': 'Dalej',
   'common.previous': 'Poprzedni',
+  'common.previous.page': 'Przejdź do poprzedniej strony',
+  'common.next.page': 'Przejdź do następnej strony',
+  'common.more.pages': 'Więcej stron',
+  'common.previous.slide': 'Poprzedni slajd',
+  'common.next.slide': 'Następny slajd',
   'common.yes': 'Tak',
   'common.no': 'Nie',
   'common.actions': 'Akcje',
@@ -61,6 +66,7 @@ export const pl = {
   'common.total.count': 'Suma: {{count}}',
   'common.page.of': 'Strona {{current}} z {{total}}',
   'common.showing': 'Wyświetlanie {{from}}-{{to}} z {{total}}',
+  'common.searching': 'Wyszukiwanie...',
 
   // Navigation
   'nav.dashboard': 'Panel główny',
@@ -993,6 +999,9 @@ export const pl = {
   // Global Search
   'global.search.title': 'Globalne wyszukiwanie klientów',
   'global.search.subtitle': 'Zaawansowane wyszukiwanie z filtrami',
+  'search.quick.placeholder': 'Szybkie wyszukiwanie klientów...',
+  'search.view.all.results': 'Zobacz wszystkie wyniki dla',
+  'search.no.clients': 'Nie znaleziono klientów',
   'global.search.query': 'Zapytanie wyszukiwania',
   'global.search.advanced.filters': 'Filtry zaawansowane',
   'global.search.saved.filters': 'Zapisane filtry',
@@ -1007,6 +1016,11 @@ export const pl = {
   'global.search.ftd.status': 'Status FTD',
   'global.search.has.ftd': 'Posiada FTD',
   'global.search.no.ftd': 'Brak FTD',
+
+  // Notifications
+  'notifications.title': 'Powiadomienia',
+  'notifications.mark.all.read': 'Oznacz wszystkie jako przeczytane',
+  'notifications.no.notifications': 'Brak powiadomień',
 
   // Not Found
   'notfound.title': '404 Strona nie znaleziona',

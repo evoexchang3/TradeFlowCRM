@@ -19,6 +19,11 @@ export const zh = {
   'common.back': '返回',
   'common.next': '下一步',
   'common.previous': '上一步',
+  'common.previous.page': '转到上一页',
+  'common.next.page': '转到下一页',
+  'common.more.pages': '更多页面',
+  'common.previous.slide': '上一张幻灯片',
+  'common.next.slide': '下一张幻灯片',
   'common.yes': '是',
   'common.no': '否',
   'common.actions': '操作',
@@ -61,6 +66,7 @@ export const zh = {
   'common.total.count': '总计：{{count}}',
   'common.page.of': '第 {{current}} 页，共 {{total}} 页',
   'common.showing': '显示 {{from}}-{{to}}，共 {{total}} 条',
+  'common.searching': '搜索中...',
 
   // Navigation
   'nav.dashboard': '仪表板',
@@ -993,6 +999,9 @@ export const zh = {
   // Global Search
   'global.search.title': '全局客户搜索',
   'global.search.subtitle': '带筛选的高级搜索',
+  'search.quick.placeholder': '快速搜索客户...',
+  'search.view.all.results': '查看所有结果',
+  'search.no.clients': '未找到客户',
   'global.search.query': '搜索查询',
   'global.search.advanced.filters': '高级筛选',
   'global.search.saved.filters': '已保存筛选',
@@ -1007,6 +1016,11 @@ export const zh = {
   'global.search.ftd.status': '首存状态',
   'global.search.has.ftd': '有首存',
   'global.search.no.ftd': '无首存',
+
+  // Notifications
+  'notifications.title': '通知',
+  'notifications.mark.all.read': '全部标记为已读',
+  'notifications.no.notifications': '无通知',
 
   // Not Found
   'notfound.title': '404 页面未找到',

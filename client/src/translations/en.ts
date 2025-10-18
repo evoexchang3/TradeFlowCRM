@@ -19,6 +19,11 @@ export const en = {
   'common.back': 'Back',
   'common.next': 'Next',
   'common.previous': 'Previous',
+  'common.previous.page': 'Go to previous page',
+  'common.next.page': 'Go to next page',
+  'common.more.pages': 'More pages',
+  'common.previous.slide': 'Previous slide',
+  'common.next.slide': 'Next slide',
   'common.yes': 'Yes',
   'common.no': 'No',
   'common.actions': 'Actions',
@@ -65,6 +70,7 @@ export const en = {
   'common.suspended': 'Suspended',
   'common.saving': 'Saving...',
   'common.cannot.undo': 'This action cannot be undone.',
+  'common.searching': 'Searching...',
 
   // Navigation
   'nav.dashboard': 'Dashboard',
@@ -2228,6 +2234,9 @@ export const en = {
   // Global Search / Search
   'search.title': 'Global Client Search',
   'search.subtitle': 'Search across all clients with advanced filters',
+  'search.quick.placeholder': 'Quick search clients...',
+  'search.view.all.results': 'View all results for',
+  'search.no.clients': 'No clients found',
   'search.saved.filters': 'Saved Filters',
   'search.set.as.default': 'Set as Default',
   'search.advanced.filters': 'Advanced Filters',
@@ -2265,6 +2274,11 @@ export const en = {
   'search.filter.deleted': 'Filter deleted successfully',
   'search.filter.updated': 'Default filter updated',
   'search.filter.name.required': 'Please enter a filter name',
+
+  // Notifications
+  'notifications.title': 'Notifications',
+  'notifications.mark.all.read': 'Mark all as read',
+  'notifications.no.notifications': 'No notifications',
 
   // Not Found
   'notfound.title': '404 Page Not Found',

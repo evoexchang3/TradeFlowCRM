@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { Client } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function HeaderSearch() {
+  const { t } = useLanguage();
   const [, setLocation] = useLocation();
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +67,7 @@ export function HeaderSearch() {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Quick search clients..."
+          placeholder={t('search.quick.placeholder')}
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
           className="pl-9 pr-4"
@@ -80,7 +82,7 @@ export function HeaderSearch() {
         <div className="absolute top-full mt-1 w-full bg-popover border rounded-md shadow-lg z-50 max-h-80 overflow-auto">
           {searchMutation.isPending ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              Searching...
+              {t('common.searching')}
             </div>
           ) : results.length > 0 ? (
             <>
@@ -109,13 +111,13 @@ export function HeaderSearch() {
                   className="w-full px-4 py-2 text-sm text-primary hover-elevate active-elevate-2 text-center"
                   data-testid="button-view-all-results"
                 >
-                  View all results for "{query}"
+                  {t('search.view.all.results')} "{query}"
                 </button>
               </div>
             </>
           ) : (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              No clients found
+              {t('search.no.clients')}
             </div>
           )}
         </div>

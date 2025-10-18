@@ -19,6 +19,11 @@ export const ko = {
   'common.back': '뒤로',
   'common.next': '다음',
   'common.previous': '이전',
+  'common.previous.page': '이전 페이지로 이동',
+  'common.next.page': '다음 페이지로 이동',
+  'common.more.pages': '더 많은 페이지',
+  'common.previous.slide': '이전 슬라이드',
+  'common.next.slide': '다음 슬라이드',
   'common.yes': '예',
   'common.no': '아니오',
   'common.actions': '작업',
@@ -61,6 +66,7 @@ export const ko = {
   'common.total.count': '총: {{count}}',
   'common.page.of': '{{current}} / {{total}} 페이지',
   'common.showing': '{{total}}개 중 {{from}}-{{to}}개 표시',
+  'common.searching': '검색 중...',
 
   // Navigation
   'nav.dashboard': '대시보드',
@@ -983,6 +989,9 @@ export const ko = {
   // Global Search
   'global.search.title': '글로벌 고객 검색',
   'global.search.subtitle': '필터가 있는 고급 검색',
+  'search.quick.placeholder': '빠른 고객 검색...',
+  'search.view.all.results': '모든 결과 보기',
+  'search.no.clients': '고객을 찾을 수 없음',
   'global.search.query': '검색어',
   'global.search.advanced.filters': '고급 필터',
   'global.search.saved.filters': '저장된 필터',
@@ -997,6 +1006,11 @@ export const ko = {
   'global.search.ftd.status': 'FTD 상태',
   'global.search.has.ftd': 'FTD 있음',
   'global.search.no.ftd': 'FTD 없음',
+
+  // Notifications
+  'notifications.title': '알림',
+  'notifications.mark.all.read': '모두 읽음으로 표시',
+  'notifications.no.notifications': '알림 없음',
 
   // Not Found
   'notfound.title': '404 페이지를 찾을 수 없습니다',

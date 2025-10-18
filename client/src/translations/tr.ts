@@ -19,6 +19,11 @@ export const tr = {
   'common.back': 'Geri',
   'common.next': 'İleri',
   'common.previous': 'Önceki',
+  'common.previous.page': 'Önceki sayfaya git',
+  'common.next.page': 'Sonraki sayfaya git',
+  'common.more.pages': 'Daha fazla sayfa',
+  'common.previous.slide': 'Önceki slayt',
+  'common.next.slide': 'Sonraki slayt',
   'common.yes': 'Evet',
   'common.no': 'Hayır',
   'common.actions': 'İşlemler',
@@ -61,6 +66,7 @@ export const tr = {
   'common.total.count': 'Toplam: {{count}}',
   'common.page.of': 'Sayfa {{current}} / {{total}}',
   'common.showing': '{{from}}-{{to}} arası gösteriliyor (Toplam: {{total}})',
+  'common.searching': 'Aranıyor...',
 
   // Navigation
   'nav.dashboard': 'Kontrol Paneli',
@@ -993,6 +999,9 @@ export const tr = {
   // Global Search
   'global.search.title': 'Global Müşteri Arama',
   'global.search.subtitle': 'Filtrelerle gelişmiş arama',
+  'search.quick.placeholder': 'Hızlı müşteri araması...',
+  'search.view.all.results': 'Tüm sonuçları göster',
+  'search.no.clients': 'Müşteri bulunamadı',
   'global.search.query': 'Arama sorgusu',
   'global.search.advanced.filters': 'Gelişmiş Filtreler',
   'global.search.saved.filters': 'Kayıtlı Filtreler',
@@ -1007,6 +1016,11 @@ export const tr = {
   'global.search.ftd.status': 'İlk Para Yatırma Durumu',
   'global.search.has.ftd': 'İlk Para Yatırma Var',
   'global.search.no.ftd': 'İlk Para Yatırma Yok',
+
+  // Notifications
+  'notifications.title': 'Bildirimler',
+  'notifications.mark.all.read': 'Tümünü okundu olarak işaretle',
+  'notifications.no.notifications': 'Bildirim yok',
 
   // Not Found
   'notfound.title': '404 Sayfa Bulunamadı',

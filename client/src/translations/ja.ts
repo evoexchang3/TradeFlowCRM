@@ -19,6 +19,11 @@ export const ja = {
   'common.back': '戻る',
   'common.next': '次へ',
   'common.previous': '前へ',
+  'common.previous.page': '前のページへ',
+  'common.next.page': '次のページへ',
+  'common.more.pages': 'さらにページ',
+  'common.previous.slide': '前のスライド',
+  'common.next.slide': '次のスライド',
   'common.yes': 'はい',
   'common.no': 'いいえ',
   'common.actions': '操作',
@@ -61,6 +66,7 @@ export const ja = {
   'common.total.count': '合計: {{count}}',
   'common.page.of': 'ページ {{current}} / {{total}}',
   'common.showing': '{{total}}件中 {{from}}-{{to}}件を表示',
+  'common.searching': '検索中...',
 
   // Navigation
   'nav.dashboard': 'ダッシュボード',
@@ -983,6 +989,9 @@ export const ja = {
   // Global Search
   'global.search.title': 'グローバル顧客検索',
   'global.search.subtitle': 'フィルター付き高度検索',
+  'search.quick.placeholder': '顧客をクイック検索...',
+  'search.view.all.results': 'すべての結果を表示',
+  'search.no.clients': '顧客が見つかりません',
   'global.search.query': '検索クエリ',
   'global.search.advanced.filters': '高度なフィルター',
   'global.search.saved.filters': '保存済みフィルター',
@@ -997,6 +1006,11 @@ export const ja = {
   'global.search.ftd.status': 'FTDステータス',
   'global.search.has.ftd': 'FTD有り',
   'global.search.no.ftd': 'FTD無し',
+
+  // Notifications
+  'notifications.title': '通知',
+  'notifications.mark.all.read': 'すべて既読にする',
+  'notifications.no.notifications': '通知はありません',
 
   // Not Found
   'notfound.title': '404 ページが見つかりません',

@@ -19,6 +19,11 @@ export const it = {
   'common.back': 'Indietro',
   'common.next': 'Avanti',
   'common.previous': 'Precedente',
+  'common.previous.page': 'Vai alla pagina precedente',
+  'common.next.page': 'Vai alla pagina successiva',
+  'common.more.pages': 'Altre pagine',
+  'common.previous.slide': 'Diapositiva precedente',
+  'common.next.slide': 'Diapositiva successiva',
   'common.yes': 'Sì',
   'common.no': 'No',
   'common.actions': 'Azioni',
@@ -61,6 +66,7 @@ export const it = {
   'common.total.count': 'Totale: {{count}}',
   'common.page.of': 'Pagina {{current}} di {{total}}',
   'common.showing': 'Visualizzazione di {{from}}-{{to}} di {{total}}',
+  'common.searching': 'Ricerca in corso...',
 
   // Navigation
   'nav.dashboard': 'Dashboard',
@@ -993,6 +999,9 @@ export const it = {
   // Global Search
   'global.search.title': 'Ricerca Globale Clienti',
   'global.search.subtitle': 'Ricerca avanzata con filtri',
+  'search.quick.placeholder': 'Ricerca rapida clienti...',
+  'search.view.all.results': 'Visualizza tutti i risultati per',
+  'search.no.clients': 'Nessun cliente trovato',
   'global.search.query': 'Query di ricerca',
   'global.search.advanced.filters': 'Filtri Avanzati',
   'global.search.saved.filters': 'Filtri Salvati',
@@ -1007,6 +1016,11 @@ export const it = {
   'global.search.ftd.status': 'Stato FTD',
   'global.search.has.ftd': 'Ha FTD',
   'global.search.no.ftd': 'Nessun FTD',
+
+  // Notifications
+  'notifications.title': 'Notifiche',
+  'notifications.mark.all.read': 'Segna tutto come letto',
+  'notifications.no.notifications': 'Nessuna notifica',
 
   // Not Found
   'notfound.title': '404 Pagina Non Trovata',

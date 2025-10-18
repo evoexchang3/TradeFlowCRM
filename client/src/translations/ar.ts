@@ -19,6 +19,11 @@ export const ar = {
   'common.back': 'رجوع',
   'common.next': 'التالي',
   'common.previous': 'السابق',
+  'common.previous.page': 'الانتقال إلى الصفحة السابقة',
+  'common.next.page': 'الانتقال إلى الصفحة التالية',
+  'common.more.pages': 'المزيد من الصفحات',
+  'common.previous.slide': 'الشريحة السابقة',
+  'common.next.slide': 'الشريحة التالية',
   'common.yes': 'نعم',
   'common.no': 'لا',
   'common.actions': 'إجراءات',
@@ -61,6 +66,7 @@ export const ar = {
   'common.total.count': 'المجموع: {{count}}',
   'common.page.of': 'صفحة {{current}} من {{total}}',
   'common.showing': 'عرض {{from}}-{{to}} من {{total}}',
+  'common.searching': 'جارٍ البحث...',
 
   // Navigation
   'nav.dashboard': 'لوحة التحكم',
@@ -983,6 +989,9 @@ export const ar = {
   // Global Search
   'global.search.title': 'البحث الشامل عن العملاء',
   'global.search.subtitle': 'بحث متقدم مع التصفية',
+  'search.quick.placeholder': 'بحث سريع عن العملاء...',
+  'search.view.all.results': 'عرض جميع النتائج لـ',
+  'search.no.clients': 'لم يتم العثور على عملاء',
   'global.search.query': 'استعلام البحث',
   'global.search.advanced.filters': 'تصفية متقدمة',
   'global.search.saved.filters': 'التصفيات المحفوظة',
@@ -997,6 +1006,11 @@ export const ar = {
   'global.search.ftd.status': 'حالة الإيداع الأول',
   'global.search.has.ftd': 'لديه إيداع أول',
   'global.search.no.ftd': 'ليس لديه إيداع أول',
+
+  // Notifications
+  'notifications.title': 'الإشعارات',
+  'notifications.mark.all.read': 'وضع علامة على الكل كمقروء',
+  'notifications.no.notifications': 'لا توجد إشعارات',
 
   // Not Found
   'notfound.title': 'الصفحة غير موجودة 404',

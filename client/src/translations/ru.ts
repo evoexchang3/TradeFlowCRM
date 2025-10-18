@@ -19,6 +19,11 @@ export const ru = {
   'common.back': 'Назад',
   'common.next': 'Далее',
   'common.previous': 'Предыдущий',
+  'common.previous.page': 'Перейти на предыдущую страницу',
+  'common.next.page': 'Перейти на следующую страницу',
+  'common.more.pages': 'Больше страниц',
+  'common.previous.slide': 'Предыдущий слайд',
+  'common.next.slide': 'Следующий слайд',
   'common.yes': 'Да',
   'common.no': 'Нет',
   'common.actions': 'Действия',
@@ -61,6 +66,7 @@ export const ru = {
   'common.total.count': 'Всего: {{count}}',
   'common.page.of': 'Страница {{current}} из {{total}}',
   'common.showing': 'Показано {{from}}-{{to}} из {{total}}',
+  'common.searching': 'Поиск...',
 
   // Navigation
   'nav.dashboard': 'Панель управления',
@@ -993,6 +999,9 @@ export const ru = {
   // Global Search
   'global.search.title': 'Глобальный поиск клиентов',
   'global.search.subtitle': 'Расширенный поиск с фильтрами',
+  'search.quick.placeholder': 'Быстрый поиск клиентов...',
+  'search.view.all.results': 'Показать все результаты для',
+  'search.no.clients': 'Клиенты не найдены',
   'global.search.query': 'Поисковый запрос',
   'global.search.advanced.filters': 'Расширенные фильтры',
   'global.search.saved.filters': 'Сохраненные фильтры',
@@ -1007,6 +1016,11 @@ export const ru = {
   'global.search.ftd.status': 'Статус FTD',
   'global.search.has.ftd': 'Имеет FTD',
   'global.search.no.ftd': 'Нет FTD',
+
+  // Notifications
+  'notifications.title': 'Уведомления',
+  'notifications.mark.all.read': 'Отметить все как прочитанные',
+  'notifications.no.notifications': 'Нет уведомлений',
 
   // Not Found
   'notfound.title': '404 Страница не найдена',

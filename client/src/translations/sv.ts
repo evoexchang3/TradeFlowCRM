@@ -19,6 +19,11 @@ export const sv = {
   'common.back': 'Tillbaka',
   'common.next': 'Nästa',
   'common.previous': 'Föregående',
+  'common.previous.page': 'Gå till föregående sida',
+  'common.next.page': 'Gå till nästa sida',
+  'common.more.pages': 'Fler sidor',
+  'common.previous.slide': 'Föregående bild',
+  'common.next.slide': 'Nästa bild',
   'common.yes': 'Ja',
   'common.no': 'Nej',
   'common.actions': 'Åtgärder',
@@ -61,6 +66,7 @@ export const sv = {
   'common.total.count': 'Totalt: {{count}}',
   'common.page.of': 'Sida {{current}} av {{total}}',
   'common.showing': 'Visar {{from}}-{{to}} av {{total}}',
+  'common.searching': 'Söker...',
 
   // Navigation
   'nav.dashboard': 'Instrumentpanel',
@@ -993,6 +999,9 @@ export const sv = {
   // Global Search
   'global.search.title': 'Global kundsökning',
   'global.search.subtitle': 'Avancerad sökning med filter',
+  'search.quick.placeholder': 'Snabbsökning kunder...',
+  'search.view.all.results': 'Visa alla resultat för',
+  'search.no.clients': 'Inga kunder hittades',
   'global.search.query': 'Sökfråga',
   'global.search.advanced.filters': 'Avancerade filter',
   'global.search.saved.filters': 'Sparade filter',
@@ -1007,6 +1016,11 @@ export const sv = {
   'global.search.ftd.status': 'FTD-status',
   'global.search.has.ftd': 'Har FTD',
   'global.search.no.ftd': 'Ingen FTD',
+
+  // Notifications
+  'notifications.title': 'Meddelanden',
+  'notifications.mark.all.read': 'Markera alla som lästa',
+  'notifications.no.notifications': 'Inga meddelanden',
 
   // Not Found
   'notfound.title': '404 Sidan hittades inte',
