@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -23,6 +24,7 @@ export default function SmtpSettings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSetting, setEditingSetting] = useState<any>(null);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const { data: settings = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/smtp-settings'],
@@ -49,12 +51,12 @@ export default function SmtpSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
-      toast({ title: "Success", description: "SMTP setting created successfully" });
+      toast({ title: t('common.success'), description: t('smtp.created.success') });
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -65,13 +67,13 @@ export default function SmtpSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
-      toast({ title: "Success", description: "SMTP setting updated successfully" });
+      toast({ title: t('common.success'), description: t('smtp.updated.success') });
       setEditingSetting(null);
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -82,10 +84,10 @@ export default function SmtpSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/smtp-settings'] });
-      toast({ title: "Success", description: "SMTP setting deleted successfully" });
+      toast({ title: t('common.success'), description: t('smtp.deleted.success') });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -113,7 +115,7 @@ export default function SmtpSettings() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this SMTP setting?")) {
+    if (confirm(t('smtp.delete.confirm'))) {
       deleteMutation.mutate(id as any);
     }
   };
@@ -128,20 +130,20 @@ export default function SmtpSettings() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">SMTP Settings</h1>
-          <p className="text-muted-foreground mt-1">Configure email delivery settings</p>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('smtp.title')}</h1>
+          <p className="text-muted-foreground mt-1">{t('smtp.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-smtp">
               <Plus className="h-4 w-4 mr-2" />
-              Add SMTP Configuration
+              {t('smtp.add.configuration')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle data-testid="text-dialog-title">
-                {editingSetting ? "Edit SMTP Configuration" : "Add SMTP Configuration"}
+                {editingSetting ? t('smtp.edit.configuration') : t('smtp.add.configuration')}
               </DialogTitle>
             </DialogHeader>
             <Form {...form}>
@@ -152,9 +154,9 @@ export default function SmtpSettings() {
                     name="host"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>SMTP Host</FormLabel>
+                        <FormLabel>{t('smtp.host')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="smtp.example.com" {...field} data-testid="input-host" />
+                          <Input placeholder={t('smtp.host.placeholder')} {...field} data-testid="input-host" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -166,11 +168,11 @@ export default function SmtpSettings() {
                     name="port"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Port</FormLabel>
+                        <FormLabel>{t('smtp.port')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
-                            placeholder="587" 
+                            placeholder={t('smtp.port.placeholder')} 
                             {...field} 
                             onChange={(e) => field.onChange(parseInt(e.target.value))}
                             data-testid="input-port" 
@@ -188,9 +190,9 @@ export default function SmtpSettings() {
                     name="username"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel>{t('smtp.username')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="user@example.com" {...field} data-testid="input-username" />
+                          <Input placeholder={t('smtp.username.placeholder')} {...field} data-testid="input-username" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -202,9 +204,9 @@ export default function SmtpSettings() {
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Password</FormLabel>
+                        <FormLabel>{t('smtp.password')}</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} data-testid="input-password" />
+                          <Input type="password" placeholder={t('smtp.password.placeholder')} {...field} data-testid="input-password" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -218,9 +220,9 @@ export default function SmtpSettings() {
                     name="fromEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>From Email</FormLabel>
+                        <FormLabel>{t('smtp.from.email')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="noreply@example.com" {...field} data-testid="input-from-email" />
+                          <Input placeholder={t('smtp.from.email.placeholder')} {...field} data-testid="input-from-email" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -232,9 +234,9 @@ export default function SmtpSettings() {
                     name="fromName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>From Name</FormLabel>
+                        <FormLabel>{t('smtp.from.name')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Trading Platform" {...field} data-testid="input-from-name" />
+                          <Input placeholder={t('smtp.from.name.placeholder')} {...field} data-testid="input-from-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -249,9 +251,9 @@ export default function SmtpSettings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-3">
                         <div className="space-y-0.5">
-                          <FormLabel>Use TLS/SSL</FormLabel>
+                          <FormLabel>{t('smtp.use.tls')}</FormLabel>
                           <FormDescription className="text-xs">
-                            Enable secure connection
+                            {t('smtp.use.tls.description')}
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -271,9 +273,9 @@ export default function SmtpSettings() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-3">
                         <div className="space-y-0.5">
-                          <FormLabel>Active</FormLabel>
+                          <FormLabel>{t('common.active')}</FormLabel>
                           <FormDescription className="text-xs">
-                            Enable this configuration
+                            {t('smtp.enable.configuration')}
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -290,14 +292,14 @@ export default function SmtpSettings() {
 
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={handleDialogClose} data-testid="button-cancel">
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-submit"
                   >
-                    {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                    {createMutation.isPending || updateMutation.isPending ? t('common.saving') : t('common.save')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -307,13 +309,13 @@ export default function SmtpSettings() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8">{t('common.loading')}</div>
       ) : settings.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Server className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No SMTP configurations found</p>
-            <p className="text-sm text-muted-foreground mt-1">Add your first SMTP configuration to send emails</p>
+            <p className="text-muted-foreground">{t('smtp.no.configurations')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('smtp.no.configurations.description')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -339,16 +341,16 @@ export default function SmtpSettings() {
                     {setting.isActive ? (
                       <Badge variant="default" className="gap-1" data-testid={`badge-status-${setting.id}`}>
                         <Check className="h-3 w-3" />
-                        Active
+                        {t('common.active')}
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="gap-1" data-testid={`badge-status-${setting.id}`}>
                         <X className="h-3 w-3" />
-                        Inactive
+                        {t('common.inactive')}
                       </Badge>
                     )}
                     {setting.useTLS && (
-                      <Badge variant="outline">TLS/SSL</Badge>
+                      <Badge variant="outline">{t('smtp.security.tls.ssl')}</Badge>
                     )}
                   </div>
                 </div>
@@ -357,12 +359,12 @@ export default function SmtpSettings() {
                 <div className="flex items-center justify-between">
                   <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Username:</span>
+                      <span className="text-muted-foreground">{t('smtp.username')}:</span>
                       <span className="ml-2 font-medium">{setting.username}</span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Security:</span>
-                      <span className="ml-2 font-medium">{setting.useTLS ? 'TLS/SSL' : 'None'}</span>
+                      <span className="text-muted-foreground">{t('smtp.security')}:</span>
+                      <span className="ml-2 font-medium">{setting.useTLS ? t('smtp.security.tls.ssl') : t('smtp.security.none')}</span>
                     </div>
                   </div>
                   <div className="flex gap-2">

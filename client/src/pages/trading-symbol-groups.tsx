@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,17 +47,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, FolderOpen } from "lucide-react";
 
-const groupFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  displayName: z.string().min(1, "Display name is required"),
-  description: z.string().optional(),
-  defaultSpread: z.string().optional(),
-  defaultLeverage: z.coerce.number().optional(),
-  sortOrder: z.coerce.number().default(0),
-  isActive: z.boolean().default(true),
-});
-
-type GroupFormData = z.infer<typeof groupFormSchema>;
+type GroupFormData = {
+  name: string;
+  displayName: string;
+  description?: string;
+  defaultSpread?: string;
+  defaultLeverage?: number;
+  sortOrder: number;
+  isActive: boolean;
+};
 
 interface SymbolGroup {
   id: string;
@@ -72,17 +71,16 @@ interface SymbolGroup {
 
 export default function TradingSymbolGroupsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<SymbolGroup | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<SymbolGroup | null>(null);
 
-  // Fetch symbol groups
   const { data: groups = [], isLoading } = useQuery<SymbolGroup[]>({
     queryKey: ["/api/symbol-groups"],
   });
 
-  // Create group mutation
   const createMutation = useMutation({
     mutationFn: async (data: GroupFormData) => {
       return await apiRequest("POST", "/api/symbol-groups", data);
@@ -90,21 +88,20 @@ export default function TradingSymbolGroupsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbol-groups"] });
       toast({
-        title: "Group Created",
-        description: "Symbol group has been created successfully.",
+        title: t('symbolGroups.toast.created.title'),
+        description: t('symbolGroups.toast.created.description'),
       });
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create group",
+        title: t('common.error'),
+        description: error.message || t('symbolGroups.toast.create.failed'),
         variant: "destructive",
       });
     },
   });
 
-  // Update group mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<GroupFormData> }) => {
       return await apiRequest("PATCH", `/api/symbol-groups/${id}`, data);
@@ -112,21 +109,20 @@ export default function TradingSymbolGroupsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbol-groups"] });
       toast({
-        title: "Group Updated",
-        description: "Symbol group has been updated successfully.",
+        title: t('symbolGroups.toast.updated.title'),
+        description: t('symbolGroups.toast.updated.description'),
       });
       setEditingGroup(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update group",
+        title: t('common.error'),
+        description: error.message || t('symbolGroups.toast.update.failed'),
         variant: "destructive",
       });
     },
   });
 
-  // Delete group mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/symbol-groups/${id}`);
@@ -134,15 +130,15 @@ export default function TradingSymbolGroupsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbol-groups"] });
       toast({
-        title: "Group Deleted",
-        description: "Symbol group has been deleted successfully.",
+        title: t('symbolGroups.toast.deleted.title'),
+        description: t('symbolGroups.toast.deleted.description'),
       });
       setDeletingGroup(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete group",
+        title: t('common.error'),
+        description: error.message || t('symbolGroups.toast.delete.failed'),
         variant: "destructive",
       });
     },
@@ -152,28 +148,27 @@ export default function TradingSymbolGroupsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">
-            Symbol Groups
+            {t('symbolGroups.title')}
           </h1>
           <p className="text-muted-foreground">
-            Organize trading symbols into categories
+            {t('symbolGroups.subtitle')}
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-group">
               <Plus className="w-4 h-4 mr-2" />
-              Add Group
+              {t('symbolGroups.add.group')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Symbol Group</DialogTitle>
+              <DialogTitle>{t('symbolGroups.add.new.title')}</DialogTitle>
               <DialogDescription>
-                Create a new category for organizing trading symbols
+                {t('symbolGroups.add.new.description')}
               </DialogDescription>
             </DialogHeader>
             <GroupForm
@@ -184,25 +179,24 @@ export default function TradingSymbolGroupsPage() {
         </Dialog>
       </div>
 
-      {/* Groups Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Default Spread</TableHead>
-              <TableHead>Default Leverage</TableHead>
-              <TableHead>Order</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t('symbolGroups.table.name')}</TableHead>
+              <TableHead>{t('symbolGroups.table.description')}</TableHead>
+              <TableHead>{t('symbolGroups.table.default.spread')}</TableHead>
+              <TableHead>{t('symbolGroups.table.default.leverage')}</TableHead>
+              <TableHead>{t('symbolGroups.table.order')}</TableHead>
+              <TableHead>{t('symbolGroups.table.status')}</TableHead>
+              <TableHead className="text-right">{t('symbolGroups.table.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8">
-                  Loading groups...
+                  {t('symbolGroups.loading')}
                 </TableCell>
               </TableRow>
             ) : sortedGroups.length === 0 ? (
@@ -210,9 +204,9 @@ export default function TradingSymbolGroupsPage() {
                 <TableCell colSpan={7} className="text-center py-8">
                   <div className="flex flex-col items-center gap-2">
                     <FolderOpen className="w-12 h-12 text-muted-foreground" />
-                    <p className="text-muted-foreground">No symbol groups yet</p>
+                    <p className="text-muted-foreground">{t('symbolGroups.empty.title')}</p>
                     <Button onClick={() => setIsAddDialogOpen(true)} size="sm">
-                      Create First Group
+                      {t('symbolGroups.empty.button')}
                     </Button>
                   </div>
                 </TableCell>
@@ -234,15 +228,15 @@ export default function TradingSymbolGroupsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {group.defaultSpread ? `${group.defaultSpread} pips` : "-"}
+                    {group.defaultSpread ? `${group.defaultSpread} ${t('symbolGroups.pips')}` : "-"}
                   </TableCell>
                   <TableCell>
-                    {group.defaultLeverage ? `${group.defaultLeverage}:1` : "-"}
+                    {group.defaultLeverage ? `${group.defaultLeverage}${t('symbolGroups.leverage.ratio')}` : "-"}
                   </TableCell>
                   <TableCell>{group.sortOrder}</TableCell>
                   <TableCell>
                     <Badge variant={group.isActive ? "default" : "secondary"}>
-                      {group.isActive ? "Active" : "Inactive"}
+                      {group.isActive ? t('common.active') : t('common.inactive')}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -272,14 +266,13 @@ export default function TradingSymbolGroupsPage() {
         </Table>
       </div>
 
-      {/* Edit Dialog */}
       {editingGroup && (
         <Dialog open={!!editingGroup} onOpenChange={() => setEditingGroup(null)}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit Symbol Group</DialogTitle>
+              <DialogTitle>{t('symbolGroups.edit.title')}</DialogTitle>
               <DialogDescription>
-                Update the configuration for {editingGroup.name}
+                {t('symbolGroups.edit.description', { name: editingGroup.name })}
               </DialogDescription>
             </DialogHeader>
             <GroupForm
@@ -293,29 +286,27 @@ export default function TradingSymbolGroupsPage() {
         </Dialog>
       )}
 
-      {/* Delete Confirmation */}
       <AlertDialog
         open={!!deletingGroup}
         onOpenChange={() => setDeletingGroup(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Symbol Group?</AlertDialogTitle>
+            <AlertDialogTitle>{t('symbolGroups.delete.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deletingGroup?.name}? Symbols in this
-              group will not be deleted, but will be ungrouped.
+              {t('symbolGroups.delete.description', { name: deletingGroup?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete">
-              Cancel
+              {t('common.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingGroup && deleteMutation.mutate(deletingGroup.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -324,7 +315,6 @@ export default function TradingSymbolGroupsPage() {
   );
 }
 
-// Group Form Component
 function GroupForm({
   defaultValues,
   onSubmit,
@@ -334,6 +324,18 @@ function GroupForm({
   onSubmit: (data: GroupFormData) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
+
+  const groupFormSchema = z.object({
+    name: z.string().min(1, t('symbolGroups.validation.name.required')),
+    displayName: z.string().min(1, t('symbolGroups.validation.display.name.required')),
+    description: z.string().optional(),
+    defaultSpread: z.string().optional(),
+    defaultLeverage: z.coerce.number().optional(),
+    sortOrder: z.coerce.number().default(0),
+    isActive: z.boolean().default(true),
+  });
+
   const form = useForm<GroupFormData>({
     resolver: zodResolver(groupFormSchema),
     defaultValues: {
@@ -356,9 +358,9 @@ function GroupForm({
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name *</FormLabel>
+              <FormLabel>{t('symbolGroups.form.name.label')}</FormLabel>
               <FormControl>
-                <Input placeholder="forex-majors" {...field} data-testid="input-name" />
+                <Input placeholder={t('symbolGroups.form.name.placeholder')} {...field} data-testid="input-name" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -370,9 +372,9 @@ function GroupForm({
           name="displayName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Display Name *</FormLabel>
+              <FormLabel>{t('symbolGroups.form.display.name.label')}</FormLabel>
               <FormControl>
-                <Input placeholder="Forex Majors" {...field} data-testid="input-display-name" />
+                <Input placeholder={t('symbolGroups.form.display.name.placeholder')} {...field} data-testid="input-display-name" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -384,10 +386,10 @@ function GroupForm({
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{t('symbolGroups.form.description.label')}</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Major currency pairs with high liquidity"
+                  placeholder={t('symbolGroups.form.description.placeholder')}
                   {...field}
                   data-testid="input-description"
                 />
@@ -403,9 +405,9 @@ function GroupForm({
             name="defaultSpread"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Default Spread (pips)</FormLabel>
+                <FormLabel>{t('symbolGroups.form.default.spread.label')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="2.5" {...field} data-testid="input-default-spread" />
+                  <Input placeholder={t('symbolGroups.form.default.spread.placeholder')} {...field} data-testid="input-default-spread" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -416,11 +418,11 @@ function GroupForm({
             name="defaultLeverage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Default Leverage</FormLabel>
+                <FormLabel>{t('symbolGroups.form.default.leverage.label')}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
-                    placeholder="100"
+                    placeholder={t('symbolGroups.form.default.leverage.placeholder')}
                     {...field}
                     onChange={(e) => field.onChange(parseInt(e.target.value) || 100)}
                     data-testid="input-default-leverage"
@@ -437,11 +439,11 @@ function GroupForm({
           name="sortOrder"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Display Order</FormLabel>
+              <FormLabel>{t('symbolGroups.form.display.order.label')}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
-                  placeholder="0"
+                  placeholder={t('symbolGroups.form.display.order.placeholder')}
                   {...field}
                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   data-testid="input-sort-order"
@@ -466,7 +468,7 @@ function GroupForm({
                   data-testid="checkbox-is-active"
                 />
               </FormControl>
-              <FormLabel className="!mt-0">Group is active</FormLabel>
+              <FormLabel className="!mt-0">{t('symbolGroups.form.is.active.label')}</FormLabel>
               <FormMessage />
             </FormItem>
           )}
@@ -478,7 +480,7 @@ function GroupForm({
             disabled={isPending}
             data-testid="button-submit-group"
           >
-            {isPending ? "Saving..." : defaultValues ? "Update Group" : "Create Group"}
+            {isPending ? t('common.saving') : defaultValues ? t('symbolGroups.form.update.button') : t('symbolGroups.form.create.button')}
           </Button>
         </div>
       </form>

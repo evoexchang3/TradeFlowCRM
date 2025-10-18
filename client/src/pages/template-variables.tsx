@@ -13,17 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Code, Copy, Check, Trash2, Edit } from "lucide-react";
 import * as z from "zod";
-
-const variableFormSchema = z.object({
-  name: z.string().min(1, "Variable name is required"),
-  variableKey: z.string().min(1, "Variable key is required"),
-  description: z.string().optional(),
-  category: z.string(),
-  defaultValue: z.string().optional(),
-  isSystem: z.boolean().default(false),
-});
-
-type VariableFormData = z.infer<typeof variableFormSchema>;
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TemplateVariable {
   id: string;
@@ -38,6 +28,7 @@ interface TemplateVariable {
 
 function VariableCard({ variable }: { variable: TemplateVariable }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useLanguage();
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(`{{${variable.variableKey}}}`);
@@ -55,7 +46,7 @@ function VariableCard({ variable }: { variable: TemplateVariable }) {
                 {variable.name}
               </CardTitle>
               {variable.isSystem && (
-                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">System</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{t('templateVariables.system')}</span>
               )}
             </div>
             <CardDescription className="text-xs mt-1">
@@ -78,7 +69,7 @@ function VariableCard({ variable }: { variable: TemplateVariable }) {
             </div>
             {variable.defaultValue && (
               <p className="text-xs text-muted-foreground mt-2">
-                Default: {variable.defaultValue}
+                {t('templateVariables.default')} {variable.defaultValue}
               </p>
             )}
           </div>
@@ -92,6 +83,18 @@ export default function TemplateVariables() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { toast } = useToast();
+  const { t } = useLanguage();
+
+  const variableFormSchema = z.object({
+    name: z.string().min(1, t('templateVariables.validation.nameRequired')),
+    variableKey: z.string().min(1, t('templateVariables.validation.keyRequired')),
+    description: z.string().optional(),
+    category: z.string(),
+    defaultValue: z.string().optional(),
+    isSystem: z.boolean().default(false),
+  });
+
+  type VariableFormData = z.infer<typeof variableFormSchema>;
 
   const { data: variables = [], isLoading } = useQuery<TemplateVariable[]>({
     queryKey: ['/api/template-variables'],
@@ -113,12 +116,12 @@ export default function TemplateVariables() {
     mutationFn: (data: VariableFormData) => apiRequest('/api/template-variables', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/template-variables'] });
-      toast({ title: "Success", description: "Variable created successfully" });
+      toast({ title: t('templateVariables.toast.created.title'), description: t('templateVariables.toast.created.description') });
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('templateVariables.toast.error.title'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -135,7 +138,7 @@ export default function TemplateVariables() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Loading template variables...</p>
+        <p className="text-muted-foreground">{t('templateVariables.loading')}</p>
       </div>
     );
   }
@@ -144,19 +147,19 @@ export default function TemplateVariables() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Template Variables</h1>
-          <p className="text-muted-foreground">Manage variables for email and SMS personalization</p>
+          <h1 className="text-3xl font-bold">{t('templateVariables.title')}</h1>
+          <p className="text-muted-foreground">{t('templateVariables.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-variable">
               <Plus className="h-4 w-4 mr-2" />
-              Add Variable
+              {t('templateVariables.addVariable')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Variable</DialogTitle>
+              <DialogTitle>{t('templateVariables.createNew')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -165,12 +168,12 @@ export default function TemplateVariables() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Variable Name</FormLabel>
+                      <FormLabel>{t('templateVariables.variableName')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Client First Name" data-testid="input-variable-name" />
+                        <Input {...field} placeholder={t('templateVariables.variableName.placeholder')} data-testid="input-variable-name" />
                       </FormControl>
                       <FormDescription>
-                        A human-readable name for this variable
+                        {t('templateVariables.variableName.description')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -182,16 +185,16 @@ export default function TemplateVariables() {
                   name="variableKey"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Variable Key</FormLabel>
+                      <FormLabel>{t('templateVariables.variableKey')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="client.firstName"
+                          placeholder={t('templateVariables.variableKey.placeholder')}
                           data-testid="input-variable-key"
                         />
                       </FormControl>
                       <FormDescription>
-                        The key used in templates: {`{{${field.value || 'key'}}}`}
+                        {t('templateVariables.variableKey.description', { key: field.value || 'key' })}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -203,7 +206,7 @@ export default function TemplateVariables() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>{t('templateVariables.category')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-category">
@@ -211,12 +214,12 @@ export default function TemplateVariables() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="client">Client Data</SelectItem>
-                          <SelectItem value="account">Account Data</SelectItem>
-                          <SelectItem value="trading">Trading Data</SelectItem>
-                          <SelectItem value="agent">Agent Data</SelectItem>
-                          <SelectItem value="system">System Data</SelectItem>
-                          <SelectItem value="custom">Custom</SelectItem>
+                          <SelectItem value="client">{t('templateVariables.category.client')}</SelectItem>
+                          <SelectItem value="account">{t('templateVariables.category.account')}</SelectItem>
+                          <SelectItem value="trading">{t('templateVariables.category.trading')}</SelectItem>
+                          <SelectItem value="agent">{t('templateVariables.category.agent')}</SelectItem>
+                          <SelectItem value="system">{t('templateVariables.category.system')}</SelectItem>
+                          <SelectItem value="custom">{t('templateVariables.category.custom')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -229,11 +232,11 @@ export default function TemplateVariables() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
+                      <FormLabel>{t('templateVariables.description.optional')}</FormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
-                          placeholder="What this variable represents"
+                          placeholder={t('templateVariables.description.placeholder')}
                           data-testid="input-description"
                           rows={2}
                         />
@@ -248,11 +251,11 @@ export default function TemplateVariables() {
                   name="defaultValue"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Default Value (Optional)</FormLabel>
+                      <FormLabel>{t('templateVariables.defaultValue')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="Fallback value if data is unavailable"
+                          placeholder={t('templateVariables.defaultValue.placeholder')}
                           data-testid="input-default-value"
                         />
                       </FormControl>
@@ -268,14 +271,14 @@ export default function TemplateVariables() {
                     onClick={() => setIsDialogOpen(false)}
                     data-testid="button-cancel"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     type="submit"
                     disabled={createMutation.isPending}
                     data-testid="button-submit"
                   >
-                    {createMutation.isPending ? "Creating..." : "Create Variable"}
+                    {createMutation.isPending ? t('templateVariables.creating') : t('templateVariables.createVariable')}
                   </Button>
                 </div>
               </form>
@@ -287,19 +290,21 @@ export default function TemplateVariables() {
       <div className="flex items-center gap-2">
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-48" data-testid="select-filter-category">
-            <SelectValue placeholder="Filter by category" />
+            <SelectValue placeholder={t('templateVariables.filterByCategory')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t('templateVariables.allCategories')}</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat} value={cat}>
-                {cat.charAt(0).toUpperCase() + cat.slice(1)} Data
+                {cat.charAt(0).toUpperCase() + cat.slice(1)} {t('common.type')}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <p className="text-sm text-muted-foreground">
-          {filteredVariables.length} variable{filteredVariables.length !== 1 ? 's' : ''}
+          {filteredVariables.length !== 1
+            ? t('templateVariables.variableCountPlural', { count: filteredVariables.length })
+            : t('templateVariables.variableCount', { count: filteredVariables.length })}
         </p>
       </div>
 
@@ -308,8 +313,8 @@ export default function TemplateVariables() {
           <Card className="col-span-2">
             <CardContent className="p-6 text-center text-muted-foreground">
               {selectedCategory === "all"
-                ? "No template variables configured. Create your first variable to get started."
-                : "No variables in this category."}
+                ? t('templateVariables.noVariables')
+                : t('templateVariables.noVariablesInCategory')}
             </CardContent>
           </Card>
         ) : (
@@ -321,19 +326,19 @@ export default function TemplateVariables() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Usage Example</CardTitle>
-          <CardDescription>How to use variables in email templates</CardDescription>
+          <CardTitle className="text-lg">{t('templateVariables.usageExample')}</CardTitle>
+          <CardDescription>{t('templateVariables.usageExample.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="bg-muted p-4 rounded-md font-mono text-sm space-y-2">
-            <p>Hi {`{{client.firstName}}`},</p>
+            <p>{t('templateVariables.usageExample.hi')}</p>
             <p className="mt-2">
-              Your account {`{{account.id}}`} has been successfully created.
+              {t('templateVariables.usageExample.account')}
             </p>
             <p className="mt-2">
-              Current balance: {`{{account.balance}}`}
+              {t('templateVariables.usageExample.balance')}
             </p>
-            <p className="mt-4">Best regards,<br />{`{{agent.name}}`}</p>
+            <p className="mt-4">{t('templateVariables.usageExample.regards')}<br />{`{{agent.name}}`}</p>
           </div>
         </CardContent>
       </Card>

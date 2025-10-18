@@ -12,16 +12,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Shield, Trash2, Edit, Clock, Lock } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import * as z from "zod";
-
-const settingFormSchema = z.object({
-  settingKey: z.string().min(1, "Setting key is required"),
-  settingValue: z.string(),
-  category: z.string(),
-  description: z.string().optional(),
-});
-
-type SettingFormData = z.infer<typeof settingFormSchema>;
 
 interface SecuritySetting {
   id: string;
@@ -94,10 +86,20 @@ function SettingCard({ setting, onEdit, onDelete }: {
 }
 
 export default function SecuritySettings() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSetting, setEditingSetting] = useState<SecuritySetting | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { toast } = useToast();
+
+  const settingFormSchema = z.object({
+    settingKey: z.string().min(1, t('security.validation.key.required')),
+    settingValue: z.string(),
+    category: z.string(),
+    description: z.string().optional(),
+  });
+
+  type SettingFormData = z.infer<typeof settingFormSchema>;
 
   const { data: settings = [], isLoading } = useQuery<SecuritySetting[]>({
     queryKey: ['/api/security-settings'],
@@ -117,12 +119,12 @@ export default function SecuritySettings() {
     mutationFn: (data: SettingFormData) => apiRequest('/api/security-settings', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/security-settings'] });
-      toast({ title: "Success", description: "Security setting created successfully" });
+      toast({ title: t('common.success'), description: t('security.toast.created') });
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -130,13 +132,13 @@ export default function SecuritySettings() {
     mutationFn: ({ id, ...data }: any) => apiRequest(`/api/security-settings/${id}`, 'PATCH', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/security-settings'] });
-      toast({ title: "Success", description: "Security setting updated successfully" });
+      toast({ title: t('common.success'), description: t('security.toast.updated') });
       setEditingSetting(null);
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -144,10 +146,10 @@ export default function SecuritySettings() {
     mutationFn: (id: string) => apiRequest(`/api/security-settings/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/security-settings'] });
-      toast({ title: "Success", description: "Security setting deleted successfully" });
+      toast({ title: t('common.success'), description: t('security.toast.deleted') });
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -179,7 +181,7 @@ export default function SecuritySettings() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this security setting?")) {
+    if (window.confirm(t('security.confirm.delete'))) {
       deleteMutation.mutate(id);
     }
   };
@@ -193,7 +195,7 @@ export default function SecuritySettings() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Loading security settings...</p>
+        <p className="text-muted-foreground">{t('security.loading')}</p>
       </div>
     );
   }
@@ -202,19 +204,19 @@ export default function SecuritySettings() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Security Settings</h1>
-          <p className="text-muted-foreground">Configure IP whitelist, session policies, and 2FA enforcement</p>
+          <h1 className="text-3xl font-bold">{t('security.title')}</h1>
+          <p className="text-muted-foreground">{t('security.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-setting">
               <Plus className="h-4 w-4 mr-2" />
-              Add Setting
+              {t('security.add.setting')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingSetting ? "Edit Security Setting" : "Create Security Setting"}</DialogTitle>
+              <DialogTitle>{editingSetting ? t('security.edit.setting') : t('security.create.setting')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -223,7 +225,7 @@ export default function SecuritySettings() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>{t('security.category')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-category">
@@ -231,11 +233,11 @@ export default function SecuritySettings() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="ip_whitelist">IP Whitelist</SelectItem>
-                          <SelectItem value="session">Session Policy</SelectItem>
-                          <SelectItem value="2fa">2FA Enforcement</SelectItem>
-                          <SelectItem value="password">Password Policy</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="ip_whitelist">{t('security.category.ip.whitelist')}</SelectItem>
+                          <SelectItem value="session">{t('security.category.session')}</SelectItem>
+                          <SelectItem value="2fa">{t('security.category.2fa')}</SelectItem>
+                          <SelectItem value="password">{t('security.category.password')}</SelectItem>
+                          <SelectItem value="other">{t('security.category.other')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -248,12 +250,12 @@ export default function SecuritySettings() {
                   name="settingKey"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Setting Key</FormLabel>
+                      <FormLabel>{t('security.setting.key')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="allowed_ips" data-testid="input-setting-key" />
+                        <Input {...field} placeholder={t('security.placeholder.allowed.ips')} data-testid="input-setting-key" />
                       </FormControl>
                       <FormDescription>
-                        Unique identifier for this setting
+                        {t('security.setting.key.description')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -265,16 +267,16 @@ export default function SecuritySettings() {
                   name="settingValue"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Setting Value</FormLabel>
+                      <FormLabel>{t('security.setting.value')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="192.168.1.1,10.0.0.1"
+                          placeholder={t('security.placeholder.ip.addresses')}
                           data-testid="input-setting-value"
                         />
                       </FormControl>
                       <FormDescription>
-                        The value for this setting (comma-separated for lists)
+                        {t('security.setting.value.description')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -286,11 +288,11 @@ export default function SecuritySettings() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Description (Optional)</FormLabel>
+                      <FormLabel>{t('security.description.optional')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="Allowed IP addresses for admin access"
+                          placeholder={t('security.placeholder.description')}
                           data-testid="input-description"
                         />
                       </FormControl>
@@ -306,7 +308,7 @@ export default function SecuritySettings() {
                     onClick={() => handleDialogClose(false)}
                     data-testid="button-cancel"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     type="submit"
@@ -314,10 +316,10 @@ export default function SecuritySettings() {
                     data-testid="button-submit"
                   >
                     {createMutation.isPending || updateMutation.isPending
-                      ? "Saving..."
+                      ? t('common.saving')
                       : editingSetting
-                      ? "Update Setting"
-                      : "Create Setting"}
+                      ? t('security.update.setting')
+                      : t('security.create.setting.button')}
                   </Button>
                 </div>
               </form>
@@ -329,10 +331,10 @@ export default function SecuritySettings() {
       <div className="flex items-center gap-2">
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-48" data-testid="select-filter-category">
-            <SelectValue placeholder="Filter by category" />
+            <SelectValue placeholder={t('security.filter.by.category')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t('security.all.categories')}</SelectItem>
             {categories.map((cat) => (
               <SelectItem key={cat} value={cat}>
                 {cat.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
@@ -341,7 +343,7 @@ export default function SecuritySettings() {
           </SelectContent>
         </Select>
         <p className="text-sm text-muted-foreground">
-          {filteredSettings.length} setting{filteredSettings.length !== 1 ? 's' : ''}
+          {filteredSettings.length}{filteredSettings.length !== 1 ? t('security.settings') : t('security.setting')}
         </p>
       </div>
 
@@ -350,8 +352,8 @@ export default function SecuritySettings() {
           <Card className="col-span-2">
             <CardContent className="p-6 text-center text-muted-foreground">
               {selectedCategory === "all"
-                ? "No security settings configured. Create your first setting to get started."
-                : "No settings in this category."}
+                ? t('security.no.settings')
+                : t('security.no.settings.category')}
             </CardContent>
           </Card>
         ) : (
@@ -368,24 +370,24 @@ export default function SecuritySettings() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Common Settings</CardTitle>
-          <CardDescription>Examples of security configurations</CardDescription>
+          <CardTitle className="text-lg">{t('security.common.settings')}</CardTitle>
+          <CardDescription>{t('security.examples.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="text-sm">
-            <p className="font-medium">IP Whitelist:</p>
+            <p className="font-medium">{t('security.example.ip.whitelist')}</p>
             <code className="text-xs bg-muted px-2 py-1 rounded">allowed_ips = 192.168.1.1,10.0.0.1</code>
           </div>
           <div className="text-sm">
-            <p className="font-medium">Session Timeout:</p>
+            <p className="font-medium">{t('security.example.session.timeout')}</p>
             <code className="text-xs bg-muted px-2 py-1 rounded">session_timeout_minutes = 30</code>
           </div>
           <div className="text-sm">
-            <p className="font-medium">2FA Required Roles:</p>
+            <p className="font-medium">{t('security.example.2fa.roles')}</p>
             <code className="text-xs bg-muted px-2 py-1 rounded">2fa_required_roles = Administrator,CRM Manager</code>
           </div>
           <div className="text-sm">
-            <p className="font-medium">Password Min Length:</p>
+            <p className="font-medium">{t('security.example.password.length')}</p>
             <code className="text-xs bg-muted px-2 py-1 rounded">password_min_length = 12</code>
           </div>
         </CardContent>

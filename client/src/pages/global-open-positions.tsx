@@ -49,25 +49,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-
-const editPositionSchema = z.object({
-  openPrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-    message: "Open price must be a positive number",
-  }).optional(),
-  closePrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
-    message: "Close price must be a positive number",
-  }).optional(),
-  quantity: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-    message: "Quantity must be a positive number",
-  }).optional(),
-  unrealizedPnl: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
-    message: "Unrealized P/L must be a valid number",
-  }).optional(),
-});
-
-type EditPositionData = z.infer<typeof editPositionSchema>;
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function GlobalOpenPositions() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSymbol, setFilterSymbol] = useState<string>('all');
   const [filterSide, setFilterSide] = useState<string>('all');
@@ -75,6 +60,23 @@ export default function GlobalOpenPositions() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const { toast } = useToast();
+  
+  const editPositionSchema = z.object({
+    openPrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+      message: t('positions.validation.open.price.positive'),
+    }).optional(),
+    closePrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.close.price.positive'),
+    }).optional(),
+    quantity: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+      message: t('positions.validation.quantity.positive'),
+    }).optional(),
+    unrealizedPnl: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
+      message: t('positions.validation.unrealized.pnl.valid'),
+    }).optional(),
+  });
+  
+  type EditPositionData = z.infer<typeof editPositionSchema>;
   
   const { data: positions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/positions/all/open'],
@@ -92,7 +94,6 @@ export default function GlobalOpenPositions() {
 
   const editMutation = useMutation({
     mutationFn: async (data: EditPositionData) => {
-      // Filter out empty values and convert to proper format
       const processedData: Record<string, any> = {};
       
       if (data.openPrice && data.openPrice !== "") {
@@ -114,14 +115,14 @@ export default function GlobalOpenPositions() {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });
       setEditDialogOpen(false);
       toast({
-        title: "Position updated",
-        description: "The position has been successfully updated.",
+        title: t('positions.toast.updated.title'),
+        description: t('positions.toast.updated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update position",
+        title: t('common.error'),
+        description: error.message || t('positions.toast.update.failed'),
         variant: "destructive",
       });
     },
@@ -135,14 +136,14 @@ export default function GlobalOpenPositions() {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });
       setDeleteDialogOpen(false);
       toast({
-        title: "Position deleted",
-        description: "The position has been successfully deleted.",
+        title: t('positions.toast.deleted.title'),
+        description: t('positions.toast.deleted.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete position",
+        title: t('common.error'),
+        description: error.message || t('positions.toast.delete.failed'),
         variant: "destructive",
       });
     },
@@ -210,7 +211,7 @@ export default function GlobalOpenPositions() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading open positions...</p>
+          <p className="text-muted-foreground">{t('positions.loading')}</p>
         </div>
       </div>
     );
@@ -218,41 +219,39 @@ export default function GlobalOpenPositions() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Global Open Positions</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('positions.open.title')}</h1>
           <p className="text-muted-foreground">
-            All active positions across all clients
+            {t('positions.active.across.all.clients')}
           </p>
         </div>
       </div>
 
-      {/* Stats Card */}
       <Card>
         <CardHeader>
-          <CardTitle data-testid="text-stats-title">Position Overview</CardTitle>
+          <CardTitle data-testid="text-stats-title">{t('positions.overview.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Total Positions</p>
+              <p className="text-sm text-muted-foreground">{t('positions.total.positions')}</p>
               <p className="text-2xl font-bold" data-testid="text-total-positions">{filteredPositions?.length || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total P/L</p>
+              <p className="text-sm text-muted-foreground">{t('positions.total.pnl')}</p>
               <p className={`text-2xl font-bold ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-total-pnl">
                 ${totalPnL.toFixed(2)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Buy Positions</p>
+              <p className="text-sm text-muted-foreground">{t('positions.buy.positions')}</p>
               <p className="text-2xl font-bold" data-testid="text-buy-positions">
                 {filteredPositions?.filter((p: any) => p.side === 'buy').length || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Sell Positions</p>
+              <p className="text-sm text-muted-foreground">{t('positions.sell.positions')}</p>
               <p className="text-2xl font-bold" data-testid="text-sell-positions">
                 {filteredPositions?.filter((p: any) => p.side === 'sell').length || 0}
               </p>
@@ -261,14 +260,13 @@ export default function GlobalOpenPositions() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by client, email, or symbol..."
+                placeholder={t('positions.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -277,10 +275,10 @@ export default function GlobalOpenPositions() {
             </div>
             <Select value={filterSymbol} onValueChange={setFilterSymbol}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-symbol-filter">
-                <SelectValue placeholder="All Symbols" />
+                <SelectValue placeholder={t('positions.all.symbols')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Symbols</SelectItem>
+                <SelectItem value="all">{t('positions.all.symbols')}</SelectItem>
                 {uniqueSymbols.map((symbol: any) => (
                   <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
                 ))}
@@ -288,39 +286,38 @@ export default function GlobalOpenPositions() {
             </Select>
             <Select value={filterSide} onValueChange={setFilterSide}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-side-filter">
-                <SelectValue placeholder="All Sides" />
+                <SelectValue placeholder={t('positions.all.sides')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Sides</SelectItem>
-                <SelectItem value="buy">Buy</SelectItem>
-                <SelectItem value="sell">Sell</SelectItem>
+                <SelectItem value="all">{t('positions.all.sides')}</SelectItem>
+                <SelectItem value="buy">{t('positions.buy')}</SelectItem>
+                <SelectItem value="sell">{t('positions.sell')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Positions Table */}
       <Card>
         <CardContent className="pt-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Side</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Open Price</TableHead>
-                <TableHead>Current P/L</TableHead>
-                <TableHead>Opened</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('positions.client')}</TableHead>
+                <TableHead>{t('positions.symbol')}</TableHead>
+                <TableHead>{t('positions.side')}</TableHead>
+                <TableHead>{t('positions.quantity')}</TableHead>
+                <TableHead>{t('positions.open.price')}</TableHead>
+                <TableHead>{t('positions.current.pnl')}</TableHead>
+                <TableHead>{t('positions.opened')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPositions && filteredPositions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
-                    <p className="text-muted-foreground" data-testid="text-no-positions">No open positions found</p>
+                    <p className="text-muted-foreground" data-testid="text-no-positions">{t('positions.no.positions')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -342,9 +339,9 @@ export default function GlobalOpenPositions() {
                       <TableCell>
                         <Badge variant={position.side === 'buy' ? 'default' : 'secondary'} data-testid={`badge-side-${position.id}`}>
                           {position.side === 'buy' ? (
-                            <><TrendingUp className="h-3 w-3 mr-1" /> Buy</>
+                            <><TrendingUp className="h-3 w-3 mr-1" /> {t('positions.buy')}</>
                           ) : (
-                            <><TrendingDown className="h-3 w-3 mr-1" /> Sell</>
+                            <><TrendingDown className="h-3 w-3 mr-1" /> {t('positions.sell')}</>
                           )}
                         </Badge>
                       </TableCell>
@@ -364,10 +361,10 @@ export default function GlobalOpenPositions() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEdit(position)} data-testid={`button-edit-${position.id}`}>
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit Position
+                              {t('positions.edit.position')}
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDelete(position)} 
@@ -375,7 +372,7 @@ export default function GlobalOpenPositions() {
                               data-testid={`button-delete-${position.id}`}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Position
+                              {t('positions.delete.position')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -389,13 +386,12 @@ export default function GlobalOpenPositions() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent data-testid="dialog-edit-position">
           <DialogHeader>
-            <DialogTitle>Edit Position</DialogTitle>
+            <DialogTitle>{t('positions.edit.position')}</DialogTitle>
             <DialogDescription>
-              Update position details for {selectedPosition?.symbol}
+              {t('positions.edit.description', { symbol: selectedPosition?.symbol })}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -405,7 +401,7 @@ export default function GlobalOpenPositions() {
                 name="openPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Open Price</FormLabel>
+                    <FormLabel>{t('positions.open.price')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-open-price" />
                     </FormControl>
@@ -418,7 +414,7 @@ export default function GlobalOpenPositions() {
                 name="quantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quantity</FormLabel>
+                    <FormLabel>{t('positions.quantity')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-quantity" />
                     </FormControl>
@@ -431,7 +427,7 @@ export default function GlobalOpenPositions() {
                 name="unrealizedPnl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Unrealized P/L</FormLabel>
+                    <FormLabel>{t('positions.unrealized.pnl')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-unrealized-pnl" />
                     </FormControl>
@@ -441,10 +437,10 @@ export default function GlobalOpenPositions() {
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit">
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" disabled={editMutation.isPending} data-testid="button-submit-edit">
-                  {editMutation.isPending ? "Updating..." : "Update Position"}
+                  {editMutation.isPending ? t('positions.updating') : t('positions.update.position')}
                 </Button>
               </DialogFooter>
             </form>
@@ -452,23 +448,22 @@ export default function GlobalOpenPositions() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-position">
           <DialogHeader>
-            <DialogTitle>Delete Position</DialogTitle>
+            <DialogTitle>{t('positions.delete.position')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this position? This action cannot be undone.
+              {t('positions.delete.confirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-sm"><strong>Symbol:</strong> {selectedPosition?.symbol}</p>
-            <p className="text-sm"><strong>Client:</strong> {selectedPosition?.clientName}</p>
-            <p className="text-sm"><strong>Quantity:</strong> {selectedPosition?.quantity}</p>
+            <p className="text-sm"><strong>{t('positions.delete.symbol')}</strong> {selectedPosition?.symbol}</p>
+            <p className="text-sm"><strong>{t('positions.delete.client')}</strong> {selectedPosition?.clientName}</p>
+            <p className="text-sm"><strong>{t('positions.delete.quantity')}</strong> {selectedPosition?.quantity}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               variant="destructive" 
@@ -476,7 +471,7 @@ export default function GlobalOpenPositions() {
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete Position"}
+              {deleteMutation.isPending ? t('positions.deleting') : t('positions.delete.position')}
             </Button>
           </DialogFooter>
         </DialogContent>

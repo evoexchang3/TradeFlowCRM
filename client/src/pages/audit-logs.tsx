@@ -20,8 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function AuditLogs() {
+  const { t } = useLanguage();
   const [actionFilter, setActionFilter] = useState("all");
   const [userFilter, setUserFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("week");
@@ -31,28 +33,28 @@ export default function AuditLogs() {
   });
 
   const actionTypes = [
-    { value: 'all', label: 'All Actions' },
-    { value: 'login', label: 'Login' },
-    { value: 'client_create', label: 'Client Create' },
-    { value: 'client_edit', label: 'Client Edit' },
-    { value: 'trade_create', label: 'Trade Create' },
-    { value: 'trade_edit', label: 'Trade Edit' },
-    { value: 'balance_adjust', label: 'Balance Adjust' },
-    { value: 'role_change', label: 'Role Change' },
-    { value: 'impersonation', label: 'Impersonation' },
-    { value: 'import', label: 'Import' },
-    { value: 'export', label: 'Export' },
+    { value: 'all', label: t('audit.all.actions') },
+    { value: 'login', label: t('audit.action.login') },
+    { value: 'client_create', label: t('audit.action.client.create') },
+    { value: 'client_edit', label: t('audit.action.client.edit') },
+    { value: 'trade_create', label: t('audit.action.trade.create') },
+    { value: 'trade_edit', label: t('audit.action.trade.edit') },
+    { value: 'balance_adjust', label: t('audit.action.balance.adjust') },
+    { value: 'role_change', label: t('audit.action.role.change') },
+    { value: 'impersonation', label: t('audit.action.impersonation') },
+    { value: 'import', label: t('audit.action.import') },
+    { value: 'export', label: t('audit.action.export') },
   ];
 
   const getActionBadge = (action: string) => {
     const config: Record<string, { variant: any; label: string }> = {
-      login: { variant: 'default', label: 'Login' },
-      client_create: { variant: 'default', label: 'Client Create' },
-      client_edit: { variant: 'secondary', label: 'Client Edit' },
-      trade_create: { variant: 'default', label: 'Trade Create' },
-      trade_edit: { variant: 'secondary', label: 'Trade Edit' },
-      balance_adjust: { variant: 'destructive', label: 'Balance Adjust' },
-      impersonation: { variant: 'destructive', label: 'Impersonation' },
+      login: { variant: 'default', label: t('audit.action.login') },
+      client_create: { variant: 'default', label: t('audit.action.client.create') },
+      client_edit: { variant: 'secondary', label: t('audit.action.client.edit') },
+      trade_create: { variant: 'default', label: t('audit.action.trade.create') },
+      trade_edit: { variant: 'secondary', label: t('audit.action.trade.edit') },
+      balance_adjust: { variant: 'destructive', label: t('audit.action.balance.adjust') },
+      impersonation: { variant: 'destructive', label: t('audit.action.impersonation') },
     };
     const badgeConfig = config[action] || { variant: 'secondary', label: action };
     return (
@@ -66,14 +68,14 @@ export default function AuditLogs() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-audit-title">Audit Logs</h1>
+          <h1 className="text-2xl font-semibold" data-testid="text-audit-title">{t('audit.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            Track all system activities and changes
+            {t('audit.subtitle.full')}
           </p>
         </div>
         <Button variant="outline" size="sm" data-testid="button-export-logs" className="hover-elevate active-elevate-2">
           <Download className="h-4 w-4 mr-2" />
-          Export Logs
+          {t('audit.export.logs')}
         </Button>
       </div>
 
@@ -98,15 +100,15 @@ export default function AuditLogs() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">Last 7 Days</SelectItem>
-                <SelectItem value="month">Last 30 Days</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="today">{t('audit.date.today')}</SelectItem>
+                <SelectItem value="week">{t('audit.date.last.7.days')}</SelectItem>
+                <SelectItem value="month">{t('audit.date.last.30.days')}</SelectItem>
+                <SelectItem value="all">{t('audit.date.all.time')}</SelectItem>
               </SelectContent>
             </Select>
 
             <Input
-              placeholder="Search by user..."
+              placeholder={t('audit.search.by.user')}
               value={userFilter}
               onChange={(e) => setUserFilter(e.target.value)}
               className="max-w-xs"
@@ -122,12 +124,12 @@ export default function AuditLogs() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>IP Address</TableHead>
+                  <TableHead>{t('audit.timestamp')}</TableHead>
+                  <TableHead>{t('audit.user')}</TableHead>
+                  <TableHead>{t('audit.action')}</TableHead>
+                  <TableHead>{t('audit.target')}</TableHead>
+                  <TableHead>{t('audit.details')}</TableHead>
+                  <TableHead>{t('audit.ip.address')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -143,7 +145,7 @@ export default function AuditLogs() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium text-sm">{log.user?.name || 'System'}</p>
+                        <p className="font-medium text-sm">{log.user?.name || t('audit.system')}</p>
                         <p className="text-xs text-muted-foreground">{log.user?.email}</p>
                       </div>
                     </TableCell>
@@ -168,7 +170,7 @@ export default function AuditLogs() {
                 )) || (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12">
-                      <p className="text-sm text-muted-foreground">No audit logs found</p>
+                      <p className="text-sm text-muted-foreground">{t('audit.no.logs.found')}</p>
                     </TableCell>
                   </TableRow>
                 )}

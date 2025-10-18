@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -22,6 +23,7 @@ const statusSchema = insertCustomStatusSchema;
 type StatusFormData = z.infer<typeof statusSchema>;
 
 export default function CustomStatuses() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState<any>(null);
   const [transitionsText, setTransitionsText] = useState("[]");
@@ -50,14 +52,14 @@ export default function CustomStatuses() {
     mutationFn: (data: StatusFormData) => apiRequest('/api/custom-statuses', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
-      toast({ title: "Success", description: "Status created successfully" });
+      toast({ title: t('common.success'), description: t('customStatuses.toast.created') });
       setTransitionsText("[]");
       setAutomationText("[]");
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -65,7 +67,7 @@ export default function CustomStatuses() {
     mutationFn: ({ id, ...data }: StatusFormData & { id: string }) => apiRequest(`/api/custom-statuses/${id}`, 'PATCH', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
-      toast({ title: "Success", description: "Status updated successfully" });
+      toast({ title: t('common.success'), description: t('customStatuses.toast.updated') });
       setEditingStatus(null);
       setTransitionsText("[]");
       setAutomationText("[]");
@@ -73,7 +75,7 @@ export default function CustomStatuses() {
       form.reset();
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -81,10 +83,10 @@ export default function CustomStatuses() {
     mutationFn: (id: string) => apiRequest(`/api/custom-statuses/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/custom-statuses'] });
-      toast({ title: "Success", description: "Status deleted successfully" });
+      toast({ title: t('common.success'), description: t('customStatuses.toast.deleted') });
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -106,8 +108,8 @@ export default function CustomStatuses() {
       }
     } catch (e) {
       toast({ 
-        title: "Invalid JSON", 
-        description: "Please fix JSON syntax in transitions or automation fields", 
+        title: t('customStatuses.toast.invalidJson'), 
+        description: t('customStatuses.toast.invalidJsonDescription'), 
         variant: "destructive" 
       });
     }
@@ -141,7 +143,7 @@ export default function CustomStatuses() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this status?")) {
+    if (window.confirm(t('customStatuses.confirm.delete'))) {
       deleteMutation.mutate(id);
     }
   };
@@ -150,19 +152,19 @@ export default function CustomStatuses() {
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Custom Statuses</h1>
-          <p className="text-muted-foreground">Define custom client statuses for your workflow</p>
+          <h1 className="text-3xl font-bold">{t('customStatuses.title')}</h1>
+          <p className="text-muted-foreground">{t('customStatuses.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-status">
               <Plus className="h-4 w-4 mr-2" />
-              Add Status
+              {t('customStatuses.addStatus')}
             </Button>
           </DialogTrigger>
           <DialogContent data-testid="dialog-status-form">
             <DialogHeader>
-              <DialogTitle>{editingStatus ? "Edit Status" : "Create New Status"}</DialogTitle>
+              <DialogTitle>{editingStatus ? t('customStatuses.editStatus') : t('customStatuses.createNewStatus')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -171,9 +173,9 @@ export default function CustomStatuses() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Name</FormLabel>
+                      <FormLabel>{t('customStatuses.form.name')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., Hot Lead" data-testid="input-status-name" />
+                        <Input {...field} placeholder={t('customStatuses.form.namePlaceholder')} data-testid="input-status-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -185,11 +187,11 @@ export default function CustomStatuses() {
                   name="color"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Color</FormLabel>
+                      <FormLabel>{t('customStatuses.form.color')}</FormLabel>
                       <FormControl>
                         <div className="flex gap-2">
                           <Input type="color" {...field} data-testid="input-status-color" className="w-20" />
-                          <Input {...field} placeholder="#3b82f6" className="flex-1" />
+                          <Input {...field} placeholder={t('customStatuses.form.colorPlaceholder')} className="flex-1" />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -202,18 +204,18 @@ export default function CustomStatuses() {
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>{t('customStatuses.form.category')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-status-category">
-                            <SelectValue placeholder="Select category" />
+                            <SelectValue placeholder={t('customStatuses.form.categoryPlaceholder')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="sales">Sales</SelectItem>
-                          <SelectItem value="retention">Retention</SelectItem>
-                          <SelectItem value="kyc">KYC</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="sales">{t('customStatuses.form.category.sales')}</SelectItem>
+                          <SelectItem value="retention">{t('customStatuses.form.category.retention')}</SelectItem>
+                          <SelectItem value="kyc">{t('customStatuses.form.category.kyc')}</SelectItem>
+                          <SelectItem value="other">{t('customStatuses.form.category.other')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -226,9 +228,9 @@ export default function CustomStatuses() {
                   name="icon"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Icon (Lucide icon name)</FormLabel>
+                      <FormLabel>{t('customStatuses.form.icon')}</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ""} placeholder="e.g., Star, Check, AlertCircle" data-testid="input-status-icon" />
+                        <Input {...field} value={field.value || ""} placeholder={t('customStatuses.form.iconPlaceholder')} data-testid="input-status-icon" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -240,7 +242,7 @@ export default function CustomStatuses() {
                   name="sortOrder"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sort Order</FormLabel>
+                      <FormLabel>{t('customStatuses.form.sortOrder')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -259,7 +261,7 @@ export default function CustomStatuses() {
                   name="allowedTransitions"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Allowed Transitions (JSON array of status IDs)</FormLabel>
+                      <FormLabel>{t('customStatuses.form.allowedTransitions')}</FormLabel>
                       <FormControl>
                         <Textarea 
                           value={transitionsText}
@@ -270,13 +272,13 @@ export default function CustomStatuses() {
                               field.onChange(parsed);
                             } catch (e) {
                               toast({ 
-                                title: "Invalid JSON", 
-                                description: "Transitions must be valid JSON array", 
+                                title: t('customStatuses.toast.invalidJson'), 
+                                description: t('customStatuses.toast.invalidTransitions'), 
                                 variant: "destructive" 
                               });
                             }
                           }}
-                          placeholder='["status-id-1", "status-id-2"]'
+                          placeholder={t('customStatuses.form.transitionsPlaceholder')}
                           data-testid="input-status-transitions"
                           rows={2}
                         />
@@ -291,7 +293,7 @@ export default function CustomStatuses() {
                   name="automationTriggers"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Automation Triggers (JSON array)</FormLabel>
+                      <FormLabel>{t('customStatuses.form.automationTriggers')}</FormLabel>
                       <FormControl>
                         <Textarea 
                           value={automationText}
@@ -302,13 +304,13 @@ export default function CustomStatuses() {
                               field.onChange(parsed);
                             } catch (e) {
                               toast({ 
-                                title: "Invalid JSON", 
-                                description: "Automation triggers must be valid JSON array", 
+                                title: t('customStatuses.toast.invalidJson'), 
+                                description: t('customStatuses.toast.invalidAutomation'), 
                                 variant: "destructive" 
                               });
                             }
                           }}
-                          placeholder='[{"action": "send_email", "template": "welcome"}]'
+                          placeholder={t('customStatuses.form.automationPlaceholder')}
                           data-testid="input-status-automation"
                           rows={2}
                         />
@@ -323,7 +325,7 @@ export default function CustomStatuses() {
                   name="isActive"
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between">
-                      <FormLabel>Active</FormLabel>
+                      <FormLabel>{t('customStatuses.form.active')}</FormLabel>
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-status-active" />
                       </FormControl>
@@ -337,7 +339,7 @@ export default function CustomStatuses() {
                     data-testid="button-submit-status"
                     disabled={createMutation.isPending || updateMutation.isPending}
                   >
-                    {editingStatus ? "Update" : "Create"} Status
+                    {editingStatus ? t('customStatuses.button.updateStatus') : t('customStatuses.button.createStatus')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -347,7 +349,7 @@ export default function CustomStatuses() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12">Loading statuses...</div>
+        <div className="text-center py-12">{t('customStatuses.loading')}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {statuses.map((status) => (
@@ -359,14 +361,14 @@ export default function CustomStatuses() {
                     <CardTitle className="text-lg">{status.name}</CardTitle>
                   </div>
                   <Badge variant={status.isActive ? "default" : "secondary"}>
-                    {status.isActive ? "Active" : "Inactive"}
+                    {status.isActive ? t('customStatuses.badge.active') : t('customStatuses.badge.inactive')}
                   </Badge>
                 </div>
-                <CardDescription>Category: {status.category}</CardDescription>
+                <CardDescription>{t('customStatuses.category')} {status.category}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Order: {status.sortOrder}</span>
+                  <span className="text-sm text-muted-foreground">{t('customStatuses.order')} {status.sortOrder}</span>
                   <div className="flex gap-2">
                     <Button 
                       variant="ghost" 
@@ -396,8 +398,8 @@ export default function CustomStatuses() {
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-muted-foreground">
-              <p>No custom statuses defined yet</p>
-              <p className="text-sm mt-2">Click "Add Status" to create your first custom status</p>
+              <p>{t('customStatuses.empty.title')}</p>
+              <p className="text-sm mt-2">{t('customStatuses.empty.description')}</p>
             </div>
           </CardContent>
         </Card>

@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ChevronDown, ChevronRight, Plus, Users, TrendingUp, Crown, User } from "lucide-react";
 import { insertTeamSchema } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
 import * as z from "zod";
 
 const teamFormSchema = z.object({
@@ -48,6 +49,7 @@ interface TeamPerformance {
 function TeamTreeNode({ team, level = 0, allUsers = [] }: { team: TeamNode; level?: number; allUsers?: any[] }) {
   const [isExpanded, setIsExpanded] = useState(level === 0);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const { data: performance } = useQuery<TeamPerformance>({
     queryKey: ['/api/teams', team.id, 'performance'],
@@ -82,9 +84,9 @@ function TeamTreeNode({ team, level = 0, allUsers = [] }: { team: TeamNode; leve
                 </CardTitle>
                 <CardDescription className="text-xs">
                   {team.level}
-                  {teamLeader && ` • Leader: ${teamLeader.firstName} ${teamLeader.lastName}`}
-                  {teamMembers.length > 0 && ` • ${teamMembers.length} member${teamMembers.length !== 1 ? 's' : ''}`}
-                  {team.commissionSplit && ` • ${team.commissionSplit}% commission`}
+                  {teamLeader && ` • ${t('hierarchy.leader')} ${teamLeader.firstName} ${teamLeader.lastName}`}
+                  {teamMembers.length > 0 && ` • ${teamMembers.length} ${teamMembers.length !== 1 ? t('hierarchy.members') : t('hierarchy.member')}`}
+                  {team.commissionSplit && ` • ${team.commissionSplit}% ${t('hierarchy.commission')}`}
                 </CardDescription>
               </div>
             </div>
@@ -97,7 +99,7 @@ function TeamTreeNode({ team, level = 0, allUsers = [] }: { team: TeamNode; leve
                 </div>
                 <div className="flex items-center gap-1" data-testid={`text-ftd-${team.id}`}>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  <span>{performance.ftdCount} FTD</span>
+                  <span>{performance.ftdCount} {t('hierarchy.ftd')}</span>
                 </div>
                 <div className="text-muted-foreground" data-testid={`text-conversion-${team.id}`}>
                   {performance.conversionRate.toFixed(1)}%
@@ -115,7 +117,7 @@ function TeamTreeNode({ team, level = 0, allUsers = [] }: { team: TeamNode; leve
               <CardHeader className="p-3">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  Team Members ({teamMembers.length})
+                  {t('hierarchy.team.members.count', { count: teamMembers.length })}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 pt-0">
@@ -148,6 +150,7 @@ function TeamTreeNode({ team, level = 0, allUsers = [] }: { team: TeamNode; leve
 export default function Hierarchy() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const { data: hierarchyTree = [], isLoading } = useQuery<TeamNode[]>({
     queryKey: ['/api/hierarchy/tree'],
@@ -177,12 +180,12 @@ export default function Hierarchy() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/hierarchy/tree'] });
       queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
-      toast({ title: "Success", description: "Team created successfully" });
+      toast({ title: t('common.success'), description: t('hierarchy.team.created') });
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -199,7 +202,7 @@ export default function Hierarchy() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Loading hierarchy...</p>
+        <p className="text-muted-foreground">{t('hierarchy.loading')}</p>
       </div>
     );
   }
@@ -208,19 +211,19 @@ export default function Hierarchy() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Organizational Hierarchy</h1>
-          <p className="text-muted-foreground">Manage team structure and commission splits</p>
+          <h1 className="text-3xl font-bold">{t('hierarchy.title')}</h1>
+          <p className="text-muted-foreground">{t('hierarchy.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-team">
               <Plus className="h-4 w-4 mr-2" />
-              Add Team
+              {t('hierarchy.add.team')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Team</DialogTitle>
+              <DialogTitle>{t('hierarchy.create.team')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -229,9 +232,9 @@ export default function Hierarchy() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Team Name</FormLabel>
+                      <FormLabel>{t('hierarchy.team.name')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Sales Team" data-testid="input-team-name" />
+                        <Input {...field} placeholder={t('hierarchy.team.name.placeholder')} data-testid="input-team-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -243,17 +246,17 @@ export default function Hierarchy() {
                   name="level"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Level</FormLabel>
+                      <FormLabel>{t('hierarchy.level')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-level">
-                            <SelectValue placeholder="Select level" />
+                            <SelectValue placeholder={t('hierarchy.select.level')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="region">Region</SelectItem>
-                          <SelectItem value="country">Country</SelectItem>
-                          <SelectItem value="team">Team</SelectItem>
+                          <SelectItem value="region">{t('hierarchy.level.region')}</SelectItem>
+                          <SelectItem value="country">{t('hierarchy.level.country')}</SelectItem>
+                          <SelectItem value="team">{t('hierarchy.level.team')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -266,15 +269,15 @@ export default function Hierarchy() {
                   name="parentTeamId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Parent Team (Optional)</FormLabel>
+                      <FormLabel>{t('hierarchy.parent.team.optional')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger data-testid="select-parent">
-                            <SelectValue placeholder="Select parent team" />
+                            <SelectValue placeholder={t('hierarchy.select.parent')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="">{t('common.none')}</SelectItem>
                           {allTeams.map((team) => (
                             <SelectItem key={team.id} value={team.id}>
                               {team.name} ({team.level})
@@ -292,15 +295,15 @@ export default function Hierarchy() {
                   name="leaderId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Team Leader (Optional)</FormLabel>
+                      <FormLabel>{t('hierarchy.team.leader.optional')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger data-testid="select-leader">
-                            <SelectValue placeholder="Select team leader" />
+                            <SelectValue placeholder={t('hierarchy.select.leader')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None</SelectItem>
+                          <SelectItem value="">{t('common.none')}</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.firstName} {user.lastName}
@@ -318,13 +321,13 @@ export default function Hierarchy() {
                   name="commissionSplit"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Commission Split % (Optional)</FormLabel>
+                      <FormLabel>{t('hierarchy.commission.split.optional')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
                           type="number"
                           step="0.01"
-                          placeholder="10.00"
+                          placeholder={t('hierarchy.commission.placeholder')}
                           data-testid="input-commission"
                         />
                       </FormControl>
@@ -340,10 +343,10 @@ export default function Hierarchy() {
                     onClick={() => setIsDialogOpen(false)}
                     data-testid="button-cancel"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                    {createMutation.isPending ? "Creating..." : "Create Team"}
+                    {createMutation.isPending ? t('hierarchy.creating') : t('hierarchy.create.team.button')}
                   </Button>
                 </div>
               </form>
@@ -356,7 +359,7 @@ export default function Hierarchy() {
         {hierarchyTree.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center text-muted-foreground">
-              No teams in hierarchy. Create your first team to get started.
+              {t('hierarchy.no.teams')}
             </CardContent>
           </Card>
         ) : (

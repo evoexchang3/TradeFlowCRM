@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -86,20 +87,21 @@ const EUROPEAN_LANGUAGES = [
   { code: 'se', name: 'Northern Sámi (Davvisámegiella)' },
 ];
 
-const routingRuleSchema = z.object({
-  salesTeamId: z.string().min(1, "Sales team is required"),
-  retentionTeamId: z.string().min(1, "Retention team is required"),
-  languageCode: z.string().min(1, "Language is required"),
-  isActive: z.boolean().default(true),
-});
-
-type RoutingRuleFormData = z.infer<typeof routingRuleSchema>;
-
 export default function TeamRouting() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
   const [deletingRuleId, setDeletingRuleId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  const routingRuleSchema = z.object({
+    salesTeamId: z.string().min(1, t('teamRouting.validation.sales.team.required')),
+    retentionTeamId: z.string().min(1, t('teamRouting.validation.retention.team.required')),
+    languageCode: z.string().min(1, t('teamRouting.validation.language.required')),
+    isActive: z.boolean().default(true),
+  });
+
+  type RoutingRuleFormData = z.infer<typeof routingRuleSchema>;
 
   const { data: rules = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/team-routing-rules'],
@@ -126,12 +128,12 @@ export default function TeamRouting() {
     mutationFn: (data: any) => apiRequest('/api/team-routing-rules', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/team-routing-rules'] });
-      toast({ title: "Success", description: "Routing rule created successfully" });
+      toast({ title: t('common.success'), description: t('teamRouting.toast.created') });
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -139,13 +141,13 @@ export default function TeamRouting() {
     mutationFn: ({ id, ...data }: any) => apiRequest(`/api/team-routing-rules/${id}`, 'PUT', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/team-routing-rules'] });
-      toast({ title: "Success", description: "Routing rule updated successfully" });
+      toast({ title: t('common.success'), description: t('teamRouting.toast.updated') });
       setEditingRule(null);
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -153,10 +155,10 @@ export default function TeamRouting() {
     mutationFn: (id: string) => apiRequest(`/api/team-routing-rules/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/team-routing-rules'] });
-      toast({ title: "Success", description: "Routing rule deleted successfully" });
+      toast({ title: t('common.success'), description: t('teamRouting.toast.deleted') });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -199,26 +201,26 @@ export default function TeamRouting() {
   };
 
   const getTeamName = (id: string) => {
-    return teams.find((t: any) => t.id === id)?.name || 'Unknown Team';
+    return teams.find((t: any) => t.id === id)?.name || t('teamRouting.unknown.team');
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-team-routing-title">Team Routing Rules</h1>
-          <p className="text-muted-foreground">Configure automatic client transfers from sales to retention teams by language</p>
+          <h1 className="text-3xl font-bold" data-testid="text-team-routing-title">{t('teamRouting.title')}</h1>
+          <p className="text-muted-foreground">{t('teamRouting.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-routing-rule">
               <Plus className="h-4 w-4 mr-2" />
-              Add Routing Rule
+              {t('teamRouting.add.rule')}
             </Button>
           </DialogTrigger>
           <DialogContent data-testid="dialog-routing-rule-form">
             <DialogHeader>
-              <DialogTitle>{editingRule ? "Edit Routing Rule" : "Create New Routing Rule"}</DialogTitle>
+              <DialogTitle>{editingRule ? t('teamRouting.edit.rule') : t('teamRouting.create.rule')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -227,11 +229,11 @@ export default function TeamRouting() {
                   name="languageCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Language</FormLabel>
+                      <FormLabel>{t('common.language')}</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger data-testid="select-language">
-                            <SelectValue placeholder="Select language" />
+                            <SelectValue placeholder={t('teamRouting.select.language')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -252,11 +254,11 @@ export default function TeamRouting() {
                   name="salesTeamId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sales Team (From)</FormLabel>
+                      <FormLabel>{t('teamRouting.sales.team.from')}</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger data-testid="select-sales-team">
-                            <SelectValue placeholder="Select sales team" />
+                            <SelectValue placeholder={t('teamRouting.select.sales.team')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -277,11 +279,11 @@ export default function TeamRouting() {
                   name="retentionTeamId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Retention Team (To)</FormLabel>
+                      <FormLabel>{t('teamRouting.retention.team.to')}</FormLabel>
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger data-testid="select-retention-team">
-                            <SelectValue placeholder="Select retention team" />
+                            <SelectValue placeholder={t('teamRouting.select.retention.team')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -303,9 +305,9 @@ export default function TeamRouting() {
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-base">Active</FormLabel>
+                        <FormLabel className="text-base">{t('common.active')}</FormLabel>
                         <div className="text-sm text-muted-foreground">
-                          Enable this routing rule for automatic transfers
+                          {t('teamRouting.enable.description')}
                         </div>
                       </div>
                       <FormControl>
@@ -326,14 +328,14 @@ export default function TeamRouting() {
                     onClick={() => handleDialogClose(false)}
                     data-testid="button-cancel-routing-rule"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-save-routing-rule"
                   >
-                    {(createMutation.isPending || updateMutation.isPending) ? 'Saving...' : editingRule ? 'Update Rule' : 'Create Rule'}
+                    {(createMutation.isPending || updateMutation.isPending) ? t('common.saving') : editingRule ? t('teamRouting.update.rule') : t('teamRouting.create.rule.button')}
                   </Button>
                 </div>
               </form>
@@ -350,21 +352,21 @@ export default function TeamRouting() {
             </div>
           ) : rules.length === 0 ? (
             <div className="text-center py-12" data-testid="empty-routing-rules">
-              <p className="text-muted-foreground">No routing rules configured</p>
+              <p className="text-muted-foreground">{t('teamRouting.no.rules')}</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Create a routing rule to automatically transfer clients from sales to retention teams when they make their first deposit
+                {t('teamRouting.no.rules.description')}
               </p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Language</TableHead>
-                  <TableHead>Sales Team</TableHead>
+                  <TableHead>{t('common.language')}</TableHead>
+                  <TableHead>{t('teamRouting.sales.team')}</TableHead>
                   <TableHead></TableHead>
-                  <TableHead>Retention Team</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('teamRouting.retention.team')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -387,11 +389,11 @@ export default function TeamRouting() {
                     <TableCell>
                       {rule.isActive ? (
                         <Badge variant="default" data-testid={`badge-active-${rule.id}`}>
-                          <span data-testid={`text-status-${rule.id}`}>Active</span>
+                          <span data-testid={`text-status-${rule.id}`}>{t('common.active')}</span>
                         </Badge>
                       ) : (
                         <Badge variant="secondary" data-testid={`badge-inactive-${rule.id}`}>
-                          <span data-testid={`text-status-${rule.id}`}>Inactive</span>
+                          <span data-testid={`text-status-${rule.id}`}>{t('common.inactive')}</span>
                         </Badge>
                       )}
                     </TableCell>
@@ -426,15 +428,15 @@ export default function TeamRouting() {
       <AlertDialog open={!!deletingRuleId} onOpenChange={(open) => !open && setDeletingRuleId(null)}>
         <AlertDialogContent data-testid="dialog-delete-routing-rule">
           <AlertDialogHeader>
-            <AlertDialogTitle data-testid="text-delete-title">Delete Routing Rule</AlertDialogTitle>
+            <AlertDialogTitle data-testid="text-delete-title">{t('teamRouting.delete.rule')}</AlertDialogTitle>
             <AlertDialogDescription data-testid="text-delete-description">
-              Are you sure you want to delete this routing rule? This action cannot be undone.
+              {t('teamRouting.delete.confirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} data-testid="button-confirm-delete">
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -23,8 +23,10 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function ImportData() {
+  const { t } = useLanguage();
   const [file, setFile] = useState<File | null>(null);
   const [importType, setImportType] = useState("clients");
   const [preview, setPreview] = useState<{ headers: string[]; rows: any[][] }>({ headers: [], rows: [] });
@@ -43,13 +45,13 @@ export default function ImportData() {
     onSuccess: (data) => {
       setPreview({ headers: data.headers || [], rows: data.rows || [] });
       setColumnMapping(data.suggestedMapping || {});
-      toast({ title: "File uploaded successfully" });
+      toast({ title: t('import.toast.file.uploaded') });
     },
   });
 
   const importMutation = useMutation({
     mutationFn: async () => {
-      if (!file) throw new Error("No file selected");
+      if (!file) throw new Error(t('import.error.no.file.selected'));
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', importType);
@@ -88,14 +90,14 @@ export default function ImportData() {
       
       if (data.errorCount > 0) {
         toast({ 
-          title: "Import partially completed",
-          description: `Successfully imported ${data.successCount} records, ${data.errorCount} errors`,
+          title: t('import.toast.import.partially.completed'),
+          description: t('import.toast.import.partial.description', { successCount: data.successCount, errorCount: data.errorCount }),
           variant: "default"
         });
       } else {
         toast({ 
-          title: "Import completed",
-          description: `Successfully imported ${data.successCount} records`
+          title: t('import.toast.import.completed'),
+          description: t('import.toast.import.success.description', { successCount: data.successCount })
         });
         setFile(null);
         setPreview({ headers: [], rows: [] });
@@ -105,8 +107,8 @@ export default function ImportData() {
     onError: (error: any) => {
       console.error('Import error:', error);
       toast({
-        title: "Import failed",
-        description: error.message || "An error occurred during import",
+        title: t('import.toast.import.failed'),
+        description: error.message || t('import.toast.import.error.description'),
         variant: "destructive",
       });
     },
@@ -127,33 +129,33 @@ export default function ImportData() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold" data-testid="text-import-title">Import Data</h1>
+        <h1 className="text-2xl font-semibold" data-testid="text-import-title">{t('import.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          Bulk import clients from CSV files
+          {t('import.subtitle')}
         </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Upload File</CardTitle>
+            <CardTitle>{t('import.upload.file')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Import Type</Label>
+              <Label>{t('import.import.type')}</Label>
               <Select value={importType} onValueChange={setImportType}>
                 <SelectTrigger data-testid="select-import-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="clients">Clients</SelectItem>
-                  <SelectItem value="transactions">Transactions</SelectItem>
+                  <SelectItem value="clients">{t('import.type.clients')}</SelectItem>
+                  <SelectItem value="transactions">{t('import.type.transactions')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <Label>Select File</Label>
+              <Label>{t('import.select.file')}</Label>
               <div className="mt-2">
                 <label className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-md cursor-pointer hover-elevate active-elevate-2">
                   <div className="space-y-2 text-center">
@@ -163,7 +165,7 @@ export default function ImportData() {
                         <div>
                           <p className="text-sm font-medium">{file.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {(file.size / 1024).toFixed(2)} KB
+                            {(file.size / 1024).toFixed(2)} {t('import.kb')}
                           </p>
                         </div>
                       </>
@@ -171,9 +173,9 @@ export default function ImportData() {
                       <>
                         <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
                         <div>
-                          <p className="text-sm font-medium">Click to upload</p>
+                          <p className="text-sm font-medium">{t('import.click.to.upload')}</p>
                           <p className="text-xs text-muted-foreground">
-                            CSV file only
+                            {t('import.csv.file.only')}
                           </p>
                         </div>
                       </>
@@ -193,7 +195,7 @@ export default function ImportData() {
             {preview.headers.length > 0 && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-sm font-medium mb-3">Column Mapping</h3>
+                  <h3 className="text-sm font-medium mb-3">{t('import.column.mapping')}</h3>
                   <div className="grid gap-3">
                     {preview.headers.map((column) => (
                       <div key={column} className="grid grid-cols-2 gap-3 items-center">
@@ -203,10 +205,10 @@ export default function ImportData() {
                           onValueChange={(value) => setColumnMapping({ ...columnMapping, [column]: value })}
                         >
                           <SelectTrigger data-testid={`select-mapping-${column}`}>
-                            <SelectValue placeholder="Skip" />
+                            <SelectValue placeholder={t('import.skip')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="skip">Skip</SelectItem>
+                            <SelectItem value="skip">{t('import.skip')}</SelectItem>
                             {availableFields[importType]?.map((field) => (
                               <SelectItem key={field} value={field}>
                                 {field}
@@ -220,7 +222,7 @@ export default function ImportData() {
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium mb-3">Preview ({preview.rows.length} rows)</h3>
+                  <h3 className="text-sm font-medium mb-3">{t('import.preview.rows', { count: preview.rows.length })}</h3>
                   <div className="border rounded-md max-h-64 overflow-auto">
                     <Table>
                       <TableHeader>
@@ -249,10 +251,10 @@ export default function ImportData() {
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      <p className="font-medium">Found {errors.length} errors:</p>
+                      <p className="font-medium">{t('import.found.errors', { count: errors.length })}</p>
                       <ul className="mt-2 space-y-1">
                         {errors.slice(0, 5).map((error, idx) => (
-                          <li key={idx} className="text-sm">Row {error.row}: {error.message}</li>
+                          <li key={idx} className="text-sm">{t('import.row.error', { row: error.row, message: error.message })}</li>
                         ))}
                       </ul>
                     </AlertDescription>
@@ -265,7 +267,7 @@ export default function ImportData() {
                   className="w-full hover-elevate active-elevate-2"
                   data-testid="button-import"
                 >
-                  {importMutation.isPending ? 'Importing...' : `Import ${preview.rows.length} Records`}
+                  {importMutation.isPending ? t('import.importing') : t('import.import.records', { count: preview.rows.length })}
                 </Button>
               </div>
             )}
@@ -274,37 +276,37 @@ export default function ImportData() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Import Guide</CardTitle>
+            <CardTitle className="text-lg">{t('import.guide')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">File Format</h4>
+              <h4 className="text-sm font-medium">{t('import.file.format')}</h4>
               <p className="text-xs text-muted-foreground">
-                Upload a CSV file with headers in the first row.
+                {t('import.file.format.description')}
               </p>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Required Fields</h4>
+              <h4 className="text-sm font-medium">{t('import.required.fields')}</h4>
               <ul className="text-xs text-muted-foreground space-y-1">
-                <li>• First Name</li>
-                <li>• Last Name</li>
-                <li>• Email</li>
+                <li>• {t('import.field.first.name')}</li>
+                <li>• {t('import.field.last.name')}</li>
+                <li>• {t('import.field.email')}</li>
               </ul>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Download Template</h4>
+              <h4 className="text-sm font-medium">{t('import.download.template')}</h4>
               <Button variant="outline" size="sm" className="w-full hover-elevate active-elevate-2" data-testid="button-download-template">
                 <Download className="h-4 w-4 mr-2" />
-                Download CSV Template
+                {t('import.download.csv.template')}
               </Button>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-sm font-medium">Validation</h4>
+              <h4 className="text-sm font-medium">{t('import.validation')}</h4>
               <p className="text-xs text-muted-foreground">
-                The system will validate email formats, check for duplicates, and verify required fields before import.
+                {t('import.validation.description')}
               </p>
             </div>
           </CardContent>

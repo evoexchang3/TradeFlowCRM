@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,16 +48,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Eye, Mail, Copy } from "lucide-react";
 
-const templateFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  subject: z.string().min(1, "Subject is required"),
-  body: z.string().min(1, "Body is required"),
-  category: z.enum(["welcome", "verification", "follow_up", "promotion", "kyc", "deposit", "other"]).optional(),
-  isActive: z.boolean().default(true),
-});
-
-type TemplateFormData = z.infer<typeof templateFormSchema>;
-
 interface EmailTemplate {
   id: string;
   name: string;
@@ -70,32 +61,41 @@ interface EmailTemplate {
   updatedAt: string;
 }
 
-// Common variables that can be used in templates
-const AVAILABLE_VARIABLES = [
-  { key: "{{client_name}}", description: "Client's full name" },
-  { key: "{{first_name}}", description: "Client's first name" },
-  { key: "{{last_name}}", description: "Client's last name" },
-  { key: "{{email}}", description: "Client's email" },
-  { key: "{{balance}}", description: "Account balance" },
-  { key: "{{equity}}", description: "Account equity" },
-  { key: "{{account_number}}", description: "Account number" },
-  { key: "{{agent_name}}", description: "Assigned agent name" },
-  { key: "{{company_name}}", description: "Company name" },
-  { key: "{{support_email}}", description: "Support email" },
-  { key: "{{platform_url}}", description: "Platform URL" },
-];
-
 function TemplateForm({
   defaultValues,
   onSubmit,
   isPending,
 }: {
-  defaultValues?: Partial<TemplateFormData>;
-  onSubmit: (data: TemplateFormData) => void;
+  defaultValues?: Partial<z.infer<ReturnType<typeof getTemplateFormSchema>>>;
+  onSubmit: (data: z.infer<ReturnType<typeof getTemplateFormSchema>>) => void;
   isPending: boolean;
 }) {
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<TemplateFormData>({
-    resolver: zodResolver(templateFormSchema),
+  const { t } = useLanguage();
+  
+  const AVAILABLE_VARIABLES = [
+    { key: "{{client_name}}", description: t("emailTemplates.variable.clientName") },
+    { key: "{{first_name}}", description: t("emailTemplates.variable.firstName") },
+    { key: "{{last_name}}", description: t("emailTemplates.variable.lastName") },
+    { key: "{{email}}", description: t("emailTemplates.variable.email") },
+    { key: "{{balance}}", description: t("emailTemplates.variable.balance") },
+    { key: "{{equity}}", description: t("emailTemplates.variable.equity") },
+    { key: "{{account_number}}", description: t("emailTemplates.variable.accountNumber") },
+    { key: "{{agent_name}}", description: t("emailTemplates.variable.agentName") },
+    { key: "{{company_name}}", description: t("emailTemplates.variable.companyName") },
+    { key: "{{support_email}}", description: t("emailTemplates.variable.supportEmail") },
+    { key: "{{platform_url}}", description: t("emailTemplates.variable.platformUrl") },
+  ];
+
+  const getTemplateFormSchema = () => z.object({
+    name: z.string().min(1, t("emailTemplates.validation.nameRequired")),
+    subject: z.string().min(1, t("emailTemplates.validation.subjectRequired")),
+    body: z.string().min(1, t("emailTemplates.validation.bodyRequired")),
+    category: z.enum(["welcome", "verification", "follow_up", "promotion", "kyc", "deposit", "other"]).optional(),
+    isActive: z.boolean().default(true),
+  });
+
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<ReturnType<typeof getTemplateFormSchema>>>({
+    resolver: zodResolver(getTemplateFormSchema()),
     defaultValues: defaultValues || {
       isActive: true,
       category: "other",
@@ -112,11 +112,11 @@ function TemplateForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <Label htmlFor="name">Template Name</Label>
+        <Label htmlFor="name">{t("emailTemplates.templateName")}</Label>
         <Input
           id="name"
           {...register("name")}
-          placeholder="e.g., Welcome Email"
+          placeholder={t("emailTemplates.templateNamePlaceholder")}
           data-testid="input-template-name"
         />
         {errors.name && (
@@ -125,29 +125,29 @@ function TemplateForm({
       </div>
 
       <div>
-        <Label htmlFor="category">Category</Label>
+        <Label htmlFor="category">{t("emailTemplates.category")}</Label>
         <select
           id="category"
           {...register("category")}
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           data-testid="select-template-category"
         >
-          <option value="welcome">Welcome</option>
-          <option value="verification">Verification</option>
-          <option value="follow_up">Follow Up</option>
-          <option value="promotion">Promotion</option>
-          <option value="kyc">KYC</option>
-          <option value="deposit">Deposit</option>
-          <option value="other">Other</option>
+          <option value="welcome">{t("emailTemplates.category.welcome")}</option>
+          <option value="verification">{t("emailTemplates.category.verification")}</option>
+          <option value="follow_up">{t("emailTemplates.category.follow_up")}</option>
+          <option value="promotion">{t("emailTemplates.category.promotion")}</option>
+          <option value="kyc">{t("emailTemplates.category.kyc")}</option>
+          <option value="deposit">{t("emailTemplates.category.deposit")}</option>
+          <option value="other">{t("emailTemplates.category.other")}</option>
         </select>
       </div>
 
       <div>
-        <Label htmlFor="subject">Email Subject</Label>
+        <Label htmlFor="subject">{t("emailTemplates.emailSubject")}</Label>
         <Input
           id="subject"
           {...register("subject")}
-          placeholder="Email subject line"
+          placeholder={t("emailTemplates.emailSubjectPlaceholder")}
           data-testid="input-template-subject"
         />
         {errors.subject && (
@@ -157,13 +157,13 @@ function TemplateForm({
 
       <div>
         <div className="flex items-center justify-between mb-2">
-          <Label htmlFor="body">Email Body</Label>
-          <div className="text-sm text-muted-foreground">HTML supported</div>
+          <Label htmlFor="body">{t("emailTemplates.emailBody")}</Label>
+          <div className="text-sm text-muted-foreground">{t("emailTemplates.htmlSupported")}</div>
         </div>
         <Textarea
           id="body"
           {...register("body")}
-          placeholder="Email body content (HTML supported)"
+          placeholder={t("emailTemplates.emailBodyPlaceholder")}
           className="min-h-[200px] font-mono text-sm"
           data-testid="input-template-body"
         />
@@ -173,7 +173,7 @@ function TemplateForm({
       </div>
 
       <div>
-        <Label className="mb-2 block">Insert Variables</Label>
+        <Label className="mb-2 block">{t("emailTemplates.insertVariables")}</Label>
         <div className="flex flex-wrap gap-2">
           {AVAILABLE_VARIABLES.slice(0, 6).map((variable) => (
             <Button
@@ -191,7 +191,7 @@ function TemplateForm({
         </div>
         <details className="mt-2">
           <summary className="text-sm text-muted-foreground cursor-pointer">
-            View all available variables
+            {t("emailTemplates.viewAllVariables")}
           </summary>
           <div className="mt-2 space-y-1 text-sm">
             {AVAILABLE_VARIABLES.map((variable) => (
@@ -211,7 +211,7 @@ function TemplateForm({
           onCheckedChange={(checked) => setValue("isActive", checked)}
           data-testid="switch-template-active"
         />
-        <Label htmlFor="isActive">Active</Label>
+        <Label htmlFor="isActive">{t("common.active")}</Label>
       </div>
 
       <div className="flex justify-end gap-2">
@@ -220,15 +220,28 @@ function TemplateForm({
           disabled={isPending}
           data-testid="button-save-template"
         >
-          {isPending ? "Saving..." : "Save Template"}
+          {isPending ? t("common.saving") : t("emailTemplates.saveTemplate")}
         </Button>
       </div>
     </form>
   );
 }
 
+function getTemplateFormSchema(t: (key: string) => string) {
+  return z.object({
+    name: z.string().min(1, t("emailTemplates.validation.nameRequired")),
+    subject: z.string().min(1, t("emailTemplates.validation.subjectRequired")),
+    body: z.string().min(1, t("emailTemplates.validation.bodyRequired")),
+    category: z.enum(["welcome", "verification", "follow_up", "promotion", "kyc", "deposit", "other"]).optional(),
+    isActive: z.boolean().default(true),
+  });
+}
+
+type TemplateFormData = z.infer<ReturnType<typeof getTemplateFormSchema>>;
+
 export default function EmailTemplatesPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
@@ -237,12 +250,10 @@ export default function EmailTemplatesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
-  // Fetch templates
   const { data: templates = [], isLoading } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/email-templates"],
   });
 
-  // Create template mutation
   const createMutation = useMutation({
     mutationFn: async (data: TemplateFormData) => {
       return await apiRequest("POST", "/api/email-templates", data);
@@ -250,21 +261,20 @@ export default function EmailTemplatesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/email-templates"] });
       toast({
-        title: "Template Created",
-        description: "Email template has been created successfully.",
+        title: t("emailTemplates.templateCreated"),
+        description: t("emailTemplates.templateCreatedSuccess"),
       });
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create template",
+        title: t("common.error"),
+        description: error.message || t("emailTemplates.failedCreate"),
         variant: "destructive",
       });
     },
   });
 
-  // Update template mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: TemplateFormData }) => {
       return await apiRequest("PATCH", `/api/email-templates/${id}`, data);
@@ -272,21 +282,20 @@ export default function EmailTemplatesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/email-templates"] });
       toast({
-        title: "Template Updated",
-        description: "Email template has been updated successfully.",
+        title: t("emailTemplates.templateUpdated"),
+        description: t("emailTemplates.templateUpdatedSuccess"),
       });
       setEditingTemplate(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update template",
+        title: t("common.error"),
+        description: error.message || t("emailTemplates.failedUpdate"),
         variant: "destructive",
       });
     },
   });
 
-  // Delete template mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/email-templates/${id}`);
@@ -294,21 +303,20 @@ export default function EmailTemplatesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/email-templates"] });
       toast({
-        title: "Template Deleted",
-        description: "Email template has been deleted successfully.",
+        title: t("emailTemplates.templateDeleted"),
+        description: t("emailTemplates.templateDeletedSuccess"),
       });
       setDeletingTemplate(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete template",
+        title: t("common.error"),
+        description: error.message || t("emailTemplates.failedDelete"),
         variant: "destructive",
       });
     },
   });
 
-  // Filter templates
   const filteredTemplates = templates.filter((template) => {
     if (categoryFilter !== "all" && template.category !== categoryFilter) return false;
     if (searchQuery && !template.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -329,7 +337,6 @@ export default function EmailTemplatesPage() {
     return colors[category as keyof typeof colors] || colors.other;
   };
 
-  // Preview with sample data
   const getPreviewContent = (template: EmailTemplate) => {
     let previewBody = template.body;
     const sampleData = {
@@ -357,22 +364,21 @@ export default function EmailTemplatesPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-templates-title">Email Templates</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-templates-title">{t("emailTemplates.title")}</h1>
           <p className="text-muted-foreground" data-testid="text-templates-description">
-            Manage email templates for client communication
+            {t("emailTemplates.subtitle")}
           </p>
         </div>
         <Button onClick={() => setIsAddDialogOpen(true)} data-testid="button-add-template">
           <Plus className="w-4 h-4 mr-2" />
-          Add Template
+          {t("emailTemplates.addTemplate")}
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-4">
         <div className="flex-1">
           <Input
-            placeholder="Search templates..."
+            placeholder={t("emailTemplates.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             data-testid="input-search-templates"
@@ -383,48 +389,49 @@ export default function EmailTemplatesPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="welcome">Welcome</SelectItem>
-            <SelectItem value="verification">Verification</SelectItem>
-            <SelectItem value="follow_up">Follow Up</SelectItem>
-            <SelectItem value="promotion">Promotion</SelectItem>
-            <SelectItem value="kyc">KYC</SelectItem>
-            <SelectItem value="deposit">Deposit</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
+            <SelectItem value="all">{t("emailTemplates.allCategories")}</SelectItem>
+            <SelectItem value="welcome">{t("emailTemplates.category.welcome")}</SelectItem>
+            <SelectItem value="verification">{t("emailTemplates.category.verification")}</SelectItem>
+            <SelectItem value="follow_up">{t("emailTemplates.category.follow_up")}</SelectItem>
+            <SelectItem value="promotion">{t("emailTemplates.category.promotion")}</SelectItem>
+            <SelectItem value="kyc">{t("emailTemplates.category.kyc")}</SelectItem>
+            <SelectItem value="deposit">{t("emailTemplates.category.deposit")}</SelectItem>
+            <SelectItem value="other">{t("emailTemplates.category.other")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Templates Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Templates</CardTitle>
+          <CardTitle>{t("emailTemplates.templates")}</CardTitle>
           <CardDescription>
-            {filteredTemplates.length} template{filteredTemplates.length !== 1 ? 's' : ''}
+            {filteredTemplates.length !== 1 
+              ? t("emailTemplates.templateCountPlural", { count: filteredTemplates.length })
+              : t("emailTemplates.templateCount", { count: filteredTemplates.length })}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("emailTemplates.tableHeaderName")}</TableHead>
+                <TableHead>{t("emailTemplates.tableHeaderCategory")}</TableHead>
+                <TableHead>{t("emailTemplates.tableHeaderSubject")}</TableHead>
+                <TableHead>{t("emailTemplates.tableHeaderStatus")}</TableHead>
+                <TableHead className="text-right">{t("emailTemplates.tableHeaderActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center">
-                    Loading templates...
+                    {t("emailTemplates.loadingTemplates")}
                   </TableCell>
                 </TableRow>
               ) : filteredTemplates.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No templates found
+                    {t("emailTemplates.noTemplatesFound")}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -441,14 +448,14 @@ export default function EmailTemplatesPage() {
                     <TableCell>
                       {template.category && (
                         <Badge variant="outline" className={getCategoryColor(template.category)}>
-                          {template.category.replace('_', ' ')}
+                          {t(`emailTemplates.category.${template.category}`)}
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell className="max-w-md truncate">{template.subject}</TableCell>
                     <TableCell>
                       <Badge variant={template.isActive ? "default" : "secondary"}>
-                        {template.isActive ? "Active" : "Inactive"}
+                        {template.isActive ? t("common.active") : t("common.inactive")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -487,13 +494,12 @@ export default function EmailTemplatesPage() {
         </CardContent>
       </Card>
 
-      {/* Add Template Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Create Email Template</DialogTitle>
+            <DialogTitle>{t("emailTemplates.createTemplate")}</DialogTitle>
             <DialogDescription>
-              Create a new email template for client communication
+              {t("emailTemplates.createDescription")}
             </DialogDescription>
           </DialogHeader>
           <TemplateForm
@@ -503,14 +509,13 @@ export default function EmailTemplatesPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Template Dialog */}
       {editingTemplate && (
         <Dialog open={!!editingTemplate} onOpenChange={() => setEditingTemplate(null)}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>Edit Email Template</DialogTitle>
+              <DialogTitle>{t("emailTemplates.editTemplate")}</DialogTitle>
               <DialogDescription>
-                Update template details
+                {t("emailTemplates.editDescription")}
               </DialogDescription>
             </DialogHeader>
             <TemplateForm
@@ -524,25 +529,24 @@ export default function EmailTemplatesPage() {
         </Dialog>
       )}
 
-      {/* Preview Dialog */}
       {previewTemplate && (
         <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
-              <DialogTitle>Template Preview</DialogTitle>
+              <DialogTitle>{t("emailTemplates.templatePreview")}</DialogTitle>
               <DialogDescription>
-                Preview with sample data
+                {t("emailTemplates.previewDescription")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Subject:</Label>
+                <Label>{t("emailTemplates.subject")}</Label>
                 <div className="mt-1 p-3 bg-muted rounded-md">
                   {previewTemplate.subject}
                 </div>
               </div>
               <div>
-                <Label>Body:</Label>
+                <Label>{t("emailTemplates.body")}</Label>
                 <div 
                   className="mt-1 p-4 bg-muted rounded-md prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: getPreviewContent(previewTemplate) }}
@@ -554,28 +558,27 @@ export default function EmailTemplatesPage() {
         </Dialog>
       )}
 
-      {/* Delete Confirmation */}
       <AlertDialog
         open={!!deletingTemplate}
         onOpenChange={() => setDeletingTemplate(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Template?</AlertDialogTitle>
+            <AlertDialogTitle>{t("emailTemplates.deleteTemplate")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deletingTemplate?.name}"? This action cannot be undone.
+              {t("emailTemplates.deleteConfirm", { name: deletingTemplate?.name || "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete">
-              Cancel
+              {t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingTemplate && deleteMutation.mutate(deletingTemplate.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

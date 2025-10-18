@@ -16,6 +16,7 @@ import { z } from "zod";
 import { Plus, Edit, Trash2, CreditCard, Check, X, Star } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { insertPaymentProviderSchema } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const paymentFormSchema = insertPaymentProviderSchema.extend({
   transactionFeePercent: z.string().optional(),
@@ -23,19 +24,20 @@ const paymentFormSchema = insertPaymentProviderSchema.extend({
 
 type PaymentFormData = z.infer<typeof paymentFormSchema>;
 
-const PROVIDER_TYPES = [
-  { value: "stripe", label: "Stripe" },
-  { value: "paypal", label: "PayPal" },
-  { value: "crypto", label: "Cryptocurrency" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-];
-
 export default function PaymentProviders() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<any>(null);
   const [configText, setConfigText] = useState("{}");
   const [currenciesText, setCurrenciesText] = useState("[]");
   const { toast } = useToast();
+
+  const PROVIDER_TYPES = [
+    { value: "stripe", label: t('paymentProviders.providerType.stripe') },
+    { value: "paypal", label: t('paymentProviders.providerType.paypal') },
+    { value: "crypto", label: t('paymentProviders.providerType.crypto') },
+    { value: "bank_transfer", label: t('paymentProviders.providerType.bankTransfer') },
+  ];
 
   const { data: providers = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/payment-providers'],
@@ -65,14 +67,14 @@ export default function PaymentProviders() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/payment-providers'] });
-      toast({ title: "Success", description: "Payment provider created successfully" });
+      toast({ title: t('common.success'), description: t('paymentProviders.toast.created') });
       setConfigText("{}");
       setCurrenciesText("[]");
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -83,7 +85,7 @@ export default function PaymentProviders() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/payment-providers'] });
-      toast({ title: "Success", description: "Payment provider updated successfully" });
+      toast({ title: t('common.success'), description: t('paymentProviders.toast.updated') });
       setEditingProvider(null);
       setConfigText("{}");
       setCurrenciesText("[]");
@@ -91,7 +93,7 @@ export default function PaymentProviders() {
       form.reset();
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -102,10 +104,10 @@ export default function PaymentProviders() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/payment-providers'] });
-      toast({ title: "Success", description: "Payment provider deleted successfully" });
+      toast({ title: t('common.success'), description: t('paymentProviders.toast.deleted') });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -128,8 +130,8 @@ export default function PaymentProviders() {
       }
     } catch (e) {
       toast({ 
-        title: "Invalid JSON", 
-        description: "Please fix JSON syntax in configuration or currencies fields", 
+        title: t('paymentProviders.toast.invalidJson'), 
+        description: t('paymentProviders.toast.invalidJsonDescription'), 
         variant: "destructive" 
       });
     }
@@ -156,7 +158,7 @@ export default function PaymentProviders() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this payment provider?")) {
+    if (confirm(t('paymentProviders.confirm.delete'))) {
       deleteMutation.mutate(id as any);
     }
   };
@@ -173,20 +175,20 @@ export default function PaymentProviders() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Payment Providers</h1>
-          <p className="text-muted-foreground mt-1">Manage payment service provider integrations</p>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('paymentProviders.title')}</h1>
+          <p className="text-muted-foreground mt-1">{t('paymentProviders.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-provider">
               <Plus className="h-4 w-4 mr-2" />
-              Add Provider
+              {t('paymentProviders.addProvider')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle data-testid="text-dialog-title">
-                {editingProvider ? "Edit Payment Provider" : "Add Payment Provider"}
+                {editingProvider ? t('paymentProviders.editProvider') : t('paymentProviders.addProviderTitle')}
               </DialogTitle>
             </DialogHeader>
             <Form {...form}>
@@ -197,9 +199,9 @@ export default function PaymentProviders() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Provider Name</FormLabel>
+                        <FormLabel>{t('paymentProviders.providerName')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Stripe Production" {...field} data-testid="input-name" />
+                          <Input placeholder={t('paymentProviders.placeholder.providerName')} {...field} data-testid="input-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -211,11 +213,11 @@ export default function PaymentProviders() {
                     name="providerType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Provider Type</FormLabel>
+                        <FormLabel>{t('paymentProviders.providerType')}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-provider-type">
-                              <SelectValue placeholder="Select type" />
+                              <SelectValue placeholder={t('paymentProviders.placeholder.selectType')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -238,9 +240,9 @@ export default function PaymentProviders() {
                     name="apiKey"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>API Key</FormLabel>
+                        <FormLabel>{t('paymentProviders.apiKey')}</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="pk_live_..." {...field} value={field.value || ""} data-testid="input-api-key" />
+                          <Input type="password" placeholder={t('paymentProviders.placeholder.apiKey')} {...field} value={field.value || ""} data-testid="input-api-key" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -252,9 +254,9 @@ export default function PaymentProviders() {
                     name="apiSecret"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>API Secret</FormLabel>
+                        <FormLabel>{t('paymentProviders.apiSecret')}</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="sk_live_..." {...field} value={field.value || ""} data-testid="input-api-secret" />
+                          <Input type="password" placeholder={t('paymentProviders.placeholder.apiSecret')} {...field} value={field.value || ""} data-testid="input-api-secret" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -268,9 +270,9 @@ export default function PaymentProviders() {
                     name="webhookSecret"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Webhook Secret</FormLabel>
+                        <FormLabel>{t('paymentProviders.webhookSecret')}</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="whsec_..." {...field} value={field.value || ""} data-testid="input-webhook-secret" />
+                          <Input type="password" placeholder={t('paymentProviders.placeholder.webhookSecret')} {...field} value={field.value || ""} data-testid="input-webhook-secret" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -282,9 +284,9 @@ export default function PaymentProviders() {
                     name="webhookUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Webhook URL</FormLabel>
+                        <FormLabel>{t('paymentProviders.webhookUrl')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://..." {...field} value={field.value || ""} data-testid="input-webhook-url" />
+                          <Input placeholder={t('paymentProviders.placeholder.webhookUrl')} {...field} value={field.value || ""} data-testid="input-webhook-url" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -297,18 +299,18 @@ export default function PaymentProviders() {
                   name="transactionFeePercent"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Transaction Fee (%)</FormLabel>
+                      <FormLabel>{t('paymentProviders.transactionFee')}</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" placeholder="2.9" {...field} data-testid="input-transaction-fee" />
+                        <Input type="number" step="0.01" placeholder={t('paymentProviders.placeholder.transactionFee')} {...field} data-testid="input-transaction-fee" />
                       </FormControl>
-                      <FormDescription>Percentage fee charged per transaction</FormDescription>
+                      <FormDescription>{t('paymentProviders.transactionFeeDescription')}</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
                 <div className="space-y-2">
-                  <FormLabel>Supported Currencies (JSON Array)</FormLabel>
+                  <FormLabel>{t('paymentProviders.supportedCurrencies')}</FormLabel>
                   <Textarea
                     value={currenciesText}
                     onChange={(e) => setCurrenciesText(e.target.value)}
@@ -316,20 +318,20 @@ export default function PaymentProviders() {
                       try {
                         JSON.parse(currenciesText);
                       } catch (e) {
-                        toast({ title: "Invalid JSON", description: "Check currencies syntax", variant: "destructive" });
+                        toast({ title: t('paymentProviders.toast.invalidJson'), description: t('paymentProviders.toast.checkCurrenciesSyntax'), variant: "destructive" });
                       }
                     }}
-                    placeholder='["USD", "EUR", "GBP"]'
+                    placeholder={t('paymentProviders.placeholder.currencies')}
                     className="font-mono text-sm min-h-[80px]"
                     data-testid="textarea-currencies"
                   />
                   <FormDescription className="text-xs">
-                    List of currency codes (e.g., ["USD", "EUR", "GBP"])
+                    {t('paymentProviders.supportedCurrenciesDescription')}
                   </FormDescription>
                 </div>
 
                 <div className="space-y-2">
-                  <FormLabel>Configuration (JSON)</FormLabel>
+                  <FormLabel>{t('paymentProviders.configuration')}</FormLabel>
                   <Textarea
                     value={configText}
                     onChange={(e) => setConfigText(e.target.value)}
@@ -337,15 +339,15 @@ export default function PaymentProviders() {
                       try {
                         JSON.parse(configText);
                       } catch (e) {
-                        toast({ title: "Invalid JSON", description: "Check configuration syntax", variant: "destructive" });
+                        toast({ title: t('paymentProviders.toast.invalidJson'), description: t('paymentProviders.toast.checkConfigurationSyntax'), variant: "destructive" });
                       }
                     }}
-                    placeholder='{"key": "value"}'
+                    placeholder={t('paymentProviders.placeholder.configuration')}
                     className="font-mono text-sm min-h-[100px]"
                     data-testid="textarea-configuration"
                   />
                   <FormDescription className="text-xs">
-                    Additional provider-specific configuration
+                    {t('paymentProviders.configurationDescription')}
                   </FormDescription>
                 </div>
 
@@ -356,9 +358,9 @@ export default function PaymentProviders() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-3">
                         <div className="space-y-0.5">
-                          <FormLabel>Primary Provider</FormLabel>
+                          <FormLabel>{t('paymentProviders.primaryProvider')}</FormLabel>
                           <FormDescription className="text-xs">
-                            Use as default for payments
+                            {t('paymentProviders.primaryProviderDescription')}
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -378,9 +380,9 @@ export default function PaymentProviders() {
                     render={({ field }) => (
                       <FormItem className="flex items-center justify-between rounded-lg border p-3">
                         <div className="space-y-0.5">
-                          <FormLabel>Active</FormLabel>
+                          <FormLabel>{t('common.active')}</FormLabel>
                           <FormDescription className="text-xs">
-                            Enable this provider
+                            {t('paymentProviders.enableProvider')}
                           </FormDescription>
                         </div>
                         <FormControl>
@@ -397,14 +399,14 @@ export default function PaymentProviders() {
 
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={handleDialogClose} data-testid="button-cancel">
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-submit"
                   >
-                    {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+                    {createMutation.isPending || updateMutation.isPending ? t('common.saving') : t('common.save')}
                   </Button>
                 </DialogFooter>
               </form>
@@ -414,13 +416,13 @@ export default function PaymentProviders() {
       </div>
 
       {isLoading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8">{t('common.loading')}</div>
       ) : providers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No payment providers configured</p>
-            <p className="text-sm text-muted-foreground mt-1">Add your first payment provider to process transactions</p>
+            <p className="text-muted-foreground">{t('paymentProviders.noProviders')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('paymentProviders.noProvidersDescription')}</p>
           </CardContent>
         </Card>
       ) : (
@@ -451,16 +453,16 @@ export default function PaymentProviders() {
                     {provider.isActive ? (
                       <Badge variant="default" className="gap-1" data-testid={`badge-status-${provider.id}`}>
                         <Check className="h-3 w-3" />
-                        Active
+                        {t('common.active')}
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="gap-1" data-testid={`badge-status-${provider.id}`}>
                         <X className="h-3 w-3" />
-                        Inactive
+                        {t('common.inactive')}
                       </Badge>
                     )}
                     {provider.transactionFeePercent && (
-                      <Badge variant="outline">{provider.transactionFeePercent}% fee</Badge>
+                      <Badge variant="outline">{provider.transactionFeePercent}{t('paymentProviders.fee')}</Badge>
                     )}
                   </div>
                 </div>
@@ -469,17 +471,17 @@ export default function PaymentProviders() {
                 <div className="flex items-center justify-between">
                   <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Currencies:</span>
+                      <span className="text-muted-foreground">{t('paymentProviders.currencies')}</span>
                       <span className="ml-2 font-medium">
                         {Array.isArray(provider.supportedCurrencies) && provider.supportedCurrencies.length > 0
                           ? provider.supportedCurrencies.join(', ')
-                          : 'None'}
+                          : t('common.none')}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Webhook:</span>
+                      <span className="text-muted-foreground">{t('paymentProviders.webhook')}</span>
                       <span className="ml-2 font-medium">
-                        {provider.webhookUrl ? 'Configured' : 'Not configured'}
+                        {provider.webhookUrl ? t('paymentProviders.configured') : t('paymentProviders.notConfigured')}
                       </span>
                     </div>
                   </div>

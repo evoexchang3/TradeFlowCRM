@@ -14,18 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Trash2, GripVertical, Edit } from "lucide-react";
 import * as z from "zod";
-
-const questionFormSchema = z.object({
-  questionText: z.string().min(1, "Question text is required"),
-  questionType: z.string(),
-  category: z.string(),
-  isRequired: z.boolean().default(false),
-  options: z.string().optional(),
-  conditionalLogic: z.string().optional(),
-  displayOrder: z.number().default(0),
-});
-
-type QuestionFormData = z.infer<typeof questionFormSchema>;
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface KYCQuestion {
   id: string;
@@ -44,6 +33,8 @@ function QuestionCard({ question, onEdit, onDelete }: {
   onEdit: (question: KYCQuestion) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useLanguage();
+  
   return (
     <Card className="hover-elevate">
       <CardHeader className="p-4">
@@ -55,12 +46,12 @@ function QuestionCard({ question, onEdit, onDelete }: {
                 {question.questionText}
               </CardTitle>
               <CardDescription className="text-xs mt-1">
-                {question.questionType} • {question.category}
-                {question.isRequired && " • Required"}
+                {question.questionType}{t('kycQuestions.separator')}{question.category}
+                {question.isRequired && t('kycQuestions.required.badge')}
               </CardDescription>
               {question.options && Array.isArray(question.options) && question.options.length > 0 && (
                 <div className="text-xs text-muted-foreground mt-2">
-                  Options: {question.options.join(", ")}
+                  {t('kycQuestions.options.label')} {question.options.join(", ")}
                 </div>
               )}
             </div>
@@ -90,11 +81,24 @@ function QuestionCard({ question, onEdit, onDelete }: {
 }
 
 export default function KYCQuestions() {
+  const { t } = useLanguage();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<KYCQuestion | null>(null);
   const [optionsText, setOptionsText] = useState("[]");
   const [conditionalText, setConditionalText] = useState("{}");
   const { toast } = useToast();
+
+  const questionFormSchema = z.object({
+    questionText: z.string().min(1, t('kycQuestions.validation.questionTextRequired')),
+    questionType: z.string(),
+    category: z.string(),
+    isRequired: z.boolean().default(false),
+    options: z.string().optional(),
+    conditionalLogic: z.string().optional(),
+    displayOrder: z.number().default(0),
+  });
+
+  type QuestionFormData = z.infer<typeof questionFormSchema>;
 
   const { data: questions = [], isLoading } = useQuery<KYCQuestion[]>({
     queryKey: ['/api/kyc-questions'],
@@ -117,14 +121,14 @@ export default function KYCQuestions() {
     mutationFn: (data: any) => apiRequest('/api/kyc-questions', 'POST', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/kyc-questions'] });
-      toast({ title: "Success", description: "Question created successfully" });
+      toast({ title: t('kycQuestions.toast.created.title'), description: t('kycQuestions.toast.created.description') });
       setOptionsText("[]");
       setConditionalText("{}");
       setIsDialogOpen(false);
       form.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('kycQuestions.toast.error.title'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -132,7 +136,7 @@ export default function KYCQuestions() {
     mutationFn: ({ id, ...data }: any) => apiRequest(`/api/kyc-questions/${id}`, 'PATCH', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/kyc-questions'] });
-      toast({ title: "Success", description: "Question updated successfully" });
+      toast({ title: t('kycQuestions.toast.created.title'), description: t('kycQuestions.toast.updated.description') });
       setEditingQuestion(null);
       setOptionsText("[]");
       setConditionalText("{}");
@@ -140,7 +144,7 @@ export default function KYCQuestions() {
       form.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('kycQuestions.toast.error.title'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -148,10 +152,10 @@ export default function KYCQuestions() {
     mutationFn: (id: string) => apiRequest(`/api/kyc-questions/${id}`, 'DELETE'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/kyc-questions'] });
-      toast({ title: "Success", description: "Question deleted successfully" });
+      toast({ title: t('kycQuestions.toast.created.title'), description: t('kycQuestions.toast.deleted.description') });
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('kycQuestions.toast.error.title'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -173,8 +177,8 @@ export default function KYCQuestions() {
       }
     } catch (e) {
       toast({ 
-        title: "Invalid JSON", 
-        description: "Please fix JSON syntax in options or conditional logic", 
+        title: t('kycQuestions.validation.invalidJson'), 
+        description: t('kycQuestions.validation.invalidJson.description'), 
         variant: "destructive" 
       });
     }
@@ -205,7 +209,7 @@ export default function KYCQuestions() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this question?")) {
+    if (window.confirm(t('kycQuestions.delete.confirm'))) {
       deleteMutation.mutate(id);
     }
   };
@@ -213,7 +217,7 @@ export default function KYCQuestions() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Loading KYC questions...</p>
+        <p className="text-muted-foreground">{t('kycQuestions.loading')}</p>
       </div>
     );
   }
@@ -222,19 +226,19 @@ export default function KYCQuestions() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">KYC Questions Builder</h1>
-          <p className="text-muted-foreground">Create and manage dynamic KYC questions</p>
+          <h1 className="text-3xl font-bold">{t('kycQuestions.title')}</h1>
+          <p className="text-muted-foreground">{t('kycQuestions.subtitle')}</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-question">
               <Plus className="h-4 w-4 mr-2" />
-              Add Question
+              {t('kycQuestions.addQuestion')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editingQuestion ? "Edit Question" : "Create New Question"}</DialogTitle>
+              <DialogTitle>{editingQuestion ? t('kycQuestions.editQuestion') : t('kycQuestions.createQuestion')}</DialogTitle>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -243,11 +247,11 @@ export default function KYCQuestions() {
                   name="questionText"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Question Text</FormLabel>
+                      <FormLabel>{t('kycQuestions.questionText')}</FormLabel>
                       <FormControl>
                         <Textarea
                           {...field}
-                          placeholder="What is your full name?"
+                          placeholder={t('kycQuestions.questionText.placeholder')}
                           data-testid="input-question-text"
                           rows={2}
                         />
@@ -263,7 +267,7 @@ export default function KYCQuestions() {
                     name="questionType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Question Type</FormLabel>
+                        <FormLabel>{t('kycQuestions.questionType')}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-question-type">
@@ -271,13 +275,13 @@ export default function KYCQuestions() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="text">Text Input</SelectItem>
-                            <SelectItem value="textarea">Long Text</SelectItem>
-                            <SelectItem value="select">Dropdown</SelectItem>
-                            <SelectItem value="radio">Radio Buttons</SelectItem>
-                            <SelectItem value="checkbox">Checkboxes</SelectItem>
-                            <SelectItem value="date">Date</SelectItem>
-                            <SelectItem value="file">File Upload</SelectItem>
+                            <SelectItem value="text">{t('kycQuestions.type.text')}</SelectItem>
+                            <SelectItem value="textarea">{t('kycQuestions.type.textarea')}</SelectItem>
+                            <SelectItem value="select">{t('kycQuestions.type.select')}</SelectItem>
+                            <SelectItem value="radio">{t('kycQuestions.type.radio')}</SelectItem>
+                            <SelectItem value="checkbox">{t('kycQuestions.type.checkbox')}</SelectItem>
+                            <SelectItem value="date">{t('kycQuestions.type.date')}</SelectItem>
+                            <SelectItem value="file">{t('kycQuestions.type.file')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -290,7 +294,7 @@ export default function KYCQuestions() {
                     name="category"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
+                        <FormLabel>{t('kycQuestions.category')}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-category">
@@ -298,11 +302,11 @@ export default function KYCQuestions() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="personal">Personal Information</SelectItem>
-                            <SelectItem value="financial">Financial Information</SelectItem>
-                            <SelectItem value="employment">Employment Details</SelectItem>
-                            <SelectItem value="trading">Trading Experience</SelectItem>
-                            <SelectItem value="identification">Identification</SelectItem>
+                            <SelectItem value="personal">{t('kycQuestions.category.personal')}</SelectItem>
+                            <SelectItem value="financial">{t('kycQuestions.category.financial')}</SelectItem>
+                            <SelectItem value="employment">{t('kycQuestions.category.employment')}</SelectItem>
+                            <SelectItem value="trading">{t('kycQuestions.category.trading')}</SelectItem>
+                            <SelectItem value="identification">{t('kycQuestions.category.identification')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -317,9 +321,9 @@ export default function KYCQuestions() {
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel>Required Field</FormLabel>
+                        <FormLabel>{t('kycQuestions.requiredField')}</FormLabel>
                         <FormDescription>
-                          Mark this question as mandatory
+                          {t('kycQuestions.requiredField.description')}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -338,7 +342,7 @@ export default function KYCQuestions() {
                   name="displayOrder"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Display Order</FormLabel>
+                      <FormLabel>{t('kycQuestions.displayOrder')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -348,7 +352,7 @@ export default function KYCQuestions() {
                         />
                       </FormControl>
                       <FormDescription>
-                        Questions are displayed in ascending order
+                        {t('kycQuestions.displayOrder.description')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -356,7 +360,7 @@ export default function KYCQuestions() {
                 />
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Options (JSON array, for select/radio/checkbox types)</label>
+                  <label className="text-sm font-medium">{t('kycQuestions.options')}</label>
                   <Textarea
                     value={optionsText}
                     onChange={(e) => setOptionsText(e.target.value)}
@@ -365,20 +369,20 @@ export default function KYCQuestions() {
                         JSON.parse(optionsText);
                       } catch (e) {
                         toast({ 
-                          title: "Invalid JSON", 
-                          description: "Options must be valid JSON array", 
+                          title: t('kycQuestions.validation.invalidJson'), 
+                          description: t('kycQuestions.validation.options.invalidJson'), 
                           variant: "destructive" 
                         });
                       }
                     }}
-                    placeholder='["Option 1", "Option 2", "Option 3"]'
+                    placeholder={t('kycQuestions.options.placeholder')}
                     data-testid="input-options"
                     rows={3}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Conditional Logic (JSON object)</label>
+                  <label className="text-sm font-medium">{t('kycQuestions.conditionalLogic')}</label>
                   <Textarea
                     value={conditionalText}
                     onChange={(e) => setConditionalText(e.target.value)}
@@ -387,13 +391,13 @@ export default function KYCQuestions() {
                         JSON.parse(conditionalText);
                       } catch (e) {
                         toast({ 
-                          title: "Invalid JSON", 
-                          description: "Conditional logic must be valid JSON object", 
+                          title: t('kycQuestions.validation.invalidJson'), 
+                          description: t('kycQuestions.validation.conditionalLogic.invalidJson'), 
                           variant: "destructive" 
                         });
                       }
                     }}
-                    placeholder='{"showIf": {"questionId": "123", "value": "Yes"}}'
+                    placeholder={t('kycQuestions.conditionalLogic.placeholder')}
                     data-testid="input-conditional"
                     rows={3}
                   />
@@ -406,7 +410,7 @@ export default function KYCQuestions() {
                     onClick={() => handleDialogClose(false)}
                     data-testid="button-cancel"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </Button>
                   <Button
                     type="submit"
@@ -414,10 +418,10 @@ export default function KYCQuestions() {
                     data-testid="button-submit"
                   >
                     {createMutation.isPending || updateMutation.isPending
-                      ? "Saving..."
+                      ? t('common.saving')
                       : editingQuestion
-                      ? "Update Question"
-                      : "Create Question"}
+                      ? t('kycQuestions.updateQuestion')
+                      : t('kycQuestions.createQuestionButton')}
                   </Button>
                 </div>
               </form>
@@ -430,7 +434,7 @@ export default function KYCQuestions() {
         {questions.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-center text-muted-foreground">
-              No KYC questions configured. Create your first question to get started.
+              {t('kycQuestions.empty')}
             </CardContent>
           </Card>
         ) : (

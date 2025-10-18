@@ -49,25 +49,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-
-const editClosedPositionSchema = z.object({
-  openPrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
-    message: "Open price must be a positive number",
-  }).optional(),
-  closePrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
-    message: "Close price must be a positive number",
-  }).optional(),
-  quantity: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
-    message: "Quantity must be a positive number",
-  }).optional(),
-  realizedPnl: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
-    message: "Realized P/L must be a valid number",
-  }).optional(),
-});
-
-type EditClosedPositionData = z.infer<typeof editClosedPositionSchema>;
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function GlobalClosedPositions() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSymbol, setFilterSymbol] = useState<string>('all');
   const [filterSide, setFilterSide] = useState<string>('all');
@@ -75,6 +60,23 @@ export default function GlobalClosedPositions() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const { toast } = useToast();
+  
+  const editClosedPositionSchema = z.object({
+    openPrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.open.price.positive'),
+    }).optional(),
+    closePrice: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.close.price.positive'),
+    }).optional(),
+    quantity: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.quantity.positive'),
+    }).optional(),
+    realizedPnl: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
+      message: t('positions.validation.realized.pnl.valid'),
+    }).optional(),
+  });
+
+  type EditClosedPositionData = z.infer<typeof editClosedPositionSchema>;
   
   const { data: positions = [], isLoading } = useQuery<any[]>({
     queryKey: ['/api/positions/all/closed'],
@@ -92,7 +94,6 @@ export default function GlobalClosedPositions() {
 
   const editMutation = useMutation({
     mutationFn: async (data: EditClosedPositionData) => {
-      // Filter out empty values and convert to proper format
       const processedData: Record<string, any> = {};
       
       if (data.openPrice && data.openPrice !== "") {
@@ -114,14 +115,14 @@ export default function GlobalClosedPositions() {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/closed'] });
       setEditDialogOpen(false);
       toast({
-        title: "Position updated",
-        description: "The position has been successfully updated.",
+        title: t('positions.toast.updated.title'),
+        description: t('positions.toast.updated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update position",
+        title: t('common.error'),
+        description: error.message || t('positions.toast.update.failed'),
         variant: "destructive",
       });
     },
@@ -135,14 +136,14 @@ export default function GlobalClosedPositions() {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/closed'] });
       setDeleteDialogOpen(false);
       toast({
-        title: "Position deleted",
-        description: "The position has been successfully deleted.",
+        title: t('positions.toast.deleted.title'),
+        description: t('positions.toast.deleted.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete position",
+        title: t('common.error'),
+        description: error.message || t('positions.toast.delete.failed'),
         variant: "destructive",
       });
     },
@@ -174,7 +175,6 @@ export default function GlobalClosedPositions() {
     }
   };
 
-  // Client-side filtering
   const filteredPositions = positions?.filter((position: any) => {
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
@@ -209,7 +209,7 @@ export default function GlobalClosedPositions() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading closed positions...</p>
+          <p className="text-muted-foreground">{t('positions.loading.closed')}</p>
         </div>
       </div>
     );
@@ -217,41 +217,39 @@ export default function GlobalClosedPositions() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Global Closed Positions</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('positions.closed.title')}</h1>
           <p className="text-muted-foreground">
-            All closed positions across all clients
+            {t('positions.closed.subtitle')}
           </p>
         </div>
       </div>
 
-      {/* Stats Card */}
       <Card>
         <CardHeader>
-          <CardTitle data-testid="text-stats-title">Performance Overview</CardTitle>
+          <CardTitle data-testid="text-stats-title">{t('positions.performance.overview')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Total Positions</p>
+              <p className="text-sm text-muted-foreground">{t('positions.total.positions')}</p>
               <p className="text-2xl font-bold" data-testid="text-total-positions">{filteredPositions?.length || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Realized P/L</p>
+              <p className="text-sm text-muted-foreground">{t('positions.total.realized.pnl')}</p>
               <p className={`text-2xl font-bold ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-total-pnl">
                 ${totalPnL.toFixed(2)}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Profitable Trades</p>
+              <p className="text-sm text-muted-foreground">{t('positions.profitable.trades')}</p>
               <p className="text-2xl font-bold" data-testid="text-profitable-trades">
                 {profitableCount}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Win Rate</p>
+              <p className="text-sm text-muted-foreground">{t('positions.win.rate')}</p>
               <p className="text-2xl font-bold" data-testid="text-win-rate">
                 {filteredPositions && filteredPositions.length > 0 
                   ? ((profitableCount / filteredPositions.length) * 100).toFixed(1) 
@@ -262,14 +260,13 @@ export default function GlobalClosedPositions() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by client, email, or symbol..."
+                placeholder={t('positions.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -278,10 +275,10 @@ export default function GlobalClosedPositions() {
             </div>
             <Select value={filterSymbol} onValueChange={setFilterSymbol}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-symbol-filter">
-                <SelectValue placeholder="All Symbols" />
+                <SelectValue placeholder={t('positions.all.symbols')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Symbols</SelectItem>
+                <SelectItem value="all">{t('positions.all.symbols')}</SelectItem>
                 {uniqueSymbols.map((symbol: any) => (
                   <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
                 ))}
@@ -289,40 +286,39 @@ export default function GlobalClosedPositions() {
             </Select>
             <Select value={filterSide} onValueChange={setFilterSide}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-side-filter">
-                <SelectValue placeholder="All Sides" />
+                <SelectValue placeholder={t('positions.all.sides')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Sides</SelectItem>
-                <SelectItem value="buy">Buy</SelectItem>
-                <SelectItem value="sell">Sell</SelectItem>
+                <SelectItem value="all">{t('positions.all.sides')}</SelectItem>
+                <SelectItem value="buy">{t('positions.buy')}</SelectItem>
+                <SelectItem value="sell">{t('positions.sell')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Positions Table */}
       <Card>
         <CardContent className="pt-6">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Side</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Open Price</TableHead>
-                <TableHead>Close Price</TableHead>
-                <TableHead>Realized P/L</TableHead>
-                <TableHead>Closed</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('positions.client')}</TableHead>
+                <TableHead>{t('positions.symbol')}</TableHead>
+                <TableHead>{t('positions.side')}</TableHead>
+                <TableHead>{t('positions.quantity')}</TableHead>
+                <TableHead>{t('positions.open.price')}</TableHead>
+                <TableHead>{t('positions.close.price')}</TableHead>
+                <TableHead>{t('positions.realized.pnl')}</TableHead>
+                <TableHead>{t('positions.closed')}</TableHead>
+                <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPositions && filteredPositions.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8">
-                    <p className="text-muted-foreground" data-testid="text-no-positions">No closed positions found</p>
+                    <p className="text-muted-foreground" data-testid="text-no-positions">{t('positions.no.closed.positions')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -344,9 +340,9 @@ export default function GlobalClosedPositions() {
                       <TableCell>
                         <Badge variant={position.side === 'buy' ? 'default' : 'secondary'} data-testid={`badge-side-${position.id}`}>
                           {position.side === 'buy' ? (
-                            <><TrendingUp className="h-3 w-3 mr-1" /> Buy</>
+                            <><TrendingUp className="h-3 w-3 mr-1" /> {t('positions.buy')}</>
                           ) : (
-                            <><TrendingDown className="h-3 w-3 mr-1" /> Sell</>
+                            <><TrendingDown className="h-3 w-3 mr-1" /> {t('positions.sell')}</>
                           )}
                         </Badge>
                       </TableCell>
@@ -367,10 +363,10 @@ export default function GlobalClosedPositions() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuLabel>{t('common.actions')}</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEdit(position)} data-testid={`button-edit-${position.id}`}>
                               <Edit className="h-4 w-4 mr-2" />
-                              Edit Position
+                              {t('positions.edit.position')}
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDelete(position)} 
@@ -378,7 +374,7 @@ export default function GlobalClosedPositions() {
                               data-testid={`button-delete-${position.id}`}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Position
+                              {t('positions.delete.position')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -392,13 +388,12 @@ export default function GlobalClosedPositions() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent data-testid="dialog-edit-position">
           <DialogHeader>
-            <DialogTitle>Edit Closed Position</DialogTitle>
+            <DialogTitle>{t('positions.edit.closed.position')}</DialogTitle>
             <DialogDescription>
-              Update position details for {selectedPosition?.symbol}
+              {t('positions.edit.description', { symbol: selectedPosition?.symbol })}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -408,7 +403,7 @@ export default function GlobalClosedPositions() {
                 name="openPrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Open Price</FormLabel>
+                    <FormLabel>{t('positions.open.price')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-open-price" />
                     </FormControl>
@@ -421,7 +416,7 @@ export default function GlobalClosedPositions() {
                 name="closePrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Close Price</FormLabel>
+                    <FormLabel>{t('positions.close.price')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-close-price" />
                     </FormControl>
@@ -434,7 +429,7 @@ export default function GlobalClosedPositions() {
                 name="quantity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quantity</FormLabel>
+                    <FormLabel>{t('positions.quantity')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-quantity" />
                     </FormControl>
@@ -447,7 +442,7 @@ export default function GlobalClosedPositions() {
                 name="realizedPnl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Realized P/L</FormLabel>
+                    <FormLabel>{t('positions.realized.pnl')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-realized-pnl" />
                     </FormControl>
@@ -457,10 +452,10 @@ export default function GlobalClosedPositions() {
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit">
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" disabled={editMutation.isPending} data-testid="button-submit-edit">
-                  {editMutation.isPending ? "Updating..." : "Update Position"}
+                  {editMutation.isPending ? t('positions.updating') : t('positions.update.position')}
                 </Button>
               </DialogFooter>
             </form>
@@ -468,24 +463,23 @@ export default function GlobalClosedPositions() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent data-testid="dialog-delete-position">
           <DialogHeader>
-            <DialogTitle>Delete Position</DialogTitle>
+            <DialogTitle>{t('positions.delete.position')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this position? This action cannot be undone.
+              {t('positions.delete.confirm')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <p className="text-sm"><strong>Symbol:</strong> {selectedPosition?.symbol}</p>
-            <p className="text-sm"><strong>Client:</strong> {selectedPosition?.clientName}</p>
-            <p className="text-sm"><strong>Quantity:</strong> {selectedPosition?.quantity}</p>
-            <p className="text-sm"><strong>Realized P/L:</strong> ${parseFloat(selectedPosition?.realizedPnl || '0').toFixed(2)}</p>
+            <p className="text-sm"><strong>{t('positions.delete.symbol')}</strong> {selectedPosition?.symbol}</p>
+            <p className="text-sm"><strong>{t('positions.delete.client')}</strong> {selectedPosition?.clientName}</p>
+            <p className="text-sm"><strong>{t('positions.delete.quantity')}</strong> {selectedPosition?.quantity}</p>
+            <p className="text-sm"><strong>{t('positions.delete.realized.pnl')}</strong> ${parseFloat(selectedPosition?.realizedPnl || '0').toFixed(2)}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} data-testid="button-cancel-delete">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button 
               variant="destructive" 
@@ -493,7 +487,7 @@ export default function GlobalClosedPositions() {
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete Position"}
+              {deleteMutation.isPending ? t('positions.deleting') : t('positions.delete.position')}
             </Button>
           </DialogFooter>
         </DialogContent>

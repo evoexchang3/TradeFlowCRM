@@ -46,25 +46,28 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertApiKeySchema } from "@shared/schema";
 import { z } from "zod";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-// Form schema for API key creation (excludes server-set fields)
-const apiKeyFormSchema = z.object({
-  name: z.string().min(1, "API key name is required"),
-  scope: z.enum(['read', 'write', 'admin']),
-  ipWhitelist: z.string().optional(),
-  expiresAt: z.string().optional(),
-});
+type ApiKeyFormValues = z.infer<ReturnType<typeof createApiKeyFormSchema>>;
 
-type ApiKeyFormValues = z.infer<typeof apiKeyFormSchema>;
+function createApiKeyFormSchema(t: (key: string) => string) {
+  return z.object({
+    name: z.string().min(1, t('apiKeys.form.keyName.required')),
+    scope: z.enum(['read', 'write', 'admin']),
+    ipWhitelist: z.string().optional(),
+    expiresAt: z.string().optional(),
+  });
+}
 
 export default function ApiKeys() {
+  const { t } = useLanguage();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newApiKey, setNewApiKey] = useState<string | null>(null);
   const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<ApiKeyFormValues>({
-    resolver: zodResolver(apiKeyFormSchema),
+    resolver: zodResolver(createApiKeyFormSchema(t)),
     defaultValues: {
       name: '',
       scope: 'read',
@@ -97,15 +100,15 @@ export default function ApiKeys() {
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/api-keys'] });
       setNewApiKey(response.key);
-      toast({ title: "API key created successfully" });
+      toast({ title: t('apiKeys.toast.created') });
       form.reset();
     },
     onError: (error: any) => {
       const errorMessage = error.details 
-        ? `Validation error: ${error.details.map((d: any) => d.message).join(', ')}`
-        : error.error || 'Failed to create API key';
+        ? `${t('apiKeys.toast.validationError')} ${error.details.map((d: any) => d.message).join(', ')}`
+        : error.error || t('apiKeys.toast.createFailed');
       toast({ 
-        title: "Error creating API key", 
+        title: t('apiKeys.toast.createError'), 
         description: errorMessage,
         variant: "destructive" 
       });
@@ -116,7 +119,7 @@ export default function ApiKeys() {
     mutationFn: (id: string) => apiRequest('DELETE', `/api/admin/api-keys/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/api-keys'] });
-      toast({ title: "API key revoked successfully" });
+      toast({ title: t('apiKeys.toast.revoked') });
       setDeleteKeyId(null);
     },
   });
@@ -127,7 +130,7 @@ export default function ApiKeys() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied to clipboard" });
+    toast({ title: t('apiKeys.toast.copied') });
   };
 
   const getScopeColor = (scope: string) => {
@@ -152,23 +155,23 @@ export default function ApiKeys() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-apikeys-title">API Key Management</h1>
+          <h1 className="text-2xl font-semibold" data-testid="text-apikeys-title">{t('apiKeys.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            Generate and manage API keys for external platform integrations
+            {t('apiKeys.subtitle')}
           </p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button size="sm" data-testid="button-create-apikey" className="hover-elevate active-elevate-2">
               <Plus className="h-4 w-4 mr-2" />
-              Generate API Key
+              {t('apiKeys.generateButton')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Generate New API Key</DialogTitle>
+              <DialogTitle>{t('apiKeys.dialog.title')}</DialogTitle>
               <DialogDescription>
-                Create a new API key for external platform integration. The key will only be shown once.
+                {t('apiKeys.dialog.description')}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -178,11 +181,11 @@ export default function ApiKeys() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Key Name</FormLabel>
+                      <FormLabel>{t('apiKeys.form.keyName')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="e.g., Production Server"
+                          placeholder={t('apiKeys.form.keyName.placeholder')}
                           data-testid="input-apikey-name"
                         />
                       </FormControl>
@@ -195,17 +198,17 @@ export default function ApiKeys() {
                   name="scope"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Scope</FormLabel>
+                      <FormLabel>{t('apiKeys.form.scope')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-apikey-scope">
-                            <SelectValue placeholder="Select scope" />
+                            <SelectValue placeholder={t('apiKeys.form.scope.placeholder')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="read">Read Only</SelectItem>
-                          <SelectItem value="write">Read & Write</SelectItem>
-                          <SelectItem value="admin">Full Admin</SelectItem>
+                          <SelectItem value="read">{t('apiKeys.form.scope.read')}</SelectItem>
+                          <SelectItem value="write">{t('apiKeys.form.scope.write')}</SelectItem>
+                          <SelectItem value="admin">{t('apiKeys.form.scope.admin')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -217,16 +220,16 @@ export default function ApiKeys() {
                   name="ipWhitelist"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>IP Whitelist (Optional)</FormLabel>
+                      <FormLabel>{t('apiKeys.form.ipWhitelist')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
-                          placeholder="e.g., 192.168.1.1, 10.0.0.1"
+                          placeholder={t('apiKeys.form.ipWhitelist.placeholder')}
                           data-testid="input-apikey-ipwhitelist"
                         />
                       </FormControl>
                       <FormDescription>
-                        Comma-separated IP addresses. Leave empty to allow all IPs.
+                        {t('apiKeys.form.ipWhitelist.description')}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -237,7 +240,7 @@ export default function ApiKeys() {
                   name="expiresAt"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Expires At (Optional)</FormLabel>
+                      <FormLabel>{t('apiKeys.form.expiresAt')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -255,7 +258,7 @@ export default function ApiKeys() {
                   className="w-full hover-elevate active-elevate-2"
                   data-testid="button-submit-apikey"
                 >
-                  {createMutation.isPending ? 'Generating...' : 'Generate API Key'}
+                  {createMutation.isPending ? t('apiKeys.form.generating') : t('apiKeys.form.generateButton')}
                 </Button>
               </form>
             </Form>
@@ -268,12 +271,12 @@ export default function ApiKeys() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-primary" />
-              Save Your API Key
+              {t('apiKeys.alert.title')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              This is the only time you'll see this key. Copy it now and store it securely.
+              {t('apiKeys.alert.description')}
             </p>
             <div className="flex gap-2">
               <Input
@@ -301,21 +304,21 @@ export default function ApiKeys() {
               className="w-full hover-elevate active-elevate-2"
               data-testid="button-dismiss-apikey"
             >
-              I've Saved My Key
+              {t('apiKeys.alert.savedButton')}
             </Button>
           </CardContent>
         </Card>
       )}
 
       {isLoading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading API keys...</div>
+        <div className="text-center py-8 text-muted-foreground">{t('apiKeys.loading')}</div>
       ) : !apiKeys || !Array.isArray(apiKeys) || apiKeys.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <Key className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">No API keys created yet</p>
+            <p className="text-muted-foreground">{t('apiKeys.empty.title')}</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Generate your first API key to enable external platform integrations
+              {t('apiKeys.empty.description')}
             </p>
           </CardContent>
         </Card>
@@ -338,22 +341,22 @@ export default function ApiKeys() {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="font-mono" data-testid={`text-apikey-prefix-${key.id}`}>{key.keyPrefix}...</span>
                       <span data-testid={`text-apikey-createdat-${key.id}`}>
-                        Created {format(new Date(key.createdAt), 'MMM d, yyyy')}
+                        {t('apiKeys.list.created')} {format(new Date(key.createdAt), 'MMM d, yyyy')}
                       </span>
                       {key.expiresAt && (
                         <span data-testid={`text-apikey-expiresat-${key.id}`}>
-                          Expires {format(new Date(key.expiresAt), 'MMM d, yyyy')}
+                          {t('apiKeys.list.expires')} {format(new Date(key.expiresAt), 'MMM d, yyyy')}
                         </span>
                       )}
                       {key.lastUsedAt && (
                         <span data-testid={`text-apikey-lastusedat-${key.id}`}>
-                          Last used {format(new Date(key.lastUsedAt), 'MMM d, yyyy')}
+                          {t('apiKeys.list.lastUsed')} {format(new Date(key.lastUsedAt), 'MMM d, yyyy')}
                         </span>
                       )}
                     </div>
                     {key.ipWhitelist && (
                       <p className="text-xs text-muted-foreground" data-testid={`text-apikey-ipwhitelist-${key.id}`}>
-                        IP Whitelist: {key.ipWhitelist.join(', ')}
+                        {t('apiKeys.list.ipWhitelist')} {key.ipWhitelist.join(', ')}
                       </p>
                     )}
                   </div>
@@ -378,20 +381,21 @@ export default function ApiKeys() {
       <AlertDialog open={!!deleteKeyId} onOpenChange={() => setDeleteKeyId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Revoke API Key</AlertDialogTitle>
+            <AlertDialogTitle>{t('apiKeys.revoke.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently revoke the API key. Any applications using this key will no longer be able to authenticate.
-              This action cannot be undone.
+              {t('apiKeys.revoke.description')}
+              {' '}
+              {t('common.cannot.undo')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-revoke">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-revoke">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteKeyId && deleteMutation.mutate(deleteKeyId)}
               data-testid="button-confirm-revoke"
               className="hover-elevate active-elevate-2"
             >
-              {deleteMutation.isPending ? 'Revoking...' : 'Revoke Key'}
+              {deleteMutation.isPending ? t('apiKeys.revoke.revoking') : t('apiKeys.revoke.button')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

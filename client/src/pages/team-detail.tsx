@@ -13,8 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function TeamDetail() {
+  const { t } = useLanguage();
   const params = useParams();
   const teamId = params.id;
 
@@ -41,7 +43,7 @@ export default function TeamDetail() {
   if (!team) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-muted-foreground">Team not found</p>
+        <p className="text-sm text-muted-foreground">{t('teamDetail.not.found')}</p>
       </div>
     );
   }
@@ -75,7 +77,7 @@ export default function TeamDetail() {
             {team.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Team Leader: {team.leader?.name || 'Not assigned'}
+            {t('teamDetail.team.leader')} {team.leader?.name || t('teamDetail.not.assigned')}
           </p>
         </div>
       </div>
@@ -85,13 +87,13 @@ export default function TeamDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Total Clients
+              {t('teamDetail.total.clients')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold" data-testid="text-total-clients">{teamClients.length}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {activeClients} active
+              {activeClients} {t('teamDetail.active')}
             </p>
           </CardContent>
         </Card>
@@ -100,13 +102,13 @@ export default function TeamDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
-              Team Members
+              {t('teamDetail.team.members')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold" data-testid="text-total-members">{teamMembers.length}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {teamMembers.filter((m: any) => m.isActive).length} active
+              {teamMembers.filter((m: any) => m.isActive).length} {t('teamDetail.active')}
             </p>
           </CardContent>
         </Card>
@@ -115,7 +117,7 @@ export default function TeamDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Total Balance
+              {t('teamDetail.total.balance')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -123,7 +125,7 @@ export default function TeamDetail() {
               ${totalBalance.toLocaleString()}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Avg: ${teamClients.length > 0 ? Math.round(totalBalance / teamClients.length).toLocaleString() : '0'}
+              {t('teamDetail.avg')} ${teamClients.length > 0 ? Math.round(totalBalance / teamClients.length).toLocaleString() : '0'}
             </p>
           </CardContent>
         </Card>
@@ -132,13 +134,13 @@ export default function TeamDetail() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
-              Conversions
+              {t('teamDetail.conversions')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold" data-testid="text-conversions">{convertedClients}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {teamClients.length > 0 ? Math.round((convertedClients / teamClients.length) * 100) : 0}% rate
+              {teamClients.length > 0 ? Math.round((convertedClients / teamClients.length) * 100) : 0}% {t('teamDetail.rate')}
             </p>
           </CardContent>
         </Card>
@@ -147,7 +149,7 @@ export default function TeamDetail() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Team Members</CardTitle>
+            <CardTitle>{t('teamDetail.team.members')}</CardTitle>
           </CardHeader>
           <CardContent>
             {teamMembers.length > 0 ? (
@@ -168,9 +170,9 @@ export default function TeamDetail() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium">{memberClients.length} clients</p>
+                        <p className="text-sm font-medium">{memberClients.length} {t('teamDetail.clients')}</p>
                         <p className="text-xs text-muted-foreground">
-                          {memberClients.filter((c: any) => c.isActive).length} active
+                          {memberClients.filter((c: any) => c.isActive).length} {t('teamDetail.active')}
                         </p>
                       </div>
                     </div>
@@ -178,22 +180,22 @@ export default function TeamDetail() {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">No team members</p>
+              <p className="text-sm text-muted-foreground text-center py-8">{t('teamDetail.no.members')}</p>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Client Distribution</CardTitle>
+            <CardTitle>{t('teamDetail.client.distribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Agent</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Active</TableHead>
+                  <TableHead>{t('teamDetail.agent')}</TableHead>
+                  <TableHead className="text-right">{t('common.total')}</TableHead>
+                  <TableHead className="text-right">{t('common.active')}</TableHead>
                   <TableHead className="text-right">%</TableHead>
                 </TableRow>
               </TableHeader>
@@ -211,7 +213,7 @@ export default function TeamDetail() {
                 {clientDistribution.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
-                      No data available
+                      {t('teamDetail.no.data')}
                     </TableCell>
                   </TableRow>
                 )}
@@ -223,18 +225,18 @@ export default function TeamDetail() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Team Clients</CardTitle>
+          <CardTitle>{t('teamDetail.team.clients')}</CardTitle>
         </CardHeader>
         <CardContent>
           {teamClients.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Active</TableHead>
+                  <TableHead>{t('teamDetail.client')}</TableHead>
+                  <TableHead>{t('teamDetail.agent')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                  <TableHead>{t('common.balance')}</TableHead>
+                  <TableHead>{t('common.active')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -248,11 +250,11 @@ export default function TeamDetail() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {client.assignedAgent?.name || 'Unassigned'}
+                      {client.assignedAgent?.name || t('teamDetail.unassigned')}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className="text-xs">
-                        {client.status || 'new'}
+                        {client.status || t('teamDetail.status.new')}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono">
@@ -260,7 +262,7 @@ export default function TeamDetail() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={client.isActive ? 'default' : 'secondary'} className="text-xs">
-                        {client.isActive ? 'Active' : 'Inactive'}
+                        {client.isActive ? t('common.active') : t('common.inactive')}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -268,7 +270,7 @@ export default function TeamDetail() {
               </TableBody>
             </Table>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No clients assigned to this team</p>
+            <p className="text-sm text-muted-foreground text-center py-8">{t('teamDetail.no.clients')}</p>
           )}
         </CardContent>
       </Card>

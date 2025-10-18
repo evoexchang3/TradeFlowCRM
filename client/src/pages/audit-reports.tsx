@@ -27,6 +27,7 @@ import {
 import { FileText, Download, Search, Filter, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const ACTION_TYPES = [
   'login',
@@ -85,6 +86,7 @@ const TARGET_TYPES = [
 ];
 
 export default function AuditReports() {
+  const { t } = useLanguage();
   const [userId, setUserId] = useState("");
   const [actionType, setActionType] = useState("all");
   const [targetType, setTargetType] = useState("all");
@@ -147,42 +149,40 @@ export default function AuditReports() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2" data-testid="text-page-title">
             <FileText className="h-8 w-8 text-primary" />
-            Enhanced Audit Reports
+            {t('auditReports.title')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Comprehensive audit trail with advanced filtering
+            {t('auditReports.subtitle')}
           </p>
         </div>
         
         <Button onClick={handleExport} variant="outline" data-testid="button-export">
           <Download className="h-4 w-4 mr-2" />
-          Export CSV
+          {t('auditReports.exportCsv')}
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Filter className="h-5 w-5" />
-            Filters
+            {t('auditReports.filters')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">User</label>
+              <label className="text-sm font-medium mb-2 block">{t('auditReports.user')}</label>
               <Select value={userId} onValueChange={setUserId} data-testid="select-user">
                 <SelectTrigger>
-                  <SelectValue placeholder="All Users" />
+                  <SelectValue placeholder={t('auditReports.allUsers')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Users</SelectItem>
+                  <SelectItem value="">{t('auditReports.allUsers')}</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name} ({user.email})
@@ -193,13 +193,13 @@ export default function AuditReports() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Action Type</label>
+              <label className="text-sm font-medium mb-2 block">{t('auditReports.actionType')}</label>
               <Select value={actionType} onValueChange={setActionType} data-testid="select-action">
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="all">{t('auditReports.allActions')}</SelectItem>
                   {ACTION_TYPES.map((action) => (
                     <SelectItem key={action} value={action}>
                       {action.replace(/_/g, ' ').toUpperCase()}
@@ -210,13 +210,13 @@ export default function AuditReports() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Target Type</label>
+              <label className="text-sm font-medium mb-2 block">{t('auditReports.targetType')}</label>
               <Select value={targetType} onValueChange={setTargetType} data-testid="select-target">
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="all">{t('auditReports.allTypes')}</SelectItem>
                   {TARGET_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
                       {type.replace(/_/g, ' ').toUpperCase()}
@@ -227,7 +227,7 @@ export default function AuditReports() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Start Date</label>
+              <label className="text-sm font-medium mb-2 block">{t('auditReports.startDate')}</label>
               <Input
                 type="date"
                 value={startDate}
@@ -237,7 +237,7 @@ export default function AuditReports() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">End Date</label>
+              <label className="text-sm font-medium mb-2 block">{t('auditReports.endDate')}</label>
               <Input
                 type="date"
                 value={endDate}
@@ -260,40 +260,39 @@ export default function AuditReports() {
                 className="w-full"
                 data-testid="button-reset-filters"
               >
-                Reset Filters
+                {t('auditReports.resetFilters')}
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Audit Logs Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Audit Logs</CardTitle>
+          <CardTitle>{t('auditReports.auditLogs')}</CardTitle>
           {auditData && (
             <p className="text-sm text-muted-foreground">
-              Showing {auditData.logs.length} of {auditData.pagination.total} records
+              {t('auditReports.showingRecords', { count: auditData.logs.length, total: auditData.pagination.total })}
             </p>
           )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center h-32">
-              <p className="text-muted-foreground">Loading audit logs...</p>
+              <p className="text-muted-foreground">{t('auditReports.loadingLogs')}</p>
             </div>
           ) : (
             <>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>User</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Target Type</TableHead>
-                    <TableHead>Target ID</TableHead>
-                    <TableHead>IP Address</TableHead>
-                    <TableHead className="text-center">Details</TableHead>
+                    <TableHead>{t('auditReports.dateTime')}</TableHead>
+                    <TableHead>{t('common.user')}</TableHead>
+                    <TableHead>{t('auditReports.action')}</TableHead>
+                    <TableHead>{t('auditReports.targetType')}</TableHead>
+                    <TableHead>{t('auditReports.targetId')}</TableHead>
+                    <TableHead>{t('auditReports.ipAddress')}</TableHead>
+                    <TableHead className="text-center">{t('common.details')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -348,14 +347,13 @@ export default function AuditReports() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No audit logs found
+                        {t('auditReports.noLogsFound')}
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
 
-              {/* Pagination */}
               {auditData && auditData.pagination.total > limit && (
                 <div className="flex items-center justify-between mt-4">
                   <Button
@@ -364,11 +362,11 @@ export default function AuditReports() {
                     disabled={page === 0}
                     data-testid="button-prev-page"
                   >
-                    Previous
+                    {t('common.previous')}
                   </Button>
                   
                   <span className="text-sm text-muted-foreground">
-                    Page {page + 1} of {Math.ceil(auditData.pagination.total / limit)}
+                    {t('common.page.of', { current: page + 1, total: Math.ceil(auditData.pagination.total / limit) })}
                   </span>
                   
                   <Button
@@ -377,7 +375,7 @@ export default function AuditReports() {
                     disabled={!auditData.pagination.hasMore}
                     data-testid="button-next-page"
                   >
-                    Next
+                    {t('common.next')}
                   </Button>
                 </div>
               )}
@@ -386,28 +384,27 @@ export default function AuditReports() {
         </CardContent>
       </Card>
 
-      {/* Details Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Audit Log Details</DialogTitle>
+            <DialogTitle>{t('auditReports.logDetails')}</DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Date & Time</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t('auditReports.dateTime')}</label>
                   <p className="font-medium">{format(new Date(selectedLog.createdAt), 'PPpp')}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">User</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t('common.user')}</label>
                   <p className="font-medium">{selectedLog.userName}</p>
                   {selectedLog.userEmail && (
                     <p className="text-sm text-muted-foreground">{selectedLog.userEmail}</p>
                   )}
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Action</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t('auditReports.action')}</label>
                   <p>
                     <Badge className={getActionBadgeColor(selectedLog.action)}>
                       {selectedLog.action.replace(/_/g, ' ').toUpperCase()}
@@ -415,10 +412,10 @@ export default function AuditReports() {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Target</label>
+                  <label className="text-sm font-medium text-muted-foreground">{t('common.type')}</label>
                   <p>
                     <Badge variant="outline">
-                      {selectedLog.targetType?.replace(/_/g, ' ').toUpperCase() || 'N/A'}
+                      {selectedLog.targetType?.replace(/_/g, ' ').toUpperCase() || t('common.na')}
                     </Badge>
                   </p>
                   {selectedLog.targetId && (
@@ -426,13 +423,13 @@ export default function AuditReports() {
                   )}
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">IP Address</label>
-                  <p className="font-medium">{selectedLog.ipAddress || 'N/A'}</p>
+                  <label className="text-sm font-medium text-muted-foreground">{t('auditReports.ipAddress')}</label>
+                  <p className="font-medium">{selectedLog.ipAddress || t('common.na')}</p>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Details</label>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('common.details')}</label>
                 <div className="bg-muted p-4 rounded-lg overflow-x-auto">
                   <pre className="text-sm">
                     {JSON.stringify(selectedLog.details, null, 2)}

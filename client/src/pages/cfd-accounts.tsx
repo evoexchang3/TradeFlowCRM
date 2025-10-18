@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ interface CFDAccountWithClient extends Account {
 
 export default function CFDAccountsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all accounts (admin view)
@@ -78,16 +80,16 @@ export default function CFDAccountsPage() {
 
   const getMarginLevelBadge = (marginLevel: string | null, equity: string) => {
     if (!marginLevel || parseFloat(equity) === 0) {
-      return <Badge variant="secondary">N/A</Badge>;
+      return <Badge variant="secondary">{t('common.na')}</Badge>;
     }
     const level = parseFloat(marginLevel);
     if (level < 50) {
-      return <Badge variant="destructive">Critical ({level.toFixed(0)}%)</Badge>;
+      return <Badge variant="destructive">{t('cfdAccounts.marginLevel.critical', { level: level.toFixed(0) })}</Badge>;
     }
     if (level < 100) {
-      return <Badge className="bg-orange-500">Warning ({level.toFixed(0)}%)</Badge>;
+      return <Badge className="bg-orange-500">{t('cfdAccounts.marginLevel.warning', { level: level.toFixed(0) })}</Badge>;
     }
-    return <Badge variant="default">Healthy ({level.toFixed(0)}%)</Badge>;
+    return <Badge variant="default">{t('cfdAccounts.marginLevel.healthy', { level: level.toFixed(0) })}</Badge>;
   };
 
   return (
@@ -95,39 +97,39 @@ export default function CFDAccountsPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold" data-testid="text-page-title">
-          CFD Accounts
+          {t('cfdAccounts.title')}
         </h1>
         <p className="text-muted-foreground">
-          Monitor all client trading accounts and margin health
+          {t('cfdAccounts.subtitle')}
         </p>
       </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Total Accounts</div>
+          <div className="text-sm text-muted-foreground">{t('cfdAccounts.stats.totalAccounts')}</div>
           <div className="text-2xl font-bold mt-1">{stats.totalAccounts}</div>
         </div>
         <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Active</div>
+          <div className="text-sm text-muted-foreground">{t('cfdAccounts.stats.active')}</div>
           <div className="text-2xl font-bold mt-1 text-green-600">
             {stats.activeAccounts}
           </div>
         </div>
         <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Total Equity</div>
+          <div className="text-sm text-muted-foreground">{t('cfdAccounts.stats.totalEquity')}</div>
           <div className="text-2xl font-bold mt-1">
             ${stats.totalEquity.toFixed(2)}
           </div>
         </div>
         <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">Total Margin Used</div>
+          <div className="text-sm text-muted-foreground">{t('cfdAccounts.stats.totalMarginUsed')}</div>
           <div className="text-2xl font-bold mt-1">
             ${stats.totalMargin.toFixed(2)}
           </div>
         </div>
         <div className="border rounded-lg p-4">
-          <div className="text-sm text-muted-foreground">At Risk</div>
+          <div className="text-sm text-muted-foreground">{t('cfdAccounts.stats.atRisk')}</div>
           <div className="text-2xl font-bold mt-1 text-orange-600">
             {stats.atRisk}
           </div>
@@ -138,7 +140,7 @@ export default function CFDAccountsPage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search by client name, account number, or email..."
+          placeholder={t('cfdAccounts.search.placeholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9"
@@ -151,29 +153,29 @@ export default function CFDAccountsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Client</TableHead>
-              <TableHead>Account Number</TableHead>
-              <TableHead>Real Balance</TableHead>
-              <TableHead>Demo Balance</TableHead>
-              <TableHead>Equity</TableHead>
-              <TableHead>Margin Used</TableHead>
-              <TableHead>Free Margin</TableHead>
-              <TableHead>Margin Level</TableHead>
-              <TableHead>Leverage</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t('cfdAccounts.table.client')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.accountNumber')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.realBalance')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.demoBalance')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.equity')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.marginUsed')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.freeMargin')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.marginLevel')}</TableHead>
+              <TableHead>{t('cfdAccounts.table.leverage')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8">
-                  Loading accounts...
+                  {t('cfdAccounts.loading')}
                 </TableCell>
               </TableRow>
             ) : filteredAccounts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8">
-                  No accounts found
+                  {t('cfdAccounts.noAccounts')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -241,7 +243,7 @@ export default function CFDAccountsPage() {
                     <TableCell>{account.leverage}:1</TableCell>
                     <TableCell>
                       <Badge variant={account.isActive ? "default" : "secondary"}>
-                        {account.isActive ? "Active" : "Inactive"}
+                        {account.isActive ? t('common.active') : t('common.inactive')}
                       </Badge>
                     </TableCell>
                   </TableRow>
