@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DepartmentMetrics {
   department: string;
@@ -39,6 +40,7 @@ interface TeamLanguageMetrics {
 }
 
 export default function SalesManagerDashboard() {
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
@@ -114,7 +116,7 @@ export default function SalesManagerDashboard() {
     return (
       <div className="p-8">
         <div className="text-center text-muted-foreground">
-          No sales department data available
+          {t('dashboard.salesManager.no.data')}
         </div>
       </div>
     );
@@ -126,11 +128,11 @@ export default function SalesManagerDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="heading-sales-manager-dashboard">
-            Sales Department Performance
+            {t('dashboard.salesManager.title')}
           </h1>
           <p className="text-muted-foreground mt-1">
             <Badge variant="outline" className="capitalize">{deptMetrics.department}</Badge>
-            <span className="ml-2 text-sm">{deptMetrics.totalTeams} teams • {deptMetrics.totalAgents} agents</span>
+            <span className="ml-2 text-sm">{t('dashboard.salesManager.teams.agents', { teams: deptMetrics.totalTeams, agents: deptMetrics.totalAgents })}</span>
           </p>
         </div>
         
@@ -143,14 +145,14 @@ export default function SalesManagerDashboard() {
               onClick={clearDateFilters}
               data-testid="button-clear-dates"
             >
-              Clear Dates
+              {t('dashboard.salesManager.clear.dates')}
             </Button>
           )}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-start-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, 'PP') : 'Start Date'}
+                {startDate ? format(startDate, 'PP') : t('dashboard.salesManager.start.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -167,7 +169,7 @@ export default function SalesManagerDashboard() {
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-end-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, 'PP') : 'End Date'}
+                {endDate ? format(endDate, 'PP') : t('dashboard.salesManager.end.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -187,27 +189,27 @@ export default function SalesManagerDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Department Performance Score
+            {t('dashboard.salesManager.performance.score')}
           </CardTitle>
           <CardDescription>
-            Overall sales department rating based on all teams' FTD conversion, activity, and response time
+            {t('dashboard.salesManager.performance.score.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className={`text-5xl font-bold ${getPerformanceColor(deptMetrics.performanceScore)}`} data-testid="text-dept-performance-score">
             {deptMetrics.performanceScore}
-            <span className="text-2xl text-muted-foreground">/100</span>
+            <span className="text-2xl text-muted-foreground">{t('dashboard.salesManager.performance.score.outof')}</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Department FTD Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Department FTD Performance</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard.salesManager.department.ftd.performance')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card data-testid="card-dept-total-clients">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.total.clients')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -217,7 +219,7 @@ export default function SalesManagerDashboard() {
 
           <Card data-testid="card-dept-ftd-count">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">FTD Count</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.ftd.count')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -227,7 +229,7 @@ export default function SalesManagerDashboard() {
 
           <Card data-testid="card-dept-conversion-rate">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.conversion.rate')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -237,7 +239,7 @@ export default function SalesManagerDashboard() {
 
           <Card data-testid="card-dept-ftd-volume">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total FTD Volume</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.total.ftd.volume')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -245,7 +247,7 @@ export default function SalesManagerDashboard() {
                 ${deptMetrics.totalFtdVolume.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg: ${deptMetrics.avgFtdAmount.toFixed(0)}
+                {t('dashboard.salesManager.avg.label')} ${deptMetrics.avgFtdAmount.toFixed(0)}
               </p>
             </CardContent>
           </Card>
@@ -254,24 +256,24 @@ export default function SalesManagerDashboard() {
 
       {/* Department Activity Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Department Activity Metrics</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard.salesManager.department.activity.metrics')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card data-testid="card-dept-total-calls">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.total.calls')}</CardTitle>
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-dept-total-calls">{deptMetrics.totalCalls}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg duration: {formatDuration(deptMetrics.avgCallDuration)}
+                {t('dashboard.salesManager.avg.duration')} {formatDuration(deptMetrics.avgCallDuration)}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-dept-total-comments">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Comments Added</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.comments.added')}</CardTitle>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -281,7 +283,7 @@ export default function SalesManagerDashboard() {
 
           <Card data-testid="card-dept-response-time">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.salesManager.avg.response.time')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -297,12 +299,12 @@ export default function SalesManagerDashboard() {
       <div>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Users className="h-5 w-5" />
-          Team Performance by Language
+          {t('dashboard.salesManager.team.performance.language')}
         </h2>
         <Card data-testid="card-language-comparison">
           <CardHeader>
-            <CardTitle className="text-sm">Sales Teams Comparison</CardTitle>
-            <CardDescription>Performance metrics broken down by language teams</CardDescription>
+            <CardTitle className="text-sm">{t('dashboard.salesManager.sales.teams.comparison')}</CardTitle>
+            <CardDescription>{t('dashboard.salesManager.performance.metrics.breakdown')}</CardDescription>
           </CardHeader>
           <CardContent>
             {languageMetrics && languageMetrics.length > 0 ? (
@@ -318,7 +320,7 @@ export default function SalesManagerDashboard() {
                       <div>
                         <p className="font-medium" data-testid={`team-name-${index}`}>{team.teamName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {team.totalAgents} agents • {team.totalClients} clients • {team.ftdCount} FTDs
+                          {team.totalAgents} {t('dashboard.salesManager.agents')} • {team.totalClients} {t('dashboard.salesManager.clients')} • {team.ftdCount} {t('dashboard.salesManager.ftds')}
                         </p>
                       </div>
                     </div>
@@ -327,7 +329,7 @@ export default function SalesManagerDashboard() {
                         {team.performanceScore}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {team.ftdConversionRate.toFixed(1)}% conv. • ${team.totalFtdVolume.toLocaleString()}
+                        {team.ftdConversionRate.toFixed(1)}% {t('dashboard.salesManager.conv')} • ${team.totalFtdVolume.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -335,7 +337,7 @@ export default function SalesManagerDashboard() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No language team data available
+                {t('dashboard.salesManager.no.language.data')}
               </p>
             )}
           </CardContent>

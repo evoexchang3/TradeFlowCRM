@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DepartmentMetrics {
   department: string;
@@ -39,6 +40,7 @@ interface TeamLanguageMetrics {
 }
 
 export default function RetentionManagerDashboard() {
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
@@ -114,7 +116,7 @@ export default function RetentionManagerDashboard() {
     return (
       <div className="p-8">
         <div className="text-center text-muted-foreground">
-          No retention department data available
+          {t('dashboard.retentionManager.no.data')}
         </div>
       </div>
     );
@@ -128,11 +130,11 @@ export default function RetentionManagerDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="heading-retention-manager-dashboard">
-            Retention Department Performance
+            {t('dashboard.retentionManager.title')}
           </h1>
           <p className="text-muted-foreground mt-1">
             <Badge variant="outline" className="capitalize">{deptMetrics.department}</Badge>
-            <span className="ml-2 text-sm">{deptMetrics.totalTeams} teams • {deptMetrics.totalAgents} agents</span>
+            <span className="ml-2 text-sm">{t('dashboard.retentionManager.teams.agents', { teams: deptMetrics.totalTeams, agents: deptMetrics.totalAgents })}</span>
           </p>
         </div>
         
@@ -145,14 +147,14 @@ export default function RetentionManagerDashboard() {
               onClick={clearDateFilters}
               data-testid="button-clear-dates"
             >
-              Clear Dates
+              {t('dashboard.retentionManager.clear.dates')}
             </Button>
           )}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-start-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, 'PP') : 'Start Date'}
+                {startDate ? format(startDate, 'PP') : t('dashboard.retentionManager.start.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -169,7 +171,7 @@ export default function RetentionManagerDashboard() {
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-end-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, 'PP') : 'End Date'}
+                {endDate ? format(endDate, 'PP') : t('dashboard.retentionManager.end.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -189,27 +191,27 @@ export default function RetentionManagerDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Department Performance Score
+            {t('dashboard.retentionManager.performance.score')}
           </CardTitle>
           <CardDescription>
-            Overall retention department rating based on all teams' FTD conversion, activity, and response time
+            {t('dashboard.retentionManager.performance.score.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className={`text-5xl font-bold ${getPerformanceColor(deptMetrics.performanceScore)}`} data-testid="text-dept-performance-score">
             {deptMetrics.performanceScore}
-            <span className="text-2xl text-muted-foreground">/100</span>
+            <span className="text-2xl text-muted-foreground">{t('dashboard.retentionManager.performance.score.outof')}</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Department FTD Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Department FTD Performance</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard.retentionManager.department.ftd.performance')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card data-testid="card-dept-total-clients">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.total.clients')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -219,7 +221,7 @@ export default function RetentionManagerDashboard() {
 
           <Card data-testid="card-dept-ftd-count">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">FTD Count</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.ftd.count')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -229,7 +231,7 @@ export default function RetentionManagerDashboard() {
 
           <Card data-testid="card-dept-conversion-rate">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.conversion.rate')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -239,7 +241,7 @@ export default function RetentionManagerDashboard() {
 
           <Card data-testid="card-dept-ftd-volume">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total FTD Volume</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.total.ftd.volume')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -247,7 +249,7 @@ export default function RetentionManagerDashboard() {
                 ${deptMetrics.totalFtdVolume.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg: ${deptMetrics.avgFtdAmount.toFixed(0)}
+                {t('dashboard.retentionManager.avg.label')} ${deptMetrics.avgFtdAmount.toFixed(0)}
               </p>
             </CardContent>
           </Card>
@@ -256,24 +258,24 @@ export default function RetentionManagerDashboard() {
 
       {/* Department Activity Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Department Activity Metrics</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard.retentionManager.department.activity.metrics')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card data-testid="card-dept-total-calls">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.total.calls')}</CardTitle>
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-dept-total-calls">{deptMetrics.totalCalls}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg duration: {formatDuration(deptMetrics.avgCallDuration)}
+                {t('dashboard.retentionManager.avg.duration')} {formatDuration(deptMetrics.avgCallDuration)}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-dept-total-comments">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Comments Added</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.comments.added')}</CardTitle>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -283,7 +285,7 @@ export default function RetentionManagerDashboard() {
 
           <Card data-testid="card-dept-response-time">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.retentionManager.avg.response.time')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -299,12 +301,12 @@ export default function RetentionManagerDashboard() {
       <div>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Users className="h-5 w-5" />
-          Team Performance by Language
+          {t('dashboard.retentionManager.team.performance.language')}
         </h2>
         <Card data-testid="card-language-comparison">
           <CardHeader>
-            <CardTitle className="text-sm">Retention Teams Comparison</CardTitle>
-            <CardDescription>Performance metrics broken down by language teams</CardDescription>
+            <CardTitle className="text-sm">{t('dashboard.retentionManager.retention.teams.comparison')}</CardTitle>
+            <CardDescription>{t('dashboard.retentionManager.performance.metrics.breakdown')}</CardDescription>
           </CardHeader>
           <CardContent>
             {languageMetrics && languageMetrics.length > 0 ? (
@@ -320,7 +322,7 @@ export default function RetentionManagerDashboard() {
                       <div>
                         <p className="font-medium" data-testid={`team-name-${index}`}>{team.teamName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {team.totalAgents} agents • {team.totalClients} clients • {team.ftdCount} FTDs
+                          {team.totalAgents} {t('dashboard.retentionManager.agents')} • {team.totalClients} {t('dashboard.retentionManager.clients')} • {team.ftdCount} {t('dashboard.retentionManager.ftds')}
                         </p>
                       </div>
                     </div>
@@ -329,7 +331,7 @@ export default function RetentionManagerDashboard() {
                         {team.performanceScore}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {team.ftdConversionRate.toFixed(1)}% conv. • ${team.totalFtdVolume.toLocaleString()}
+                        {team.ftdConversionRate.toFixed(1)}% {t('dashboard.retentionManager.conv')} • ${team.totalFtdVolume.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -337,7 +339,7 @@ export default function RetentionManagerDashboard() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No language team data available
+                {t('dashboard.retentionManager.no.language.data')}
               </p>
             )}
           </CardContent>

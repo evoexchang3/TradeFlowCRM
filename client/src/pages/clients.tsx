@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CustomStatus {
   id: string;
@@ -49,6 +50,7 @@ interface CustomStatus {
 }
 
 export default function Clients() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTeamId, setFilterTeamId] = useState<string>('');
   const [filterAgentId, setFilterAgentId] = useState<string>('');
@@ -82,9 +84,7 @@ export default function Clients() {
     queryKey: ['/api/custom-statuses'],
   });
 
-  // Apply client-side filtering
   const clients = allClients?.filter((client: any) => {
-    // Search filter
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
       const matchesSearch = 
@@ -95,7 +95,6 @@ export default function Clients() {
       if (!matchesSearch) return false;
     }
 
-    // Team filter
     if (filterTeamId && filterTeamId !== 'all') {
       if (filterTeamId === 'unassigned') {
         if (client.teamId) return false;
@@ -104,7 +103,6 @@ export default function Clients() {
       }
     }
 
-    // Agent filter
     if (filterAgentId && filterAgentId !== 'all') {
       if (filterAgentId === 'unassigned') {
         if (client.assignedAgentId) return false;
@@ -113,7 +111,6 @@ export default function Clients() {
       }
     }
 
-    // Status filter (using custom statusId)
     if (filterStatus && filterStatus !== 'all') {
       if (client.statusId !== filterStatus) return false;
     }
@@ -131,14 +128,14 @@ export default function Clients() {
       setBulkAssignAgentId('');
       setBulkAssignTeamId('');
       toast({
-        title: "Bulk assignment completed",
-        description: `Successfully assigned ${selectedClients.size} client(s).`,
+        title: t('clients.all.toast.bulk.assign.completed'),
+        description: t('clients.all.toast.bulk.assign.success', { count: selectedClients.size }),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Bulk assignment failed",
-        description: error.message || "Failed to assign clients.",
+        title: t('clients.all.toast.bulk.assign.failed'),
+        description: error.message || t('clients.all.toast.failed.assign.clients'),
         variant: "destructive",
       });
     },
@@ -153,14 +150,14 @@ export default function Clients() {
       setCommentText('');
       setSelectedClientForComment(null);
       toast({
-        title: "Comment added",
-        description: "Your comment has been saved.",
+        title: t('clients.all.toast.comment.added'),
+        description: t('clients.all.toast.comment.saved'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add comment.",
+        title: t('common.error'),
+        description: error.message || t('clients.all.toast.failed.add.comment'),
         variant: "destructive",
       });
     },
@@ -172,14 +169,14 @@ export default function Clients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "Agent assigned",
-        description: "Client agent has been updated.",
+        title: t('clients.all.toast.agent.assigned'),
+        description: t('clients.all.toast.agent.updated'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to assign agent.",
+        title: t('common.error'),
+        description: error.message || t('clients.all.toast.failed.assign.agent'),
         variant: "destructive",
       });
     },
@@ -191,14 +188,14 @@ export default function Clients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "Status updated",
-        description: "Client status has been updated.",
+        title: t('clients.all.toast.status.updated'),
+        description: t('clients.all.toast.status.updated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update status.",
+        title: t('common.error'),
+        description: error.message || t('clients.all.toast.failed.update.status'),
         variant: "destructive",
       });
     },
@@ -210,20 +207,19 @@ export default function Clients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "KYC status updated",
-        description: "Client KYC status has been updated.",
+        title: t('clients.all.toast.kyc.updated'),
+        description: t('clients.all.toast.kyc.updated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update KYC status.",
+        title: t('common.error'),
+        description: error.message || t('clients.all.toast.failed.update.kyc'),
         variant: "destructive",
       });
     },
   });
 
-  // Check if user can assign agents (Team Leader, CRM Manager, or Admin only)
   const canAssignAgents = () => {
     if (!currentUser || !currentUser.role) return false;
     const roleName = currentUser.role.name?.toLowerCase();
@@ -261,9 +257,9 @@ export default function Clients() {
 
   const getKycStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
-      verified: { variant: "default", label: "Verified" },
-      pending: { variant: "secondary", label: "Pending" },
-      rejected: { variant: "destructive", label: "Rejected" },
+      verified: { variant: "default", label: t('clients.all.verified') },
+      pending: { variant: "secondary", label: t('clients.all.pending') },
+      rejected: { variant: "destructive", label: t('clients.all.rejected') },
     };
     const config = variants[status] || variants.pending;
     return (
@@ -295,15 +291,15 @@ export default function Clients() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-clients-title">Clients</h1>
+          <h1 className="text-2xl font-semibold" data-testid="text-clients-title">{t('clients.all.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage client accounts and information
+            {t('clients.all.subtitle')}
           </p>
         </div>
         <Button asChild size="sm" data-testid="button-add-client" className="hover-elevate active-elevate-2">
           <Link href="/clients/new">
             <Plus className="h-4 w-4 mr-2" />
-            Add Client
+            {t('clients.all.add.client')}
           </Link>
         </Button>
       </div>
@@ -315,7 +311,7 @@ export default function Clients() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search clients by name, email, or ID..."
+                  placeholder={t('clients.all.search.placeholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -327,11 +323,11 @@ export default function Clients() {
             <div className="flex items-center gap-2 flex-wrap">
               <Select value={filterTeamId} onValueChange={setFilterTeamId}>
                 <SelectTrigger className="w-[200px]" data-testid="select-filter-team">
-                  <SelectValue placeholder="All Teams" />
+                  <SelectValue placeholder={t('clients.all.all.teams')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  <SelectItem value="all">{t('clients.all.all.teams')}</SelectItem>
+                  <SelectItem value="unassigned">{t('clients.all.unassigned')}</SelectItem>
                   {teams.map((team: any) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
@@ -342,11 +338,11 @@ export default function Clients() {
 
               <Select value={filterAgentId} onValueChange={setFilterAgentId}>
                 <SelectTrigger className="w-[200px]" data-testid="select-filter-agent">
-                  <SelectValue placeholder="All Agents" />
+                  <SelectValue placeholder={t('clients.all.all.agents')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Agents</SelectItem>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  <SelectItem value="all">{t('clients.all.all.agents')}</SelectItem>
+                  <SelectItem value="unassigned">{t('clients.all.unassigned')}</SelectItem>
                   {agents.map((agent: any) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
@@ -357,10 +353,10 @@ export default function Clients() {
 
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-[200px]" data-testid="select-filter-status">
-                  <SelectValue placeholder="All Statuses" />
+                  <SelectValue placeholder={t('clients.all.all.statuses')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="all">{t('clients.all.all.statuses')}</SelectItem>
                   {customStatuses.map((status) => (
                     <SelectItem key={status.id} value={status.id}>
                       {status.name}
@@ -382,14 +378,14 @@ export default function Clients() {
                   data-testid="button-clear-filters"
                   className="hover-elevate active-elevate-2"
                 >
-                  Clear Filters
+                  {t('clients.all.clear.filters')}
                 </Button>
               )}
             </div>
 
             {clients && allClients && clients.length !== allClients.length && (
               <p className="text-sm text-muted-foreground">
-                Showing {clients.length} of {allClients.length} clients
+                {t('clients.all.showing.count', { current: clients.length, total: allClients.length })}
               </p>
             )}
           </div>
@@ -399,7 +395,10 @@ export default function Clients() {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-selected-count">
-                  {selectedClients.size} client{selectedClients.size > 1 ? 's' : ''} selected
+                  {t('clients.all.selected.count', { 
+                    count: selectedClients.size, 
+                    s: selectedClients.size > 1 ? t('clients.all.selected.plural') : '' 
+                  })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -410,7 +409,7 @@ export default function Clients() {
                   data-testid="button-clear-selection"
                   className="hover-elevate active-elevate-2"
                 >
-                  Clear Selection
+                  {t('clients.all.clear.selection')}
                 </Button>
                 <Button
                   size="sm"
@@ -418,7 +417,7 @@ export default function Clients() {
                   data-testid="button-bulk-assign"
                   className="hover-elevate active-elevate-2"
                 >
-                  Assign Clients
+                  {t('clients.all.assign.clients')}
                 </Button>
               </div>
             </div>
@@ -439,14 +438,14 @@ export default function Clients() {
                       data-testid="checkbox-select-all"
                     />
                   </TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>KYC Status</TableHead>
-                  <TableHead>Balance</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead className="w-[140px]">Actions</TableHead>
+                  <TableHead>{t('clients.all.table.client')}</TableHead>
+                  <TableHead>{t('clients.all.table.contact')}</TableHead>
+                  <TableHead>{t('clients.all.table.account')}</TableHead>
+                  <TableHead>{t('clients.all.table.status')}</TableHead>
+                  <TableHead>{t('clients.all.table.kyc.status')}</TableHead>
+                  <TableHead>{t('clients.all.table.balance')}</TableHead>
+                  <TableHead>{t('clients.all.table.agent')}</TableHead>
+                  <TableHead className="w-[140px]">{t('clients.all.table.actions')}</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -493,7 +492,7 @@ export default function Clients() {
                     </TableCell>
                     <TableCell>
                       <span className="text-sm font-mono">
-                        {client.account?.accountNumber || 'N/A'}
+                        {client.account?.accountNumber || t('clients.all.na')}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -505,10 +504,10 @@ export default function Clients() {
                         })}
                       >
                         <SelectTrigger className="w-[150px] h-8 text-xs" data-testid={`select-status-${client.id}`}>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder={t('clients.all.select.status')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="none">{t('clients.all.none')}</SelectItem>
                           {customStatuses.map((status: CustomStatus) => (
                             <SelectItem key={status.id} value={status.id}>
                               {status.name}
@@ -526,12 +525,12 @@ export default function Clients() {
                         })}
                       >
                         <SelectTrigger className="w-[120px] h-8 text-xs" data-testid={`select-kyc-${client.id}`}>
-                          <SelectValue placeholder="Select KYC" />
+                          <SelectValue placeholder={t('clients.all.select.kyc')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="verified">Verified</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="pending">{t('clients.all.pending')}</SelectItem>
+                          <SelectItem value="verified">{t('clients.all.verified')}</SelectItem>
+                          <SelectItem value="rejected">{t('clients.all.rejected')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -541,7 +540,7 @@ export default function Clients() {
                           ${(client.account?.balance || 0).toLocaleString()}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Equity: ${(client.account?.equity || 0).toLocaleString()}
+                          {t('clients.all.equity')} ${(client.account?.equity || 0).toLocaleString()}
                         </p>
                       </div>
                     </TableCell>
@@ -554,10 +553,10 @@ export default function Clients() {
                         })}
                       >
                         <SelectTrigger className="w-[140px] h-8 text-xs" data-testid={`select-agent-${client.id}`}>
-                          <SelectValue placeholder="Unassigned" />
+                          <SelectValue placeholder={t('clients.all.unassigned.placeholder')} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="unassigned">Unassigned</SelectItem>
+                          <SelectItem value="unassigned">{t('clients.all.unassigned')}</SelectItem>
                           {agents.map((agent: any) => (
                             <SelectItem key={agent.id} value={agent.id}>
                               {agent.name}
@@ -618,13 +617,13 @@ export default function Clients() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/clients/${client.id}`}>View Details</Link>
+                            <Link href={`/clients/${client.id}`}>{t('clients.all.view.details')}</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/clients/${client.id}/edit`}>Edit Client</Link>
+                            <Link href={`/clients/${client.id}/edit`}>{t('clients.all.edit.client')}</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>Call Client</DropdownMenuItem>
-                          <DropdownMenuItem>Login as Client</DropdownMenuItem>
+                          <DropdownMenuItem>{t('clients.all.call.client')}</DropdownMenuItem>
+                          <DropdownMenuItem>{t('clients.all.login.as.client')}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -632,7 +631,7 @@ export default function Clients() {
                 )) || (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-12">
-                      <p className="text-sm text-muted-foreground">No clients found</p>
+                      <p className="text-sm text-muted-foreground">{t('clients.all.no.clients')}</p>
                     </TableCell>
                   </TableRow>
                 )}
@@ -645,23 +644,26 @@ export default function Clients() {
       <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
         <DialogContent data-testid="dialog-bulk-assign">
           <DialogHeader>
-            <DialogTitle>Bulk Assign Clients</DialogTitle>
+            <DialogTitle>{t('clients.all.bulk.assign.title')}</DialogTitle>
             <DialogDescription>
-              Assign {selectedClients.size} selected client{selectedClients.size > 1 ? 's' : ''} to an agent or team
+              {t('clients.all.bulk.assign.description', { 
+                count: selectedClients.size, 
+                s: selectedClients.size > 1 ? t('clients.all.selected.plural') : '' 
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assigned Agent</label>
+              <label className="text-sm font-medium">{t('clients.all.assigned.agent')}</label>
               <Select
                 value={bulkAssignAgentId}
                 onValueChange={setBulkAssignAgentId}
               >
                 <SelectTrigger data-testid="select-bulk-agent">
-                  <SelectValue placeholder="Select agent (optional)" />
+                  <SelectValue placeholder={t('clients.all.select.agent.optional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
+                  <SelectItem value="none">{t('clients.all.unassigned')}</SelectItem>
                   {agents.map((agent: any) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
@@ -671,16 +673,16 @@ export default function Clients() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assigned Team</label>
+              <label className="text-sm font-medium">{t('clients.all.assigned.team')}</label>
               <Select
                 value={bulkAssignTeamId}
                 onValueChange={setBulkAssignTeamId}
               >
                 <SelectTrigger data-testid="select-bulk-team">
-                  <SelectValue placeholder="Select team (optional)" />
+                  <SelectValue placeholder={t('clients.all.select.team.optional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Team</SelectItem>
+                  <SelectItem value="none">{t('clients.all.no.team')}</SelectItem>
                   {teams.map((team: any) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
@@ -697,7 +699,7 @@ export default function Clients() {
               data-testid="button-cancel-bulk-assign"
               className="hover-elevate active-elevate-2"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleBulkAssign}
@@ -705,7 +707,7 @@ export default function Clients() {
               data-testid="button-confirm-bulk-assign"
               className="hover-elevate active-elevate-2"
             >
-              {bulkAssignMutation.isPending ? "Assigning..." : "Assign Clients"}
+              {bulkAssignMutation.isPending ? t('clients.all.assigning') : t('clients.all.assign.clients')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -714,14 +716,16 @@ export default function Clients() {
       <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
         <DialogContent data-testid="dialog-add-comment">
           <DialogHeader>
-            <DialogTitle>Add Comment</DialogTitle>
+            <DialogTitle>{t('clients.all.add.comment.title')}</DialogTitle>
             <DialogDescription>
-              Add a note or comment for {selectedClientForComment?.firstName} {selectedClientForComment?.lastName}
+              {t('clients.all.add.comment.description', { 
+                name: `${selectedClientForComment?.firstName} ${selectedClientForComment?.lastName}` 
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Enter your comment..."
+              placeholder={t('clients.all.enter.comment')}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               rows={4}
@@ -739,7 +743,7 @@ export default function Clients() {
               data-testid="button-cancel-comment"
               className="hover-elevate active-elevate-2"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -754,7 +758,7 @@ export default function Clients() {
               data-testid="button-save-comment"
               className="hover-elevate active-elevate-2"
             >
-              {commentMutation.isPending ? "Saving..." : "Save Comment"}
+              {commentMutation.isPending ? t('clients.all.saving') : t('clients.all.save.comment')}
             </Button>
           </DialogFooter>
         </DialogContent>

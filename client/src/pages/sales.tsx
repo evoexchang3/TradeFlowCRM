@@ -50,6 +50,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CustomStatus {
   id: string;
@@ -59,16 +60,8 @@ interface CustomStatus {
   category: string;
 }
 
-const markFTDSchema = z.object({
-  amount: z.string().min(1, "Amount is required").refine(
-    (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-    "Amount must be greater than 0"
-  ),
-  fundType: z.enum(['real', 'demo', 'bonus']),
-  notes: z.string().optional(),
-});
-
 export default function SalesClients() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTeamId, setFilterTeamId] = useState<string>('all');
   const [filterAgentId, setFilterAgentId] = useState<string>('all');
@@ -83,6 +76,15 @@ export default function SalesClients() {
   const [selectedClientForComment, setSelectedClientForComment] = useState<any>(null);
   const [commentText, setCommentText] = useState('');
   const { toast } = useToast();
+
+  const markFTDSchema = z.object({
+    amount: z.string().min(1, t('clients.sales.validation.amount.required')).refine(
+      (val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      t('clients.sales.validation.amount.positive')
+    ),
+    fundType: z.enum(['real', 'demo', 'bonus']),
+    notes: z.string().optional(),
+  });
 
   const form = useForm<z.infer<typeof markFTDSchema>>({
     resolver: zodResolver(markFTDSchema),
@@ -109,7 +111,6 @@ export default function SalesClients() {
     queryKey: ['/api/custom-statuses'],
   });
 
-  // Client-side filtering
   const clients = salesClients?.filter((client: any) => {
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
@@ -148,14 +149,14 @@ export default function SalesClients() {
       setSelectedClient(null);
       form.reset();
       toast({
-        title: "FTD marked successfully",
-        description: `Client has been moved to retention.`,
+        title: t('clients.sales.toast.ftd.success'),
+        description: t('clients.sales.toast.ftd.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error marking FTD",
-        description: error.message || "Failed to mark FTD",
+        title: t('clients.sales.toast.ftd.error'),
+        description: error.message || t('clients.sales.toast.ftd.error.description'),
         variant: "destructive",
       });
     },
@@ -171,14 +172,14 @@ export default function SalesClients() {
       setBulkAssignAgentId('');
       setBulkAssignTeamId('');
       toast({
-        title: "Bulk assignment completed",
-        description: `Successfully assigned ${selectedClients.size} client(s).`,
+        title: t('clients.sales.toast.bulk.assign.success'),
+        description: t('clients.sales.toast.bulk.assign.success.description', { count: selectedClients.size }),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Bulk assignment failed",
-        description: error.message || "Failed to assign clients.",
+        title: t('clients.sales.toast.bulk.assign.error'),
+        description: error.message || t('clients.sales.toast.bulk.assign.error.description'),
         variant: "destructive",
       });
     },
@@ -193,14 +194,14 @@ export default function SalesClients() {
       setCommentText('');
       setSelectedClientForComment(null);
       toast({
-        title: "Comment added",
-        description: "Your comment has been saved.",
+        title: t('clients.sales.toast.comment.success'),
+        description: t('clients.sales.toast.comment.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add comment.",
+        title: t('common.error'),
+        description: error.message || t('clients.sales.toast.comment.error.description'),
         variant: "destructive",
       });
     },
@@ -212,14 +213,14 @@ export default function SalesClients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients/sales'] });
       toast({
-        title: "Agent assigned",
-        description: "Client has been assigned successfully.",
+        title: t('clients.sales.toast.agent.success'),
+        description: t('clients.sales.toast.agent.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to assign agent.",
+        title: t('common.error'),
+        description: error.message || t('clients.sales.toast.agent.error.description'),
         variant: "destructive",
       });
     },
@@ -231,14 +232,14 @@ export default function SalesClients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients/sales'] });
       toast({
-        title: "Status updated",
-        description: "Client status has been updated.",
+        title: t('clients.sales.toast.status.success'),
+        description: t('clients.sales.toast.status.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update status.",
+        title: t('common.error'),
+        description: error.message || t('clients.sales.toast.status.error.description'),
         variant: "destructive",
       });
     },
@@ -250,14 +251,14 @@ export default function SalesClients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients/sales'] });
       toast({
-        title: "KYC status updated",
-        description: "Client KYC status has been updated.",
+        title: t('clients.sales.toast.kyc.success'),
+        description: t('clients.sales.toast.kyc.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update KYC status.",
+        title: t('common.error'),
+        description: error.message || t('clients.sales.toast.kyc.error.description'),
         variant: "destructive",
       });
     },
@@ -298,13 +299,13 @@ export default function SalesClients() {
 
   const getPipelineStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      new_lead: { label: 'New Lead', variant: 'default' },
-      contact_attempted: { label: 'Contact Attempted', variant: 'secondary' },
-      in_discussion: { label: 'In Discussion', variant: 'default' },
-      kyc_pending: { label: 'KYC Pending', variant: 'secondary' },
-      active_client: { label: 'Active', variant: 'default' },
-      cold_inactive: { label: 'Cold/Inactive', variant: 'outline' },
-      lost: { label: 'Lost', variant: 'destructive' },
+      new_lead: { label: t('clients.sales.pipeline.new.lead'), variant: 'default' },
+      contact_attempted: { label: t('clients.sales.pipeline.contact.attempted'), variant: 'secondary' },
+      in_discussion: { label: t('clients.sales.pipeline.in.discussion'), variant: 'default' },
+      kyc_pending: { label: t('clients.sales.pipeline.kyc.pending'), variant: 'secondary' },
+      active_client: { label: t('clients.sales.pipeline.active'), variant: 'default' },
+      cold_inactive: { label: t('clients.sales.pipeline.cold.inactive'), variant: 'outline' },
+      lost: { label: t('clients.sales.pipeline.lost'), variant: 'destructive' },
     };
     const config = statusMap[status] || { label: status, variant: 'outline' };
     return <Badge variant={config.variant} data-testid={`badge-pipeline-status-${status}`}>{config.label}</Badge>;
@@ -314,7 +315,7 @@ export default function SalesClients() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading sales clients...</p>
+          <p className="text-muted-foreground">{t('clients.sales.loading')}</p>
         </div>
       </div>
     );
@@ -322,41 +323,39 @@ export default function SalesClients() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Sales Clients</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('clients.sales.title')}</h1>
           <p className="text-muted-foreground">
-            Clients without First Time Deposit (FTD)
+            {t('clients.sales.subtitle')}
           </p>
         </div>
       </div>
 
-      {/* Stats Card */}
       <Card>
         <CardHeader>
-          <CardTitle data-testid="text-stats-title">Sales Pipeline</CardTitle>
+          <CardTitle data-testid="text-stats-title">{t('clients.sales.pipeline.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Total Clients</p>
+              <p className="text-sm text-muted-foreground">{t('clients.sales.total.clients')}</p>
               <p className="text-2xl font-bold" data-testid="text-total-clients">{clients?.length || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">New Leads</p>
+              <p className="text-sm text-muted-foreground">{t('clients.sales.new.leads')}</p>
               <p className="text-2xl font-bold" data-testid="text-new-leads">
                 {clients?.filter((c: any) => c.pipelineStatus === 'new_lead').length || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">In Discussion</p>
+              <p className="text-sm text-muted-foreground">{t('clients.sales.in.discussion')}</p>
               <p className="text-2xl font-bold" data-testid="text-in-discussion">
                 {clients?.filter((c: any) => c.pipelineStatus === 'in_discussion').length || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">KYC Pending</p>
+              <p className="text-sm text-muted-foreground">{t('clients.sales.kyc.pending')}</p>
               <p className="text-2xl font-bold" data-testid="text-kyc-pending">
                 {clients?.filter((c: any) => c.pipelineStatus === 'kyc_pending').length || 0}
               </p>
@@ -365,14 +364,13 @@ export default function SalesClients() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 flex-wrap">
             <div className="flex-1 relative min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or email..."
+                placeholder={t('clients.sales.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -381,10 +379,10 @@ export default function SalesClients() {
             </div>
             <Select value={filterTeamId} onValueChange={setFilterTeamId}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-team-filter">
-                <SelectValue placeholder="All Teams" />
+                <SelectValue placeholder={t('clients.sales.all.teams')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Teams</SelectItem>
+                <SelectItem value="all">{t('clients.sales.all.teams')}</SelectItem>
                 {teams.map((team: any) => (
                   <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                 ))}
@@ -392,11 +390,11 @@ export default function SalesClients() {
             </Select>
             <Select value={filterAgentId} onValueChange={setFilterAgentId}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-agent-filter">
-                <SelectValue placeholder="All Agents" />
+                <SelectValue placeholder={t('clients.sales.all.agents')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Agents</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="all">{t('clients.sales.all.agents')}</SelectItem>
+                <SelectItem value="unassigned">{t('clients.sales.unassigned')}</SelectItem>
                 {agents.map((agent: any) => (
                   <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                 ))}
@@ -404,10 +402,10 @@ export default function SalesClients() {
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-status-filter">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={t('clients.sales.all.statuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t('clients.sales.all.statuses')}</SelectItem>
                 {customStatuses.map((status) => (
                   <SelectItem key={status.id} value={status.id}>
                     {status.name}
@@ -428,14 +426,13 @@ export default function SalesClients() {
                 data-testid="button-clear-filters"
                 className="hover-elevate active-elevate-2"
               >
-                Clear Filters
+                {t('clients.sales.clear.filters')}
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Clients Table */}
       <Card>
         <CardContent className="pt-6">
           {selectedClients.size > 0 && (
@@ -443,7 +440,10 @@ export default function SalesClients() {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-selected-count">
-                  {selectedClients.size} client{selectedClients.size > 1 ? 's' : ''} selected
+                  {t('clients.sales.selected.count', { 
+                    count: selectedClients.size,
+                    s: selectedClients.size > 1 ? t('clients.sales.selected.plural') : ''
+                  })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -454,7 +454,7 @@ export default function SalesClients() {
                   data-testid="button-clear-selection"
                   className="hover-elevate active-elevate-2"
                 >
-                  Clear Selection
+                  {t('clients.sales.clear.selection')}
                 </Button>
                 <Button
                   size="sm"
@@ -462,7 +462,7 @@ export default function SalesClients() {
                   data-testid="button-bulk-assign"
                   className="hover-elevate active-elevate-2"
                 >
-                  Assign Clients
+                  {t('clients.sales.assign.clients')}
                 </Button>
               </div>
             </div>
@@ -478,13 +478,13 @@ export default function SalesClients() {
                     data-testid="checkbox-select-all"
                   />
                 </TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>KYC</TableHead>
-                <TableHead>Agent</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead className="w-[140px]">Actions</TableHead>
+                <TableHead>{t('clients.sales.table.client')}</TableHead>
+                <TableHead>{t('clients.sales.table.contact')}</TableHead>
+                <TableHead>{t('clients.sales.table.status')}</TableHead>
+                <TableHead>{t('clients.sales.table.kyc')}</TableHead>
+                <TableHead>{t('clients.sales.table.agent')}</TableHead>
+                <TableHead>{t('clients.sales.table.team')}</TableHead>
+                <TableHead className="w-[140px]">{t('clients.sales.table.actions')}</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -492,7 +492,7 @@ export default function SalesClients() {
               {clients && clients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8">
-                    <p className="text-muted-foreground" data-testid="text-no-clients">No sales clients found</p>
+                    <p className="text-muted-foreground" data-testid="text-no-clients">{t('clients.sales.no.clients')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -537,10 +537,10 @@ export default function SalesClients() {
                           })}
                         >
                           <SelectTrigger className="w-[140px] h-8 text-xs" data-testid={`select-status-${client.id}`}>
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder={t('clients.sales.select.status')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="none">{t('common.none')}</SelectItem>
                             {customStatuses.map((status: CustomStatus) => (
                               <SelectItem key={status.id} value={status.id}>
                                 {status.name}
@@ -558,12 +558,12 @@ export default function SalesClients() {
                           })}
                         >
                           <SelectTrigger className="w-[110px] h-8 text-xs" data-testid={`select-kyc-${client.id}`}>
-                            <SelectValue placeholder="KYC" />
+                            <SelectValue placeholder={t('clients.sales.table.kyc')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="verified">Verified</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
+                            <SelectItem value="pending">{t('clients.sales.kyc.pending.option')}</SelectItem>
+                            <SelectItem value="verified">{t('clients.sales.kyc.verified')}</SelectItem>
+                            <SelectItem value="rejected">{t('clients.sales.kyc.rejected')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -576,10 +576,10 @@ export default function SalesClients() {
                           })}
                         >
                           <SelectTrigger className="w-[130px] h-8 text-xs" data-testid={`select-agent-${client.id}`}>
-                            <SelectValue placeholder="Unassigned" />
+                            <SelectValue placeholder={t('clients.sales.unassigned')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            <SelectItem value="unassigned">{t('clients.sales.unassigned')}</SelectItem>
                             {agents.map((agent: any) => (
                               <SelectItem key={agent.id} value={agent.id}>
                                 {agent.name}
@@ -589,7 +589,7 @@ export default function SalesClients() {
                         </Select>
                       </TableCell>
                       <TableCell data-testid={`text-team-${client.id}`}>
-                        <span className="text-sm">{team?.name || 'Unassigned'}</span>
+                        <span className="text-sm">{team?.name || t('clients.sales.unassigned')}</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -646,7 +646,7 @@ export default function SalesClients() {
                             className="h-8"
                           >
                             <DollarSign className="h-3 w-3 mr-1" />
-                            FTD
+                            {t('clients.sales.ftd.button')}
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -656,13 +656,13 @@ export default function SalesClients() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link href={`/clients/${client.id}`}>View Details</Link>
+                                <Link href={`/clients/${client.id}`}>{t('clients.sales.view.details')}</Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link href={`/clients/${client.id}/edit`}>Edit Client</Link>
+                                <Link href={`/clients/${client.id}/edit`}>{t('clients.sales.edit.client')}</Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link href={`/chat?clientId=${client.id}`}>Start Chat</Link>
+                                <Link href={`/chat?clientId=${client.id}`}>{t('clients.sales.start.chat')}</Link>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -677,13 +677,12 @@ export default function SalesClients() {
         </CardContent>
       </Card>
 
-      {/* Mark FTD Dialog */}
       <Dialog open={markFTDOpen} onOpenChange={setMarkFTDOpen}>
         <DialogContent data-testid="dialog-mark-ftd">
           <DialogHeader>
-            <DialogTitle>Mark First Time Deposit</DialogTitle>
+            <DialogTitle>{t('clients.sales.mark.ftd.title')}</DialogTitle>
             <DialogDescription>
-              Record the first deposit for {selectedClient?.name}. This will move them to retention.
+              {t('clients.sales.mark.ftd.description', { name: selectedClient?.name })}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -693,11 +692,11 @@ export default function SalesClients() {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Deposit Amount</FormLabel>
+                    <FormLabel>{t('clients.sales.deposit.amount')}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="1000"
+                        placeholder={t('clients.sales.amount.placeholder')}
                         data-testid="input-ftd-amount"
                         {...field}
                       />
@@ -711,7 +710,7 @@ export default function SalesClients() {
                 name="fundType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fund Type</FormLabel>
+                    <FormLabel>{t('clients.sales.fund.type')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-fund-type">
@@ -719,9 +718,9 @@ export default function SalesClients() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="real">Real Funds</SelectItem>
-                        <SelectItem value="demo">Demo Funds</SelectItem>
-                        <SelectItem value="bonus">Bonus Funds</SelectItem>
+                        <SelectItem value="real">{t('clients.sales.fund.real')}</SelectItem>
+                        <SelectItem value="demo">{t('clients.sales.fund.demo')}</SelectItem>
+                        <SelectItem value="bonus">{t('clients.sales.fund.bonus')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -733,10 +732,10 @@ export default function SalesClients() {
                 name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormLabel>{t('clients.sales.notes.optional')}</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Additional notes about this deposit..."
+                        placeholder={t('clients.sales.notes.placeholder')}
                         data-testid="input-ftd-notes"
                         {...field}
                       />
@@ -755,14 +754,14 @@ export default function SalesClients() {
                   }}
                   data-testid="button-cancel-ftd"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   type="submit"
                   disabled={markFTDMutation.isPending}
                   data-testid="button-confirm-ftd"
                 >
-                  {markFTDMutation.isPending ? "Processing..." : "Mark FTD"}
+                  {markFTDMutation.isPending ? t('clients.sales.processing') : t('clients.sales.mark.ftd')}
                 </Button>
               </DialogFooter>
             </form>
@@ -770,24 +769,26 @@ export default function SalesClients() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Assign Dialog */}
       <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
         <DialogContent data-testid="dialog-bulk-assign">
           <DialogHeader>
-            <DialogTitle>Bulk Assign Clients</DialogTitle>
+            <DialogTitle>{t('clients.sales.bulk.assign.title')}</DialogTitle>
             <DialogDescription>
-              Assign {selectedClients.size} selected client{selectedClients.size > 1 ? 's' : ''} to an agent or team.
+              {t('clients.sales.bulk.assign.description', { 
+                count: selectedClients.size,
+                s: selectedClients.size > 1 ? t('clients.sales.selected.plural') : ''
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assign to Agent</label>
+              <label className="text-sm font-medium">{t('clients.sales.assign.to.agent')}</label>
               <Select value={bulkAssignAgentId} onValueChange={setBulkAssignAgentId}>
                 <SelectTrigger data-testid="select-bulk-agent">
-                  <SelectValue placeholder="Select agent (optional)" />
+                  <SelectValue placeholder={t('clients.sales.select.agent.optional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Remove Agent</SelectItem>
+                  <SelectItem value="none">{t('clients.sales.remove.agent')}</SelectItem>
                   {agents.map((agent: any) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
@@ -797,13 +798,13 @@ export default function SalesClients() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assign to Team</label>
+              <label className="text-sm font-medium">{t('clients.sales.assign.to.team')}</label>
               <Select value={bulkAssignTeamId} onValueChange={setBulkAssignTeamId}>
                 <SelectTrigger data-testid="select-bulk-team">
-                  <SelectValue placeholder="Select team (optional)" />
+                  <SelectValue placeholder={t('clients.sales.select.team.optional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Remove Team</SelectItem>
+                  <SelectItem value="none">{t('clients.sales.remove.team')}</SelectItem>
                   {teams.map((team: any) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
@@ -823,31 +824,30 @@ export default function SalesClients() {
               }}
               data-testid="button-cancel-bulk-assign"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleBulkAssign}
               disabled={bulkAssignMutation.isPending || (!bulkAssignAgentId && !bulkAssignTeamId)}
               data-testid="button-confirm-bulk-assign"
             >
-              {bulkAssignMutation.isPending ? "Assigning..." : "Assign Clients"}
+              {bulkAssignMutation.isPending ? t('clients.sales.assigning') : t('clients.sales.assign.clients')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Comment Dialog */}
       <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
         <DialogContent data-testid="dialog-add-comment">
           <DialogHeader>
-            <DialogTitle>Add Comment</DialogTitle>
+            <DialogTitle>{t('clients.sales.add.comment.title')}</DialogTitle>
             <DialogDescription>
-              Add a note or comment for {selectedClientForComment?.name}
+              {t('clients.sales.add.comment.description', { name: selectedClientForComment?.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Enter your comment..."
+              placeholder={t('clients.sales.enter.comment')}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               rows={4}
@@ -864,7 +864,7 @@ export default function SalesClients() {
               }}
               data-testid="button-cancel-comment"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -878,7 +878,7 @@ export default function SalesClients() {
               disabled={commentMutation.isPending || !commentText.trim()}
               data-testid="button-save-comment"
             >
-              {commentMutation.isPending ? "Saving..." : "Save Comment"}
+              {commentMutation.isPending ? t('clients.sales.saving') : t('clients.sales.save.comment')}
             </Button>
           </DialogFooter>
         </DialogContent>

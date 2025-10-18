@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Activity } from "lucide-react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
 
   // Redirect to landing page if not authenticated
   useEffect(() => {
@@ -22,31 +24,31 @@ export default function Dashboard() {
 
   const statCards = [
     {
-      title: "Total Clients",
+      title: t('dashboard.total.clients'),
       value: stats?.totalClients || 0,
       icon: Users,
-      change: "+12% from last month",
+      change: t('dashboard.change.from.last.month'),
       color: "text-primary",
     },
     {
-      title: "Active Positions",
+      title: t('dashboard.active.positions'),
       value: stats?.activePositions || 0,
       icon: TrendingUp,
-      change: "+5% from last week",
+      change: t('dashboard.change.from.last.week'),
       color: "text-success",
     },
     {
-      title: "Total Volume",
+      title: t('dashboard.total.volume'),
       value: `$${(stats?.totalVolume || 0).toLocaleString()}`,
       icon: DollarSign,
-      change: "+18% from last month",
+      change: t('dashboard.change.from.last.month'),
       color: "text-info",
     },
     {
-      title: "Active Trades",
+      title: t('dashboard.active.trades'),
       value: stats?.activeTrades || 0,
       icon: Activity,
-      change: "+3% from yesterday",
+      change: t('dashboard.change.from.yesterday'),
       color: "text-warning",
     },
   ];
@@ -54,9 +56,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold" data-testid="text-dashboard-title">Dashboard</h1>
+        <h1 className="text-2xl font-semibold" data-testid="text-dashboard-title">{t('dashboard.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          Welcome to your trading platform CRM
+          {t('dashboard.subtitle')}
         </p>
       </div>
 
@@ -84,7 +86,7 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
+            <CardTitle>{t('dashboard.recent.activity')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -103,7 +105,7 @@ export default function Dashboard() {
                   </span>
                 </div>
               )) || (
-                <p className="text-sm text-muted-foreground">No recent activity</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.no.recent.activity')}</p>
               )}
             </div>
           </CardContent>
@@ -111,7 +113,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top Performers</CardTitle>
+            <CardTitle>{t('dashboard.top.performers')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -125,7 +127,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">{performer.name}</p>
-                      <p className="text-xs text-muted-foreground">{performer.trades} trades</p>
+                      <p className="text-xs text-muted-foreground">{performer.trades} {t('dashboard.trades')}</p>
                     </div>
                   </div>
                   <span className={`text-sm font-mono font-medium ${
@@ -135,7 +137,7 @@ export default function Dashboard() {
                   </span>
                 </div>
               )) || (
-                <p className="text-sm text-muted-foreground">No data available</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.no.data.available')}</p>
               )}
             </div>
           </CardContent>

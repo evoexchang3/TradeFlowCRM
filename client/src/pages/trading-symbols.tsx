@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,25 +53,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 
-const symbolFormSchema = z.object({
-  symbol: z.string().min(1, "Symbol is required"),
-  displayName: z.string().min(1, "Display name is required"),
-  category: z.enum(["forex", "crypto", "metals", "indices", "commodities"]),
-  groupId: z.string().optional(),
-  baseAsset: z.string().optional(),
-  quoteAsset: z.string().optional(),
-  twelveDataSymbol: z.string().min(1, "Twelve Data symbol is required"),
-  contractSize: z.string().default("100000"),
-  minLotSize: z.string().default("0.01"),
-  maxLotSize: z.string().default("100"),
-  spreadDefault: z.string().default("0"),
-  commissionRate: z.string().default("0"),
-  leverage: z.coerce.number().default(100),
-  digits: z.coerce.number().default(5),
-  isActive: z.boolean().default(true),
-});
-
-type SymbolFormData = z.infer<typeof symbolFormSchema>;
+type SymbolFormData = {
+  symbol: string;
+  displayName: string;
+  category: "forex" | "crypto" | "metals" | "indices" | "commodities";
+  groupId?: string;
+  baseAsset?: string;
+  quoteAsset?: string;
+  twelveDataSymbol: string;
+  contractSize: string;
+  minLotSize: string;
+  maxLotSize: string;
+  spreadDefault: string;
+  commissionRate: string;
+  leverage: number;
+  digits: number;
+  isActive: boolean;
+};
 
 interface TradingSymbol {
   id: string;
@@ -100,6 +99,7 @@ interface SymbolGroup {
 
 export default function TradingSymbolsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -107,17 +107,14 @@ export default function TradingSymbolsPage() {
   const [editingSymbol, setEditingSymbol] = useState<TradingSymbol | null>(null);
   const [deletingSymbol, setDeletingSymbol] = useState<TradingSymbol | null>(null);
 
-  // Fetch symbols
   const { data: symbols = [], isLoading } = useQuery<TradingSymbol[]>({
     queryKey: ["/api/symbols"],
   });
 
-  // Fetch symbol groups for dropdown
   const { data: groups = [] } = useQuery<SymbolGroup[]>({
     queryKey: ["/api/symbol-groups"],
   });
 
-  // Create symbol mutation
   const createMutation = useMutation({
     mutationFn: async (data: SymbolFormData) => {
       return await apiRequest("POST", "/api/symbols", data);
@@ -125,21 +122,20 @@ export default function TradingSymbolsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbols"] });
       toast({
-        title: "Symbol Created",
-        description: "Trading symbol has been created successfully.",
+        title: t('symbols.toast.created.title'),
+        description: t('symbols.toast.created.description'),
       });
       setIsAddDialogOpen(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create symbol",
+        title: t('common.error'),
+        description: error.message || t('symbols.toast.error.create'),
         variant: "destructive",
       });
     },
   });
 
-  // Update symbol mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<SymbolFormData> }) => {
       return await apiRequest("PATCH", `/api/symbols/${id}`, data);
@@ -147,21 +143,20 @@ export default function TradingSymbolsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbols"] });
       toast({
-        title: "Symbol Updated",
-        description: "Trading symbol has been updated successfully.",
+        title: t('symbols.toast.updated.title'),
+        description: t('symbols.toast.updated.description'),
       });
       setEditingSymbol(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update symbol",
+        title: t('common.error'),
+        description: error.message || t('symbols.toast.error.update'),
         variant: "destructive",
       });
     },
   });
 
-  // Delete symbol mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/symbols/${id}`);
@@ -169,21 +164,20 @@ export default function TradingSymbolsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/symbols"] });
       toast({
-        title: "Symbol Deleted",
-        description: "Trading symbol has been deleted successfully.",
+        title: t('symbols.toast.deleted.title'),
+        description: t('symbols.toast.deleted.description'),
       });
       setDeletingSymbol(null);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete symbol",
+        title: t('common.error'),
+        description: error.message || t('symbols.toast.error.delete'),
         variant: "destructive",
       });
     },
   });
 
-  // Filter symbols
   const filteredSymbols = symbols.filter((symbol) => {
     const matchesSearch =
       symbol.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -195,28 +189,27 @@ export default function TradingSymbolsPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="text-page-title">
-            Trading Symbols
+            {t('symbols.title')}
           </h1>
           <p className="text-muted-foreground">
-            Manage trading instruments and their configurations
+            {t('symbols.subtitle')}
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-symbol">
               <Plus className="w-4 h-4 mr-2" />
-              Add Symbol
+              {t('symbols.add.symbol')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Add New Trading Symbol</DialogTitle>
+              <DialogTitle>{t('symbols.add.new.title')}</DialogTitle>
               <DialogDescription>
-                Configure a new trading instrument for the platform
+                {t('symbols.add.new.description')}
               </DialogDescription>
             </DialogHeader>
             <SymbolForm
@@ -228,12 +221,11 @@ export default function TradingSymbolsPage() {
         </Dialog>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search symbols..."
+            placeholder={t('symbols.search.placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -242,45 +234,44 @@ export default function TradingSymbolsPage() {
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[180px]" data-testid="select-category-filter">
-            <SelectValue placeholder="All Categories" />
+            <SelectValue placeholder={t('symbols.all.categories')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="forex">Forex</SelectItem>
-            <SelectItem value="crypto">Crypto</SelectItem>
-            <SelectItem value="metals">Metals</SelectItem>
-            <SelectItem value="indices">Indices</SelectItem>
-            <SelectItem value="commodities">Commodities</SelectItem>
+            <SelectItem value="all">{t('symbols.all.categories')}</SelectItem>
+            <SelectItem value="forex">{t('symbols.category.forex')}</SelectItem>
+            <SelectItem value="crypto">{t('symbols.category.crypto')}</SelectItem>
+            <SelectItem value="metals">{t('symbols.category.metals')}</SelectItem>
+            <SelectItem value="indices">{t('symbols.category.indices')}</SelectItem>
+            <SelectItem value="commodities">{t('symbols.category.commodities')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Symbols Table */}
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Symbol</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Contract Size</TableHead>
-              <TableHead>Lot Range</TableHead>
-              <TableHead>Spread</TableHead>
-              <TableHead>Leverage</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t('symbols.table.symbol')}</TableHead>
+              <TableHead>{t('symbols.table.category')}</TableHead>
+              <TableHead>{t('symbols.table.contract.size')}</TableHead>
+              <TableHead>{t('symbols.table.lot.range')}</TableHead>
+              <TableHead>{t('symbols.table.spread')}</TableHead>
+              <TableHead>{t('symbols.table.leverage')}</TableHead>
+              <TableHead>{t('common.status')}</TableHead>
+              <TableHead className="text-right">{t('common.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
-                  Loading symbols...
+                  {t('symbols.loading')}
                 </TableCell>
               </TableRow>
             ) : filteredSymbols.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
-                  No symbols found
+                  {t('symbols.no.symbols')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -303,11 +294,11 @@ export default function TradingSymbolsPage() {
                   <TableCell>
                     {symbol.minLotSize} - {symbol.maxLotSize}
                   </TableCell>
-                  <TableCell>{symbol.spreadDefault} pips</TableCell>
+                  <TableCell>{symbol.spreadDefault} {t('symbols.pips')}</TableCell>
                   <TableCell>{symbol.leverage}:1</TableCell>
                   <TableCell>
                     <Badge variant={symbol.isActive ? "default" : "secondary"}>
-                      {symbol.isActive ? "Active" : "Inactive"}
+                      {symbol.isActive ? t('common.active') : t('common.inactive')}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
@@ -337,14 +328,13 @@ export default function TradingSymbolsPage() {
         </Table>
       </div>
 
-      {/* Edit Dialog */}
       {editingSymbol && (
         <Dialog open={!!editingSymbol} onOpenChange={() => setEditingSymbol(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Edit Trading Symbol</DialogTitle>
+              <DialogTitle>{t('symbols.edit.title')}</DialogTitle>
               <DialogDescription>
-                Update the configuration for {editingSymbol.symbol}
+                {t('symbols.edit.description', { symbol: editingSymbol.symbol })}
               </DialogDescription>
             </DialogHeader>
             <SymbolForm
@@ -359,29 +349,27 @@ export default function TradingSymbolsPage() {
         </Dialog>
       )}
 
-      {/* Delete Confirmation */}
       <AlertDialog
         open={!!deletingSymbol}
         onOpenChange={() => setDeletingSymbol(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Trading Symbol?</AlertDialogTitle>
+            <AlertDialogTitle>{t('symbols.delete.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {deletingSymbol?.symbol}? This action cannot
-              be undone.
+              {t('symbols.delete.description', { symbol: deletingSymbol?.symbol || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete">
-              Cancel
+              {t('common.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingSymbol && deleteMutation.mutate(deletingSymbol.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -390,7 +378,6 @@ export default function TradingSymbolsPage() {
   );
 }
 
-// Symbol Form Component
 function SymbolForm({
   defaultValues,
   onSubmit,
@@ -402,6 +389,26 @@ function SymbolForm({
   groups: SymbolGroup[];
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
+
+  const symbolFormSchema = z.object({
+    symbol: z.string().min(1, t('symbols.validation.symbol.required')),
+    displayName: z.string().min(1, t('symbols.validation.display.name.required')),
+    category: z.enum(["forex", "crypto", "metals", "indices", "commodities"]),
+    groupId: z.string().optional(),
+    baseAsset: z.string().optional(),
+    quoteAsset: z.string().optional(),
+    twelveDataSymbol: z.string().min(1, t('symbols.validation.twelve.data.required')),
+    contractSize: z.string().default("100000"),
+    minLotSize: z.string().default("0.01"),
+    maxLotSize: z.string().default("100"),
+    spreadDefault: z.string().default("0"),
+    commissionRate: z.string().default("0"),
+    leverage: z.coerce.number().default(100),
+    digits: z.coerce.number().default(5),
+    isActive: z.boolean().default(true),
+  });
+
   const form = useForm<SymbolFormData>({
     resolver: zodResolver(symbolFormSchema),
     defaultValues: {
@@ -430,9 +437,9 @@ function SymbolForm({
             name="symbol"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Symbol *</FormLabel>
+                <FormLabel>{t('symbols.form.symbol')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="EUR/USD" {...field} data-testid="input-symbol" />
+                  <Input placeholder={t('symbols.form.placeholder.symbol')} {...field} data-testid="input-symbol" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -443,9 +450,9 @@ function SymbolForm({
             name="displayName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Display Name *</FormLabel>
+                <FormLabel>{t('symbols.form.display.name')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="Euro vs US Dollar" {...field} data-testid="input-display-name" />
+                  <Input placeholder={t('symbols.form.placeholder.display.name')} {...field} data-testid="input-display-name" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -459,7 +466,7 @@ function SymbolForm({
             name="category"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Category *</FormLabel>
+                <FormLabel>{t('symbols.form.category')}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger data-testid="select-category">
@@ -467,11 +474,11 @@ function SymbolForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="forex">Forex</SelectItem>
-                    <SelectItem value="crypto">Crypto</SelectItem>
-                    <SelectItem value="metals">Metals</SelectItem>
-                    <SelectItem value="indices">Indices</SelectItem>
-                    <SelectItem value="commodities">Commodities</SelectItem>
+                    <SelectItem value="forex">{t('symbols.category.forex')}</SelectItem>
+                    <SelectItem value="crypto">{t('symbols.category.crypto')}</SelectItem>
+                    <SelectItem value="metals">{t('symbols.category.metals')}</SelectItem>
+                    <SelectItem value="indices">{t('symbols.category.indices')}</SelectItem>
+                    <SelectItem value="commodities">{t('symbols.category.commodities')}</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -483,15 +490,15 @@ function SymbolForm({
             name="groupId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Symbol Group</FormLabel>
+                <FormLabel>{t('symbols.form.symbol.group')}</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value || ""}>
                   <FormControl>
                     <SelectTrigger data-testid="select-group">
-                      <SelectValue placeholder="Select group" />
+                      <SelectValue placeholder={t('symbols.form.placeholder.select.group')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="">{t('common.none')}</SelectItem>
                     {groups.map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name}
@@ -510,9 +517,9 @@ function SymbolForm({
           name="twelveDataSymbol"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Twelve Data Symbol *</FormLabel>
+              <FormLabel>{t('symbols.form.twelve.data.symbol')}</FormLabel>
               <FormControl>
-                <Input placeholder="EUR/USD" {...field} data-testid="input-twelve-data-symbol" />
+                <Input placeholder={t('symbols.form.placeholder.symbol')} {...field} data-testid="input-twelve-data-symbol" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -525,9 +532,9 @@ function SymbolForm({
             name="contractSize"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contract Size</FormLabel>
+                <FormLabel>{t('symbols.form.contract.size')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="100000" {...field} data-testid="input-contract-size" />
+                  <Input placeholder={t('symbols.form.placeholder.contract.size')} {...field} data-testid="input-contract-size" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -538,9 +545,9 @@ function SymbolForm({
             name="minLotSize"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Min Lot Size</FormLabel>
+                <FormLabel>{t('symbols.form.min.lot.size')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="0.01" {...field} data-testid="input-min-lot-size" />
+                  <Input placeholder={t('symbols.form.placeholder.min.lot')} {...field} data-testid="input-min-lot-size" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -551,9 +558,9 @@ function SymbolForm({
             name="maxLotSize"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Max Lot Size</FormLabel>
+                <FormLabel>{t('symbols.form.max.lot.size')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="100" {...field} data-testid="input-max-lot-size" />
+                  <Input placeholder={t('symbols.form.placeholder.max.lot')} {...field} data-testid="input-max-lot-size" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -567,9 +574,9 @@ function SymbolForm({
             name="spreadDefault"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Default Spread (pips)</FormLabel>
+                <FormLabel>{t('symbols.form.default.spread')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="0" {...field} data-testid="input-spread" />
+                  <Input placeholder={t('symbols.form.placeholder.spread')} {...field} data-testid="input-spread" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -580,11 +587,11 @@ function SymbolForm({
             name="leverage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Leverage</FormLabel>
+                <FormLabel>{t('symbols.form.leverage')}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
-                    placeholder="100"
+                    placeholder={t('symbols.form.placeholder.leverage')}
                     {...field}
                     onChange={(e) => field.onChange(parseInt(e.target.value))}
                     data-testid="input-leverage"
@@ -599,11 +606,11 @@ function SymbolForm({
             name="digits"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Decimal Digits</FormLabel>
+                <FormLabel>{t('symbols.form.decimal.digits')}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
-                    placeholder="5"
+                    placeholder={t('symbols.form.placeholder.digits')}
                     {...field}
                     onChange={(e) => field.onChange(parseInt(e.target.value))}
                     data-testid="input-digits"
@@ -629,7 +636,7 @@ function SymbolForm({
                   data-testid="checkbox-is-active"
                 />
               </FormControl>
-              <FormLabel className="!mt-0">Symbol is active</FormLabel>
+              <FormLabel className="!mt-0">{t('symbols.form.is.active')}</FormLabel>
               <FormMessage />
             </FormItem>
           )}
@@ -641,7 +648,7 @@ function SymbolForm({
             disabled={isPending}
             data-testid="button-submit-symbol"
           >
-            {isPending ? "Saving..." : defaultValues ? "Update Symbol" : "Create Symbol"}
+            {isPending ? t('symbols.button.saving') : defaultValues ? t('symbols.button.update') : t('symbols.button.create')}
           </Button>
         </div>
       </form>

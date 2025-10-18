@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type CategoryType = 'forex' | 'crypto' | 'commodities' | 'stocks' | 'etf';
 
@@ -46,6 +47,7 @@ const LEVERAGE_OPTIONS = [
 ];
 
 export default function Trading() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>('forex');
@@ -174,7 +176,7 @@ export default function Trading() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
-      toast({ title: "Order placed successfully" });
+      toast({ title: t('trading.order.placed.successfully') });
       setQuantity("1.0");
       setOrderPrice("");
       setStopLoss("");
@@ -182,7 +184,7 @@ export default function Trading() {
     },
     onError: (error: any) => {
       toast({
-        title: "Order failed",
+        title: t('trading.order.failed'),
         description: error.message,
         variant: "destructive",
       });
@@ -196,7 +198,7 @@ export default function Trading() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
-      toast({ title: "Position closed successfully" });
+      toast({ title: t('trading.position.closed.successfully') });
     },
   });
 
@@ -208,14 +210,14 @@ export default function Trading() {
       setModifyPositionDialogOpen(false);
       setSelectedPosition(null);
       toast({
-        title: "Position modified",
-        description: "Position has been successfully updated.",
+        title: t('trading.position.modified'),
+        description: t('trading.position.updated.successfully'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Position modification failed",
-        description: error.message || "Failed to modify position.",
+        title: t('trading.position.modification.failed'),
+        description: error.message || t('trading.failed.to.modify.position'),
         variant: "destructive",
       });
     },
@@ -229,14 +231,14 @@ export default function Trading() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
       toast({
-        title: "Position Deleted",
-        description: "Position has been deleted successfully.",
+        title: t('trading.position.deleted'),
+        description: t('trading.position.deleted.successfully'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete position.",
+        title: t('trading.delete.failed'),
+        description: error.message || t('trading.failed.to.delete.position'),
         variant: "destructive",
       });
     },
@@ -245,8 +247,8 @@ export default function Trading() {
   const handlePlaceOrder = () => {
     if (!selectedAccount) {
       toast({
-        title: "No account selected",
-        description: canTradeForClients ? "Please select a client to trade for" : "No account available",
+        title: t('trading.no.account.selected'),
+        description: canTradeForClients ? t('trading.please.select.client') : t('trading.no.account.available'),
         variant: "destructive",
       });
       return;
@@ -254,8 +256,8 @@ export default function Trading() {
 
     if (!selectedSymbol) {
       toast({
-        title: "No symbol selected",
-        description: "Please select a trading symbol",
+        title: t('trading.no.symbol.selected.error'),
+        description: t('trading.please.select.symbol'),
         variant: "destructive",
       });
       return;
@@ -288,8 +290,8 @@ export default function Trading() {
     if (orderType !== 'market') {
       if (!orderPrice) {
         toast({
-          title: "Price required",
-          description: `${orderType} orders require a price`,
+          title: t('trading.price.required'),
+          description: t('trading.order.type.requires.price', { orderType }),
           variant: "destructive",
         });
         return;
@@ -323,10 +325,10 @@ export default function Trading() {
   }, [canTradeForClients, clients, selectedClientIds]);
 
   const getInitiatorDisplay = (position: any) => {
-    if (!position.initiatorType) return 'Client';
-    if (position.initiatorType === 'client') return 'Client';
+    if (!position.initiatorType) return t('trading.client');
+    if (position.initiatorType === 'client') return t('trading.client');
     
-    const initiatorName = position.initiatorId ? (initiatorNames[position.initiatorId] || 'Unknown') : 'System';
+    const initiatorName = position.initiatorId ? (initiatorNames[position.initiatorId] || t('trading.unknown')) : t('trading.system');
     const type = position.initiatorType.replace('_', ' ').split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     return `${type} (${initiatorName})`;
   };
@@ -334,14 +336,14 @@ export default function Trading() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold" data-testid="text-trading-title">Trading Terminal</h1>
-        <p className="text-sm text-muted-foreground">Multi-client trading with comprehensive market coverage</p>
+        <h1 className="text-2xl font-semibold" data-testid="text-trading-title">{t('trading.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('trading.subtitle')}</p>
       </div>
 
       {canTradeForClients && (
         <Card>
           <CardHeader>
-            <CardTitle>Client Selection</CardTitle>
+            <CardTitle>{t('trading.client.selection')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -358,14 +360,14 @@ export default function Trading() {
                       <User className="h-4 w-4" />
                       {selectedClientIds.length > 0
                         ? `${clients.find((c: any) => c.id === selectedClientIds[0])?.firstName} ${clients.find((c: any) => c.id === selectedClientIds[0])?.lastName}`
-                        : "Select client..."}
+                        : t('trading.select.client')}
                     </div>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Search clients..." data-testid="input-search-clients" />
-                    <CommandEmpty>No client found.</CommandEmpty>
+                    <CommandInput placeholder={t('trading.search.clients')} data-testid="input-search-clients" />
+                    <CommandEmpty>{t('trading.no.client.found')}</CommandEmpty>
                     <CommandGroup>
                       <ScrollArea className="h-[200px]">
                         {clients.map((client: any) => (
@@ -393,12 +395,12 @@ export default function Trading() {
               {selectedAccount && (
                 <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                   <div>
-                    <p className="text-sm font-medium">Account: {selectedAccount.accountNumber}</p>
-                    <p className="text-xs text-muted-foreground">Balance: ${parseFloat(selectedAccount.balance).toFixed(2)}</p>
+                    <p className="text-sm font-medium">{t('trading.account')} {selectedAccount.accountNumber}</p>
+                    <p className="text-xs text-muted-foreground">{t('trading.balance')} ${parseFloat(selectedAccount.balance).toFixed(2)}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">Equity: ${parseFloat(selectedAccount.equity).toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">Leverage: 1:{selectedAccount.leverage}</p>
+                    <p className="text-sm font-medium">{t('trading.equity')} ${parseFloat(selectedAccount.equity).toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">{t('trading.leverage')} 1:{selectedAccount.leverage}</p>
                   </div>
                 </div>
               )}
@@ -411,26 +413,26 @@ export default function Trading() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Market Watch</CardTitle>
+              <CardTitle>{t('trading.market.watch')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs value={selectedCategory} onValueChange={(value) => {
                 setSelectedCategory(value as CategoryType);
-                setSelectedSymbol(null); // Will be auto-selected by useEffect
+                setSelectedSymbol(null);
               }}>
                 <TabsList className="grid grid-cols-5 w-full">
-                  <TabsTrigger value="forex" data-testid="tab-forex">Forex</TabsTrigger>
-                  <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
-                  <TabsTrigger value="commodities" data-testid="tab-commodities">Commodities</TabsTrigger>
-                  <TabsTrigger value="stocks" data-testid="tab-stocks">Stocks</TabsTrigger>
-                  <TabsTrigger value="etf" data-testid="tab-etf">ETFs</TabsTrigger>
+                  <TabsTrigger value="forex" data-testid="tab-forex">{t('trading.forex')}</TabsTrigger>
+                  <TabsTrigger value="crypto" data-testid="tab-crypto">{t('trading.crypto')}</TabsTrigger>
+                  <TabsTrigger value="commodities" data-testid="tab-commodities">{t('trading.commodities')}</TabsTrigger>
+                  <TabsTrigger value="stocks" data-testid="tab-stocks">{t('trading.stocks')}</TabsTrigger>
+                  <TabsTrigger value="etf" data-testid="tab-etf">{t('trading.etfs')}</TabsTrigger>
                 </TabsList>
               </Tabs>
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search symbols..."
+                  placeholder={t('trading.search.symbols')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
@@ -476,29 +478,29 @@ export default function Trading() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Open Positions</CardTitle>
+              <CardTitle>{t('trading.open.positions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Symbol</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Entry</TableHead>
-                    <TableHead>Current</TableHead>
-                    <TableHead>Leverage</TableHead>
-                    <TableHead>P/L</TableHead>
-                    <TableHead>Opened</TableHead>
-                    <TableHead>Initiator</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('trading.symbol')}</TableHead>
+                    <TableHead>{t('trading.type')}</TableHead>
+                    <TableHead>{t('trading.quantity')}</TableHead>
+                    <TableHead>{t('trading.entry')}</TableHead>
+                    <TableHead>{t('trading.current')}</TableHead>
+                    <TableHead>{t('trading.leverage.label')}</TableHead>
+                    <TableHead>{t('trading.pnl')}</TableHead>
+                    <TableHead>{t('trading.opened')}</TableHead>
+                    <TableHead>{t('trading.initiator')}</TableHead>
+                    <TableHead>{t('trading.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {positions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="text-center text-muted-foreground">
-                        No open positions
+                        {t('trading.no.open.positions')}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -575,11 +577,11 @@ export default function Trading() {
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Place Order</CardTitle>
+              <CardTitle>{t('trading.place.order')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Selected Symbol</label>
+                <label className="text-sm font-medium">{t('trading.selected.symbol')}</label>
                 {selectedSymbol ? (
                   <div className="p-3 bg-muted rounded-lg">
                     <p className="font-medium">{selectedSymbol.symbol}</p>
@@ -587,27 +589,27 @@ export default function Trading() {
                       {selectedSymbol.name || 
                        (selectedSymbol.currency_base && selectedSymbol.currency_quote 
                          ? `${selectedSymbol.currency_base} / ${selectedSymbol.currency_quote}` 
-                         : selectedSymbol.currency_group || selectedSymbol.type || selectedSymbol.exchange || 'Trading Instrument')}
+                         : selectedSymbol.currency_group || selectedSymbol.type || selectedSymbol.exchange || t('trading.trading.instrument'))}
                     </p>
                   </div>
                 ) : (
                   <div className="p-3 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">No symbol selected</p>
+                    <p className="text-sm text-muted-foreground">{t('trading.no.symbol.selected')}</p>
                   </div>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Order Type</label>
+                <label className="text-sm font-medium">{t('trading.order.type')}</label>
                 <Select value={orderType} onValueChange={(value: any) => setOrderType(value)}>
                   <SelectTrigger data-testid="select-order-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="market">Market</SelectItem>
-                    <SelectItem value="limit">Limit</SelectItem>
-                    <SelectItem value="stop">Stop</SelectItem>
-                    <SelectItem value="stop_limit">Stop Limit</SelectItem>
+                    <SelectItem value="market">{t('trading.market')}</SelectItem>
+                    <SelectItem value="limit">{t('trading.limit')}</SelectItem>
+                    <SelectItem value="stop">{t('trading.stop')}</SelectItem>
+                    <SelectItem value="stop_limit">{t('trading.stop.limit')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -619,7 +621,7 @@ export default function Trading() {
                   data-testid="button-order-buy"
                 >
                   <TrendingUp className="h-4 w-4 mr-2" />
-                  Buy
+                  {t('trading.buy')}
                 </Button>
                 <Button
                   variant={orderSide === 'sell' ? 'default' : 'outline'}
@@ -627,12 +629,12 @@ export default function Trading() {
                   data-testid="button-order-sell"
                 >
                   <TrendingDown className="h-4 w-4 mr-2" />
-                  Sell
+                  {t('trading.sell')}
                 </Button>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Input Mode</label>
+                <label className="text-sm font-medium">{t('trading.input.mode')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant={inputMode === 'margin' ? 'default' : 'outline'}
@@ -640,7 +642,7 @@ export default function Trading() {
                     data-testid="button-input-margin"
                     size="sm"
                   >
-                    Margin ($)
+                    {t('trading.margin')}
                   </Button>
                   <Button
                     variant={inputMode === 'quantity' ? 'default' : 'outline'}
@@ -648,7 +650,7 @@ export default function Trading() {
                     data-testid="button-input-quantity"
                     size="sm"
                   >
-                    Quantity (lots)
+                    {t('trading.quantity.lots')}
                   </Button>
                 </div>
               </div>
@@ -656,7 +658,7 @@ export default function Trading() {
               <div className="grid grid-cols-2 gap-4">
                 {inputMode === 'margin' ? (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Margin ($)</label>
+                    <label className="text-sm font-medium">{t('trading.margin')}</label>
                     <Input
                       type="number"
                       step="100"
@@ -667,7 +669,7 @@ export default function Trading() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Quantity (lots)</label>
+                    <label className="text-sm font-medium">{t('trading.quantity.lots')}</label>
                     <Input
                       type="number"
                       step="0.01"
@@ -679,7 +681,7 @@ export default function Trading() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Leverage</label>
+                  <label className="text-sm font-medium">{t('trading.leverage.label')}</label>
                   <Select value={leverage} onValueChange={setLeverage}>
                     <SelectTrigger data-testid="select-leverage">
                       <SelectValue />
@@ -697,7 +699,7 @@ export default function Trading() {
                 const entryPrice = orderType === 'market' ? currentQuote.price : parseFloat(orderPrice || '0');
                 const leverageNum = parseFloat(leverage);
                 const marginNum = parseFloat(marginInput || '0');
-                const contractMultiplier = 1; // Default, should fetch from instrument config
+                const contractMultiplier = 1;
                 
                 if (entryPrice > 0 && leverageNum > 0 && marginNum > 0) {
                   const positionSize = marginNum * leverageNum;
@@ -705,13 +707,13 @@ export default function Trading() {
                   
                   return (
                     <div className="p-3 bg-accent/30 rounded-lg space-y-1">
-                      <p className="text-xs text-muted-foreground">Calculated Values</p>
+                      <p className="text-xs text-muted-foreground">{t('trading.calculated.values')}</p>
                       <div className="flex justify-between">
-                        <span className="text-sm">Position Size:</span>
+                        <span className="text-sm">{t('trading.position.size')}</span>
                         <span className="text-sm font-semibold">${positionSize.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm">Quantity (lots):</span>
+                        <span className="text-sm">{t('trading.quantity.lots.label')}</span>
                         <span className="text-sm font-semibold">{calculatedQty.toFixed(2)}</span>
                       </div>
                     </div>
@@ -723,14 +725,14 @@ export default function Trading() {
               {orderType !== 'market' && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    {orderType === 'limit' ? 'Limit Price' : 'Stop Price'}
+                    {orderType === 'limit' ? t('trading.limit.price') : t('trading.stop.price')}
                   </label>
                   <Input
                     type="number"
                     step="0.00001"
                     value={orderPrice}
                     onChange={(e) => setOrderPrice(e.target.value)}
-                    placeholder={currentQuote ? currentQuote.price.toFixed(5) : "Enter price"}
+                    placeholder={currentQuote ? currentQuote.price.toFixed(5) : t('trading.enter.price')}
                     data-testid="input-order-price"
                   />
                 </div>
@@ -738,7 +740,7 @@ export default function Trading() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Spread</label>
+                  <label className="text-sm font-medium">{t('trading.spread')}</label>
                   <Input
                     type="number"
                     step="0.00001"
@@ -749,7 +751,7 @@ export default function Trading() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Fees ($)</label>
+                  <label className="text-sm font-medium">{t('trading.fees')}</label>
                   <Input
                     type="number"
                     step="0.01"
@@ -761,25 +763,25 @@ export default function Trading() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Stop Loss (optional)</label>
+                <label className="text-sm font-medium">{t('trading.stop.loss.optional')}</label>
                 <Input
                   type="number"
                   step="0.00001"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
-                  placeholder="e.g., 1.0800"
+                  placeholder={t('trading.example.price.1')}
                   data-testid="input-stop-loss"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Take Profit (optional)</label>
+                <label className="text-sm font-medium">{t('trading.take.profit.optional')}</label>
                 <Input
                   type="number"
                   step="0.00001"
                   value={takeProfit}
                   onChange={(e) => setTakeProfit(e.target.value)}
-                  placeholder="e.g., 1.0900"
+                  placeholder={t('trading.example.price.2')}
                   data-testid="input-take-profit"
                 />
               </div>
@@ -787,24 +789,24 @@ export default function Trading() {
               {currentQuote && (() => {
                 const now = Date.now();
                 const quoteAge = now - currentQuote.timestamp;
-                const isLive = quoteAge < 5000; // 5 second staleness threshold
+                const isLive = quoteAge < 5000;
                 
                 return (
                   <div className="p-3 bg-accent/50 rounded-lg">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm text-muted-foreground">Current Price</p>
+                      <p className="text-sm text-muted-foreground">{t('trading.current.price')}</p>
                       <Badge 
                         variant={isLive ? "default" : "destructive"}
                         className="text-xs"
                         data-testid={`badge-market-${isLive ? 'live' : 'stale'}`}
                       >
-                        {isLive ? '🟢 LIVE' : '🔴 STALE'}
+                        {isLive ? `🟢 ${t('trading.live')}` : `🔴 ${t('trading.stale')}`}
                       </Badge>
                     </div>
                     <p className="text-2xl font-mono font-semibold">{currentQuote.price.toFixed(5)}</p>
                     {!isLive && (
                       <p className="text-xs text-destructive mt-1">
-                        Market data is stale. Trading is disabled.
+                        {t('trading.market.data.stale')}
                       </p>
                     )}
                   </div>
@@ -821,7 +823,7 @@ export default function Trading() {
                 }
                 data-testid="button-place-order"
               >
-                {placeOrderMutation.isPending ? 'Placing Order...' : `Place ${orderSide.toUpperCase()} Order`}
+                {placeOrderMutation.isPending ? t('trading.placing.order') : (orderSide === 'buy' ? t('trading.place.buy.order') : t('trading.place.sell.order'))}
               </Button>
             </CardContent>
           </Card>
@@ -836,26 +838,26 @@ export default function Trading() {
       }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Modify Position</DialogTitle>
+            <DialogTitle>{t('trading.modify.position')}</DialogTitle>
             <DialogDescription>
-              Edit position details: {selectedPosition?.symbol} ({selectedPosition?.id})
+              {t('trading.edit.position.details')} {selectedPosition?.symbol} ({selectedPosition?.id})
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="modify-side">Type</Label>
+              <Label htmlFor="modify-side">{t('trading.type')}</Label>
               <Select value={modifySide} onValueChange={(value: 'buy' | 'sell') => setModifySide(value)}>
                 <SelectTrigger id="modify-side" data-testid="select-modify-side">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="buy">Buy</SelectItem>
-                  <SelectItem value="sell">Sell</SelectItem>
+                  <SelectItem value="buy">{t('trading.buy')}</SelectItem>
+                  <SelectItem value="sell">{t('trading.sell')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="modify-quantity">Volume (Lot)</Label>
+              <Label htmlFor="modify-quantity">{t('trading.volume.lot')}</Label>
               <Input
                 id="modify-quantity"
                 type="number"
@@ -867,7 +869,7 @@ export default function Trading() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="modify-open-price">Open Price</Label>
+              <Label htmlFor="modify-open-price">{t('trading.open.price')}</Label>
               <Input
                 id="modify-open-price"
                 type="number"
@@ -891,7 +893,7 @@ export default function Trading() {
               disabled={modifyPositionMutation.isPending}
               data-testid="button-save-position"
             >
-              {modifyPositionMutation.isPending ? "Saving..." : "Save Changes"}
+              {modifyPositionMutation.isPending ? t('trading.saving') : t('trading.save.changes')}
             </Button>
           </DialogFooter>
         </DialogContent>

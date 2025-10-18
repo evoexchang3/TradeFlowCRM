@@ -18,6 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -30,6 +31,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { login } = useAuth();
+  const { t } = useLanguage();
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -68,13 +70,13 @@ export default function Login() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <TrendingUp className="h-8 w-8 text-primary" />
             <div>
-              <h2 className="text-xl font-semibold">Trading Platform</h2>
-              <p className="text-xs text-muted-foreground">CRM System</p>
+              <h2 className="text-xl font-semibold">{t('landing.hero.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('landing.hero.subtitle')}</p>
             </div>
           </div>
-          <CardTitle className="text-2xl" data-testid="text-login-title">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl" data-testid="text-login-title">{t('auth.welcome.back')}</CardTitle>
           <CardDescription>
-            Sign in to access your account
+            {t('auth.sign.in')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -85,7 +87,7 @@ export default function Login() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('auth.email')}</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} data-testid="input-email" />
                     </FormControl>
@@ -99,7 +101,7 @@ export default function Login() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('auth.password')}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} data-testid="input-password" />
                     </FormControl>
@@ -114,13 +116,13 @@ export default function Login() {
                 disabled={loginMutation.isPending}
                 data-testid="button-login"
               >
-                {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+                {loginMutation.isPending ? t('common.loading') : t('auth.login.button')}
               </Button>
 
               <p className="text-sm text-center text-muted-foreground">
-                Don't have an account?{' '}
+                {t('auth.no.account')}{' '}
                 <a href="/register" className="text-primary hover:underline">
-                  Register now
+                  {t('auth.register.now')}
                 </a>
               </p>
             </form>

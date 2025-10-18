@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const registerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -35,6 +36,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function Register() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -77,13 +79,13 @@ export default function Register() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <TrendingUp className="h-8 w-8 text-primary" />
             <div>
-              <h2 className="text-xl font-semibold">Trading Platform</h2>
-              <p className="text-xs text-muted-foreground">CRM System</p>
+              <h2 className="text-xl font-semibold">{t('landing.hero.title')}</h2>
+              <p className="text-xs text-muted-foreground">{t('landing.hero.subtitle')}</p>
             </div>
           </div>
-          <CardTitle className="text-2xl" data-testid="text-register-title">Create Account</CardTitle>
+          <CardTitle className="text-2xl" data-testid="text-register-title">{t('auth.create.account')}</CardTitle>
           <CardDescription>
-            Register to access the trading platform
+            {t('auth.sign.in')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -95,7 +97,7 @@ export default function Register() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t('auth.first.name')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-first-name" />
                       </FormControl>
@@ -109,7 +111,7 @@ export default function Register() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t('auth.last.name')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-last-name" />
                       </FormControl>
@@ -124,7 +126,7 @@ export default function Register() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t('auth.email')}</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} data-testid="input-email" />
                     </FormControl>
@@ -138,7 +140,7 @@ export default function Register() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone (Optional)</FormLabel>
+                    <FormLabel>{t('common.phone')} ({t('common.optional')})</FormLabel>
                     <FormControl>
                       <Input {...field} data-testid="input-phone" />
                     </FormControl>
@@ -152,7 +154,7 @@ export default function Register() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t('auth.password')}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} data-testid="input-password" />
                     </FormControl>
@@ -166,7 +168,7 @@ export default function Register() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>{t('auth.confirm.password')}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} data-testid="input-confirm-password" />
                     </FormControl>
@@ -181,13 +183,13 @@ export default function Register() {
                 disabled={registerMutation.isPending}
                 data-testid="button-register"
               >
-                {registerMutation.isPending ? 'Creating Account...' : 'Create Account'}
+                {registerMutation.isPending ? t('common.loading') : t('auth.register.button')}
               </Button>
 
               <p className="text-sm text-center text-muted-foreground">
-                Already have an account?{' '}
+                {t('auth.have.account')}{' '}
                 <a href="/login" className="text-primary hover:underline">
-                  Sign in
+                  {t('auth.login.now')}
                 </a>
               </p>
             </form>

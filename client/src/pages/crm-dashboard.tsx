@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DepartmentComparison {
   department: string;
@@ -41,6 +42,7 @@ interface CrossDepartmentMetrics {
 }
 
 export default function CRMDashboard() {
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
@@ -98,7 +100,7 @@ export default function CRMDashboard() {
     return (
       <div className="p-8">
         <div className="text-center text-muted-foreground">
-          No cross-department data available
+          {t('crm.dashboard.no.data')}
         </div>
       </div>
     );
@@ -114,11 +116,11 @@ export default function CRMDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="heading-crm-dashboard">
-            Global CRM Performance
+            {t('crm.dashboard.title')}
           </h1>
           <p className="text-muted-foreground mt-1">
             <span className="text-sm">
-              {globalTotals.totalTeams} teams • {globalTotals.totalAgents} agents • {globalTotals.totalClients} clients
+              {t('crm.dashboard.teams.agents.clients', { teams: globalTotals.totalTeams, agents: globalTotals.totalAgents, clients: globalTotals.totalClients })}
             </span>
           </p>
         </div>
@@ -132,14 +134,14 @@ export default function CRMDashboard() {
               onClick={clearDateFilters}
               data-testid="button-clear-dates"
             >
-              Clear Dates
+              {t('crm.dashboard.clear.dates')}
             </Button>
           )}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-start-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, 'PP') : 'Start Date'}
+                {startDate ? format(startDate, 'PP') : t('crm.dashboard.start.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -156,7 +158,7 @@ export default function CRMDashboard() {
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-end-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, 'PP') : 'End Date'}
+                {endDate ? format(endDate, 'PP') : t('crm.dashboard.end.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -173,11 +175,11 @@ export default function CRMDashboard() {
 
       {/* Global Totals */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Organization Totals</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('crm.dashboard.org.totals')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card data-testid="card-global-ftd-count">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total FTDs</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('crm.dashboard.total.ftds')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -187,7 +189,7 @@ export default function CRMDashboard() {
 
           <Card data-testid="card-global-ftd-volume">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total FTD Volume</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('crm.dashboard.total.ftd.volume')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -199,7 +201,7 @@ export default function CRMDashboard() {
 
           <Card data-testid="card-global-calls">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('crm.dashboard.total.calls')}</CardTitle>
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -213,24 +215,24 @@ export default function CRMDashboard() {
       <div>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <BarChart className="h-5 w-5" />
-          Sales vs Retention Comparison
+          {t('crm.dashboard.sales.vs.retention')}
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
           {/* Sales Department */}
           <Card data-testid="card-sales-dept">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Sales Department</span>
-                <Badge variant="outline" className="capitalize">Sales</Badge>
+                <span>{t('crm.dashboard.sales.department')}</span>
+                <Badge variant="outline" className="capitalize">{t('crm.dashboard.sales')}</Badge>
               </CardTitle>
               <CardDescription>
-                {salesMetrics.totalTeams} teams • {salesMetrics.totalAgents} agents
+                {t('crm.dashboard.teams.agents', { teams: salesMetrics.totalTeams, agents: salesMetrics.totalAgents })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Performance Score</span>
+                  <span className="text-sm text-muted-foreground">{t('crm.dashboard.performance.score')}</span>
                   <span className={`text-2xl font-bold ${getPerformanceColor(salesMetrics.performanceScore)}`} data-testid="text-sales-score">
                     {salesMetrics.performanceScore}
                   </span>
@@ -239,27 +241,27 @@ export default function CRMDashboard() {
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Clients</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.clients')}</span>
                   <span className="font-medium" data-testid="text-sales-clients">{salesMetrics.totalClients}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">FTDs</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.ftds')}</span>
                   <span className="font-medium" data-testid="text-sales-ftds">{salesMetrics.ftdCount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Conversion Rate</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.conversion.rate')}</span>
                   <span className="font-medium" data-testid="text-sales-conversion">{salesMetrics.ftdConversionRate.toFixed(1)}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">FTD Volume</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.ftd.volume')}</span>
                   <span className="font-medium" data-testid="text-sales-volume">${salesMetrics.totalFtdVolume.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Calls</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.total.calls')}</span>
                   <span className="font-medium" data-testid="text-sales-calls">{salesMetrics.totalCalls}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Avg Response Time</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.avg.response.time')}</span>
                   <span className="font-medium" data-testid="text-sales-response">{formatDuration(salesMetrics.avgResponseTime)}</span>
                 </div>
               </div>
@@ -270,17 +272,17 @@ export default function CRMDashboard() {
           <Card data-testid="card-retention-dept">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Retention Department</span>
-                <Badge variant="outline" className="capitalize">Retention</Badge>
+                <span>{t('crm.dashboard.retention.department')}</span>
+                <Badge variant="outline" className="capitalize">{t('crm.dashboard.retention')}</Badge>
               </CardTitle>
               <CardDescription>
-                {retentionMetrics.totalTeams} teams • {retentionMetrics.totalAgents} agents
+                {t('crm.dashboard.teams.agents', { teams: retentionMetrics.totalTeams, agents: retentionMetrics.totalAgents })}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Performance Score</span>
+                  <span className="text-sm text-muted-foreground">{t('crm.dashboard.performance.score')}</span>
                   <span className={`text-2xl font-bold ${getPerformanceColor(retentionMetrics.performanceScore)}`} data-testid="text-retention-score">
                     {retentionMetrics.performanceScore}
                   </span>
@@ -289,27 +291,27 @@ export default function CRMDashboard() {
               
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Clients</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.clients')}</span>
                   <span className="font-medium" data-testid="text-retention-clients">{retentionMetrics.totalClients}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">FTDs</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.ftds')}</span>
                   <span className="font-medium" data-testid="text-retention-ftds">{retentionMetrics.ftdCount}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Conversion Rate</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.conversion.rate')}</span>
                   <span className="font-medium" data-testid="text-retention-conversion">{retentionMetrics.ftdConversionRate.toFixed(1)}%</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">FTD Volume</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.ftd.volume')}</span>
                   <span className="font-medium" data-testid="text-retention-volume">${retentionMetrics.totalFtdVolume.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Calls</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.total.calls')}</span>
                   <span className="font-medium" data-testid="text-retention-calls">{retentionMetrics.totalCalls}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Avg Response Time</span>
+                  <span className="text-muted-foreground">{t('crm.dashboard.avg.response.time')}</span>
                   <span className="font-medium" data-testid="text-retention-response">{formatDuration(retentionMetrics.avgResponseTime)}</span>
                 </div>
               </div>
@@ -320,46 +322,46 @@ export default function CRMDashboard() {
 
       {/* Key Insights */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Key Insights</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('crm.dashboard.key.insights')}</h2>
         <div className="grid gap-4 md:grid-cols-3">
           <Card data-testid="card-insight-conversion">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Best Conversion Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('crm.dashboard.best.conversion.rate')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-lg font-bold">
-                {salesMetrics.ftdConversionRate > retentionMetrics.ftdConversionRate ? 'Sales' : 'Retention'}
+                {salesMetrics.ftdConversionRate > retentionMetrics.ftdConversionRate ? t('crm.dashboard.sales') : t('crm.dashboard.retention')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {Math.max(salesMetrics.ftdConversionRate, retentionMetrics.ftdConversionRate).toFixed(1)}% conversion rate
+                {Math.max(salesMetrics.ftdConversionRate, retentionMetrics.ftdConversionRate).toFixed(1)}% {t('crm.dashboard.conversion.rate.label')}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-insight-performance">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Top Performing Dept</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('crm.dashboard.top.performing.dept')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-lg font-bold">
-                {salesMetrics.performanceScore > retentionMetrics.performanceScore ? 'Sales' : 'Retention'}
+                {salesMetrics.performanceScore > retentionMetrics.performanceScore ? t('crm.dashboard.sales') : t('crm.dashboard.retention')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Score: {Math.max(salesMetrics.performanceScore, retentionMetrics.performanceScore)}
+                {t('crm.dashboard.score')} {Math.max(salesMetrics.performanceScore, retentionMetrics.performanceScore)}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-insight-response">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Fastest Response</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('crm.dashboard.fastest.response')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-lg font-bold">
-                {salesMetrics.avgResponseTime < retentionMetrics.avgResponseTime ? 'Sales' : 'Retention'}
+                {salesMetrics.avgResponseTime < retentionMetrics.avgResponseTime ? t('crm.dashboard.sales') : t('crm.dashboard.retention')}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {formatDuration(Math.min(salesMetrics.avgResponseTime, retentionMetrics.avgResponseTime))} avg
+                {formatDuration(Math.min(salesMetrics.avgResponseTime, retentionMetrics.avgResponseTime))} {t('crm.dashboard.avg')}
               </p>
             </CardContent>
           </Card>

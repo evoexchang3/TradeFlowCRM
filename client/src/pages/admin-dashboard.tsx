@@ -2,12 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Activity, Shield, Settings } from "lucide-react";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -21,31 +23,31 @@ export default function AdminDashboard() {
 
   const statCards = [
     {
-      title: "Total Users",
+      title: t('admin.dashboard.total.users'),
       value: stats?.totalUsers || 0,
       icon: Users,
-      change: "+8% from last month",
+      change: t('admin.dashboard.change.users'),
       color: "text-primary",
     },
     {
-      title: "Total Clients",
+      title: t('admin.dashboard.total.clients'),
       value: stats?.totalClients || 0,
       icon: Shield,
-      change: "+12% from last month",
+      change: t('admin.dashboard.change.clients'),
       color: "text-success",
     },
     {
-      title: "System Revenue",
+      title: t('admin.dashboard.system.revenue'),
       value: `$${(stats?.totalVolume || 0).toLocaleString()}`,
       icon: DollarSign,
-      change: "+18% from last month",
+      change: t('admin.dashboard.change.revenue'),
       color: "text-info",
     },
     {
-      title: "Active Positions",
+      title: t('admin.dashboard.active.positions'),
       value: stats?.activePositions || 0,
       icon: TrendingUp,
-      change: "+5% from last week",
+      change: t('admin.dashboard.change.positions'),
       color: "text-warning",
     },
   ];
@@ -53,9 +55,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold" data-testid="text-dashboard-title">Administrator Dashboard</h1>
+        <h1 className="text-2xl font-semibold" data-testid="text-dashboard-title">{t('admin.dashboard.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          Full system overview and management controls
+          {t('admin.dashboard.subtitle')}
         </p>
       </div>
 
@@ -83,7 +85,7 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>System Activity</CardTitle>
+            <CardTitle>{t('admin.dashboard.system.activity')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -102,7 +104,7 @@ export default function AdminDashboard() {
                   </span>
                 </div>
               )) || (
-                <p className="text-sm text-muted-foreground">No recent activity</p>
+                <p className="text-sm text-muted-foreground">{t('dashboard.no.recent.activity')}</p>
               )}
             </div>
           </CardContent>
@@ -110,30 +112,30 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>System Health</CardTitle>
+            <CardTitle>{t('admin.dashboard.system.health')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Settings className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">API Status</span>
+                  <span className="text-sm">{t('admin.dashboard.api.status')}</span>
                 </div>
-                <span className="text-sm font-medium text-success">Operational</span>
+                <span className="text-sm font-medium text-success">{t('admin.dashboard.status.operational')}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Trading Engine</span>
+                  <span className="text-sm">{t('admin.dashboard.trading.engine')}</span>
                 </div>
-                <span className="text-sm font-medium text-success">Active</span>
+                <span className="text-sm font-medium text-success">{t('admin.dashboard.status.active')}</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Market Data</span>
+                  <span className="text-sm">{t('admin.dashboard.market.data')}</span>
                 </div>
-                <span className="text-sm font-medium text-success">Connected</span>
+                <span className="text-sm font-medium text-success">{t('admin.dashboard.status.connected')}</span>
               </div>
             </div>
           </CardContent>

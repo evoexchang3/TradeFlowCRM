@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type CustomStatus = {
   id: string;
@@ -49,6 +50,7 @@ type CustomStatus = {
 };
 
 export default function RetentionClients() {
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTeamId, setFilterTeamId] = useState<string>('all');
   const [filterAgentId, setFilterAgentId] = useState<string>('all');
@@ -79,7 +81,6 @@ export default function RetentionClients() {
     queryKey: ['/api/custom-statuses'],
   });
 
-  // Client-side filtering
   const clients = retentionClients?.filter((client: any) => {
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
@@ -122,14 +123,14 @@ export default function RetentionClients() {
       setBulkAssignAgentId('');
       setBulkAssignTeamId('');
       toast({
-        title: "Bulk assignment completed",
-        description: `Successfully assigned ${selectedClients.size} client(s).`,
+        title: t('clients.retention.toast.bulk.assign.success'),
+        description: t('clients.retention.toast.bulk.assign.success.description', { count: selectedClients.size }),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Bulk assignment failed",
-        description: error.message || "Failed to assign clients.",
+        title: t('clients.retention.toast.bulk.assign.error'),
+        description: error.message || t('clients.retention.toast.bulk.assign.error.description'),
         variant: "destructive",
       });
     },
@@ -144,14 +145,14 @@ export default function RetentionClients() {
       setCommentText('');
       setSelectedClientForComment(null);
       toast({
-        title: "Comment added",
-        description: "Your comment has been saved.",
+        title: t('clients.retention.toast.comment.success'),
+        description: t('clients.retention.toast.comment.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add comment.",
+        title: t('common.error'),
+        description: error.message || t('clients.retention.toast.comment.error.description'),
         variant: "destructive",
       });
     },
@@ -163,14 +164,14 @@ export default function RetentionClients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients/retention'] });
       toast({
-        title: "Agent assigned",
-        description: "Client has been assigned successfully.",
+        title: t('clients.retention.toast.agent.success'),
+        description: t('clients.retention.toast.agent.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to assign agent.",
+        title: t('common.error'),
+        description: error.message || t('clients.retention.toast.agent.error.description'),
         variant: "destructive",
       });
     },
@@ -182,14 +183,14 @@ export default function RetentionClients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients/retention'] });
       toast({
-        title: "Status updated",
-        description: "Client status has been updated.",
+        title: t('clients.retention.toast.status.success'),
+        description: t('clients.retention.toast.status.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update status.",
+        title: t('common.error'),
+        description: error.message || t('clients.retention.toast.status.error.description'),
         variant: "destructive",
       });
     },
@@ -201,14 +202,14 @@ export default function RetentionClients() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients/retention'] });
       toast({
-        title: "KYC status updated",
-        description: "Client KYC status has been updated.",
+        title: t('clients.retention.toast.kyc.success'),
+        description: t('clients.retention.toast.kyc.success.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update KYC status.",
+        title: t('common.error'),
+        description: error.message || t('clients.retention.toast.kyc.error.description'),
         variant: "destructive",
       });
     },
@@ -245,9 +246,9 @@ export default function RetentionClients() {
 
   const getFundTypeBadge = (fundType: string) => {
     const typeMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
-      real: { label: 'Real', variant: 'default' },
-      demo: { label: 'Demo', variant: 'secondary' },
-      bonus: { label: 'Bonus', variant: 'outline' },
+      real: { label: t('clients.retention.fund.real'), variant: 'default' },
+      demo: { label: t('clients.retention.fund.demo'), variant: 'secondary' },
+      bonus: { label: t('clients.retention.fund.bonus'), variant: 'outline' },
     };
     const config = typeMap[fundType] || { label: fundType, variant: 'outline' };
     return <Badge variant={config.variant} data-testid={`badge-fund-type-${fundType}`}>{config.label}</Badge>;
@@ -257,7 +258,7 @@ export default function RetentionClients() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading retention clients...</p>
+          <p className="text-muted-foreground">{t('clients.retention.loading')}</p>
         </div>
       </div>
     );
@@ -265,41 +266,39 @@ export default function RetentionClients() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Retention Clients</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('clients.retention.title')}</h1>
           <p className="text-muted-foreground">
-            Clients with First Time Deposit (FTD)
+            {t('clients.retention.subtitle')}
           </p>
         </div>
       </div>
 
-      {/* Stats Card */}
       <Card>
         <CardHeader>
-          <CardTitle data-testid="text-stats-title">Retention Overview</CardTitle>
+          <CardTitle data-testid="text-stats-title">{t('clients.retention.overview.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-muted-foreground">Total Clients</p>
+              <p className="text-sm text-muted-foreground">{t('clients.retention.total.clients')}</p>
               <p className="text-2xl font-bold" data-testid="text-total-clients">{clients?.length || 0}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Real Fund FTDs</p>
+              <p className="text-sm text-muted-foreground">{t('clients.retention.real.fund.ftds')}</p>
               <p className="text-2xl font-bold" data-testid="text-real-ftds">
                 {clients?.filter((c: any) => c.ftdFundType === 'real').length || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Demo Fund FTDs</p>
+              <p className="text-sm text-muted-foreground">{t('clients.retention.demo.fund.ftds')}</p>
               <p className="text-2xl font-bold" data-testid="text-demo-ftds">
                 {clients?.filter((c: any) => c.ftdFundType === 'demo').length || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total FTD Value</p>
+              <p className="text-sm text-muted-foreground">{t('clients.retention.total.ftd.value')}</p>
               <p className="text-2xl font-bold" data-testid="text-total-ftd-value">
                 ${clients?.reduce((sum: number, c: any) => sum + (parseFloat(c.ftdAmount || '0')), 0).toFixed(2)}
               </p>
@@ -308,14 +307,13 @@ export default function RetentionClients() {
         </CardContent>
       </Card>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 flex-wrap">
             <div className="flex-1 relative min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or email..."
+                placeholder={t('clients.retention.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -324,10 +322,10 @@ export default function RetentionClients() {
             </div>
             <Select value={filterTeamId} onValueChange={setFilterTeamId}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-team-filter">
-                <SelectValue placeholder="All Teams" />
+                <SelectValue placeholder={t('clients.retention.all.teams')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Teams</SelectItem>
+                <SelectItem value="all">{t('clients.retention.all.teams')}</SelectItem>
                 {teams.map((team: any) => (
                   <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                 ))}
@@ -335,11 +333,11 @@ export default function RetentionClients() {
             </Select>
             <Select value={filterAgentId} onValueChange={setFilterAgentId}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-agent-filter">
-                <SelectValue placeholder="All Agents" />
+                <SelectValue placeholder={t('clients.retention.all.agents')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Agents</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="all">{t('clients.retention.all.agents')}</SelectItem>
+                <SelectItem value="unassigned">{t('clients.retention.unassigned')}</SelectItem>
                 {agents.map((agent: any) => (
                   <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                 ))}
@@ -347,10 +345,10 @@ export default function RetentionClients() {
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-status-filter">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder={t('clients.retention.all.statuses')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">{t('clients.retention.all.statuses')}</SelectItem>
                 {customStatuses.map((status) => (
                   <SelectItem key={status.id} value={status.id}>
                     {status.name}
@@ -360,13 +358,13 @@ export default function RetentionClients() {
             </Select>
             <Select value={filterFundType} onValueChange={setFilterFundType}>
               <SelectTrigger className="w-full md:w-[200px]" data-testid="select-fundtype-filter">
-                <SelectValue placeholder="All Fund Types" />
+                <SelectValue placeholder={t('clients.retention.all.fund.types')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Fund Types</SelectItem>
-                <SelectItem value="real">Real</SelectItem>
-                <SelectItem value="demo">Demo</SelectItem>
-                <SelectItem value="bonus">Bonus</SelectItem>
+                <SelectItem value="all">{t('clients.retention.all.fund.types')}</SelectItem>
+                <SelectItem value="real">{t('clients.retention.fund.real')}</SelectItem>
+                <SelectItem value="demo">{t('clients.retention.fund.demo')}</SelectItem>
+                <SelectItem value="bonus">{t('clients.retention.fund.bonus')}</SelectItem>
               </SelectContent>
             </Select>
             {(filterTeamId !== 'all' || filterAgentId !== 'all' || filterStatus !== 'all' || filterFundType !== 'all' || searchQuery) && (
@@ -383,14 +381,13 @@ export default function RetentionClients() {
                 data-testid="button-clear-filters"
                 className="hover-elevate active-elevate-2"
               >
-                Clear Filters
+                {t('clients.retention.clear.filters')}
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Clients Table */}
       <Card>
         <CardContent className="pt-6">
           {selectedClients.size > 0 && (
@@ -398,7 +395,10 @@ export default function RetentionClients() {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium" data-testid="text-selected-count">
-                  {selectedClients.size} client{selectedClients.size > 1 ? 's' : ''} selected
+                  {t('clients.retention.selected.count', { 
+                    count: selectedClients.size,
+                    s: selectedClients.size > 1 ? t('clients.retention.selected.plural') : ''
+                  })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -409,7 +409,7 @@ export default function RetentionClients() {
                   data-testid="button-clear-selection"
                   className="hover-elevate active-elevate-2"
                 >
-                  Clear Selection
+                  {t('clients.retention.clear.selection')}
                 </Button>
                 <Button
                   size="sm"
@@ -417,7 +417,7 @@ export default function RetentionClients() {
                   data-testid="button-bulk-assign"
                   className="hover-elevate active-elevate-2"
                 >
-                  Assign Clients
+                  {t('clients.retention.assign.clients')}
                 </Button>
               </div>
             </div>
@@ -433,14 +433,14 @@ export default function RetentionClients() {
                     data-testid="checkbox-select-all"
                   />
                 </TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>KYC</TableHead>
-                <TableHead>Agent</TableHead>
-                <TableHead>FTD Amount</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead className="w-[140px]">Actions</TableHead>
+                <TableHead>{t('clients.retention.table.client')}</TableHead>
+                <TableHead>{t('clients.retention.table.contact')}</TableHead>
+                <TableHead>{t('clients.retention.table.status')}</TableHead>
+                <TableHead>{t('clients.retention.table.kyc')}</TableHead>
+                <TableHead>{t('clients.retention.table.agent')}</TableHead>
+                <TableHead>{t('clients.retention.table.ftd.amount')}</TableHead>
+                <TableHead>{t('clients.retention.table.team')}</TableHead>
+                <TableHead className="w-[140px]">{t('clients.retention.table.actions')}</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -448,7 +448,7 @@ export default function RetentionClients() {
               {clients && clients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="text-center py-8">
-                    <p className="text-muted-foreground" data-testid="text-no-clients">No retention clients found</p>
+                    <p className="text-muted-foreground" data-testid="text-no-clients">{t('clients.retention.no.clients')}</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -493,10 +493,10 @@ export default function RetentionClients() {
                           })}
                         >
                           <SelectTrigger className="w-[140px] h-8 text-xs" data-testid={`select-status-${client.id}`}>
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder={t('clients.retention.select.status')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="none">{t('clients.retention.none')}</SelectItem>
                             {customStatuses.map((status: CustomStatus) => (
                               <SelectItem key={status.id} value={status.id}>
                                 {status.name}
@@ -514,12 +514,12 @@ export default function RetentionClients() {
                           })}
                         >
                           <SelectTrigger className="w-[110px] h-8 text-xs" data-testid={`select-kyc-${client.id}`}>
-                            <SelectValue placeholder="KYC" />
+                            <SelectValue placeholder={t('clients.retention.table.kyc')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="verified">Verified</SelectItem>
-                            <SelectItem value="rejected">Rejected</SelectItem>
+                            <SelectItem value="pending">{t('clients.retention.kyc.pending')}</SelectItem>
+                            <SelectItem value="verified">{t('clients.retention.kyc.verified')}</SelectItem>
+                            <SelectItem value="rejected">{t('clients.retention.kyc.rejected')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -532,10 +532,10 @@ export default function RetentionClients() {
                           })}
                         >
                           <SelectTrigger className="w-[130px] h-8 text-xs" data-testid={`select-agent-${client.id}`}>
-                            <SelectValue placeholder="Unassigned" />
+                            <SelectValue placeholder={t('clients.retention.unassigned')} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            <SelectItem value="unassigned">{t('clients.retention.unassigned')}</SelectItem>
                             {agents.map((agent: any) => (
                               <SelectItem key={agent.id} value={agent.id}>
                                 {agent.name}
@@ -551,7 +551,7 @@ export default function RetentionClients() {
                         </div>
                       </TableCell>
                       <TableCell data-testid={`text-team-${client.id}`}>
-                        <span className="text-sm">{team?.name || 'Unassigned'}</span>
+                        <span className="text-sm">{team?.name || t('clients.retention.unassigned')}</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -606,7 +606,7 @@ export default function RetentionClients() {
                               className="h-8"
                             >
                               <TrendingUp className="h-3 w-3 mr-1" />
-                              Activity
+                              {t('clients.retention.activity')}
                             </Button>
                           </Link>
                           <DropdownMenu>
@@ -617,13 +617,13 @@ export default function RetentionClients() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem asChild>
-                                <Link href={`/clients/${client.id}`}>View Details</Link>
+                                <Link href={`/clients/${client.id}`}>{t('clients.retention.view.details')}</Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link href={`/clients/${client.id}/edit`}>Edit Client</Link>
+                                <Link href={`/clients/${client.id}/edit`}>{t('clients.retention.edit.client')}</Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem asChild>
-                                <Link href={`/chat?clientId=${client.id}`}>Start Chat</Link>
+                                <Link href={`/chat?clientId=${client.id}`}>{t('clients.retention.start.chat')}</Link>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -638,24 +638,26 @@ export default function RetentionClients() {
         </CardContent>
       </Card>
 
-      {/* Bulk Assign Dialog */}
       <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
         <DialogContent data-testid="dialog-bulk-assign">
           <DialogHeader>
-            <DialogTitle>Bulk Assign Clients</DialogTitle>
+            <DialogTitle>{t('clients.retention.bulk.assign.title')}</DialogTitle>
             <DialogDescription>
-              Assign {selectedClients.size} selected client{selectedClients.size > 1 ? 's' : ''} to an agent or team.
+              {t('clients.retention.bulk.assign.description', {
+                count: selectedClients.size,
+                s: selectedClients.size > 1 ? t('clients.retention.selected.plural') : ''
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assign to Agent</label>
+              <label className="text-sm font-medium">{t('clients.retention.assign.to.agent')}</label>
               <Select value={bulkAssignAgentId} onValueChange={setBulkAssignAgentId}>
                 <SelectTrigger data-testid="select-bulk-agent">
-                  <SelectValue placeholder="Select agent (optional)" />
+                  <SelectValue placeholder={t('clients.retention.select.agent.optional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Remove Agent</SelectItem>
+                  <SelectItem value="none">{t('clients.retention.remove.agent')}</SelectItem>
                   {agents.map((agent: any) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
@@ -665,13 +667,13 @@ export default function RetentionClients() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Assign to Team</label>
+              <label className="text-sm font-medium">{t('clients.retention.assign.to.team')}</label>
               <Select value={bulkAssignTeamId} onValueChange={setBulkAssignTeamId}>
                 <SelectTrigger data-testid="select-bulk-team">
-                  <SelectValue placeholder="Select team (optional)" />
+                  <SelectValue placeholder={t('clients.retention.select.team.optional')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Remove Team</SelectItem>
+                  <SelectItem value="none">{t('clients.retention.remove.team')}</SelectItem>
                   {teams.map((team: any) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
@@ -691,31 +693,30 @@ export default function RetentionClients() {
               }}
               data-testid="button-cancel-bulk-assign"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleBulkAssign}
               disabled={bulkAssignMutation.isPending || (!bulkAssignAgentId && !bulkAssignTeamId)}
               data-testid="button-confirm-bulk-assign"
             >
-              {bulkAssignMutation.isPending ? "Assigning..." : "Assign Clients"}
+              {bulkAssignMutation.isPending ? t('clients.retention.assigning') : t('clients.retention.assign.clients')}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Comment Dialog */}
       <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
         <DialogContent data-testid="dialog-add-comment">
           <DialogHeader>
-            <DialogTitle>Add Comment</DialogTitle>
+            <DialogTitle>{t('clients.retention.add.comment.title')}</DialogTitle>
             <DialogDescription>
-              Add a note or comment for {selectedClientForComment?.name}
+              {t('clients.retention.add.comment.description', { name: selectedClientForComment?.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Enter your comment..."
+              placeholder={t('clients.retention.enter.comment')}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               rows={4}
@@ -732,7 +733,7 @@ export default function RetentionClients() {
               }}
               data-testid="button-cancel-comment"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => {
@@ -746,7 +747,7 @@ export default function RetentionClients() {
               disabled={commentMutation.isPending || !commentText.trim()}
               data-testid="button-save-comment"
             >
-              {commentMutation.isPending ? "Saving..." : "Save Comment"}
+              {commentMutation.isPending ? t('clients.retention.saving') : t('clients.retention.save.comment')}
             </Button>
           </DialogFooter>
         </DialogContent>

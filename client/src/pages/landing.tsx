@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -39,6 +40,7 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { login, isAuthenticated, user } = useAuth();
+  const { t } = useLanguage();
 
   // Auto-redirect if already authenticated
   useEffect(() => {
@@ -124,20 +126,20 @@ export default function Landing() {
           <div className="flex items-center justify-center gap-3 mb-4">
             <TrendingUp className="h-12 w-12 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold">Trading Platform</h1>
-              <p className="text-sm text-muted-foreground">Enterprise CRM System</p>
+              <h1 className="text-3xl font-bold">{t('landing.hero.title')}</h1>
+              <p className="text-sm text-muted-foreground">{t('landing.hero.subtitle')}</p>
             </div>
           </div>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Secure access portal for trading platform management
+            {t('landing.features.subtitle')}
           </p>
         </div>
 
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
+            <CardTitle>{t('landing.cta.title')}</CardTitle>
             <CardDescription>
-              Enter your credentials to access the platform
+              {t('auth.sign.in')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -148,11 +150,11 @@ export default function Landing() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('auth.email')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="email" 
-                          placeholder="Enter your email"
+                          placeholder={t('auth.email')}
                           {...field} 
                           data-testid="input-email" 
                         />
@@ -167,11 +169,11 @@ export default function Landing() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t('auth.password')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="password" 
-                          placeholder="Enter your password"
+                          placeholder={t('auth.password')}
                           {...field} 
                           data-testid="input-password" 
                         />
@@ -187,7 +189,7 @@ export default function Landing() {
                   disabled={loginMutation.isPending}
                   data-testid="button-login"
                 >
-                  {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+                  {loginMutation.isPending ? t('auth.login.button') : t('landing.cta.button')}
                 </Button>
               </form>
             </Form>
@@ -198,7 +200,7 @@ export default function Landing() {
                 className="text-sm text-muted-foreground hover:text-primary"
                 data-testid="link-forgot-password"
               >
-                Forgot your password?
+                {t('auth.forgot.password')}
               </a>
             </div>
           </CardContent>

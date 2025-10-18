@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import type { User } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface TeamPerformance {
   teamId: string;
@@ -46,6 +47,7 @@ interface AgentPerformance {
 
 export default function TeamDashboard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
@@ -107,9 +109,9 @@ export default function TeamDashboard() {
   };
 
   const getRankBadge = (index: number) => {
-    if (index === 0) return <Badge className="bg-yellow-500 hover:bg-yellow-600"><Trophy className="h-3 w-3 mr-1" /> 1st</Badge>;
-    if (index === 1) return <Badge className="bg-gray-400 hover:bg-gray-500"><Trophy className="h-3 w-3 mr-1" /> 2nd</Badge>;
-    if (index === 2) return <Badge className="bg-amber-700 hover:bg-amber-800"><Trophy className="h-3 w-3 mr-1" /> 3rd</Badge>;
+    if (index === 0) return <Badge className="bg-yellow-500 hover:bg-yellow-600"><Trophy className="h-3 w-3 mr-1" /> {t('dashboard.team.leaderboard.rank.1st')}</Badge>;
+    if (index === 1) return <Badge className="bg-gray-400 hover:bg-gray-500"><Trophy className="h-3 w-3 mr-1" /> {t('dashboard.team.leaderboard.rank.2nd')}</Badge>;
+    if (index === 2) return <Badge className="bg-amber-700 hover:bg-amber-800"><Trophy className="h-3 w-3 mr-1" /> {t('dashboard.team.leaderboard.rank.3rd')}</Badge>;
     return <Badge variant="outline">{index + 1}</Badge>;
   };
 
@@ -140,7 +142,7 @@ export default function TeamDashboard() {
     return (
       <div className="p-8">
         <div className="text-center text-muted-foreground">
-          No team data available. Please make sure you are assigned to a team.
+          {t('dashboard.team.no.data')}
         </div>
       </div>
     );
@@ -154,7 +156,7 @@ export default function TeamDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold" data-testid="heading-team-dashboard">
-            Team Performance: {teamMetrics.teamName}
+            {t('dashboard.team.performance.title')} {teamMetrics.teamName}
           </h1>
           <p className="text-muted-foreground mt-1">
             {teamMetrics.language && <Badge variant="outline" className="mr-2">{teamMetrics.language}</Badge>}
@@ -171,14 +173,14 @@ export default function TeamDashboard() {
               onClick={clearDateFilters}
               data-testid="button-clear-dates"
             >
-              Clear Dates
+              {t('dashboard.team.clear.dates')}
             </Button>
           )}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-start-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, 'PP') : 'Start Date'}
+                {startDate ? format(startDate, 'PP') : t('dashboard.team.start.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -195,7 +197,7 @@ export default function TeamDashboard() {
             <PopoverTrigger asChild>
               <Button variant="outline" data-testid="button-end-date">
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {endDate ? format(endDate, 'PP') : 'End Date'}
+                {endDate ? format(endDate, 'PP') : t('dashboard.team.end.date')}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
@@ -215,27 +217,27 @@ export default function TeamDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="h-5 w-5" />
-            Team Performance Score
+            {t('dashboard.team.performance.score')}
           </CardTitle>
           <CardDescription>
-            Overall team rating based on collective FTD conversion, activity, and response time
+            {t('dashboard.team.performance.score.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className={`text-5xl font-bold ${getPerformanceColor(teamMetrics.performanceScore)}`} data-testid="text-team-performance-score">
             {teamMetrics.performanceScore}
-            <span className="text-2xl text-muted-foreground">/100</span>
+            <span className="text-2xl text-muted-foreground">{t('dashboard.team.performance.score.outof')}</span>
           </div>
         </CardContent>
       </Card>
 
       {/* Team FTD Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Team FTD Performance</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard.team.ftd.performance')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card data-testid="card-team-total-clients">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.total.clients')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -245,7 +247,7 @@ export default function TeamDashboard() {
 
           <Card data-testid="card-team-ftd-count">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">FTD Count</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.ftd.count')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -255,7 +257,7 @@ export default function TeamDashboard() {
 
           <Card data-testid="card-team-conversion-rate">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.conversion.rate')}</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -265,7 +267,7 @@ export default function TeamDashboard() {
 
           <Card data-testid="card-team-ftd-volume">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total FTD Volume</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.total.ftd.volume')}</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -273,7 +275,7 @@ export default function TeamDashboard() {
                 ${teamMetrics.totalFtdVolume.toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg: ${teamMetrics.avgFtdAmount.toFixed(0)}
+                {t('dashboard.team.avg.label')} ${teamMetrics.avgFtdAmount.toFixed(0)}
               </p>
             </CardContent>
           </Card>
@@ -282,24 +284,24 @@ export default function TeamDashboard() {
 
       {/* Team Activity Metrics */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Team Activity Metrics</h2>
+        <h2 className="text-xl font-semibold mb-4">{t('dashboard.team.activity.metrics')}</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card data-testid="card-team-total-calls">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.total.calls')}</CardTitle>
               <Phone className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-team-total-calls">{teamMetrics.totalCalls}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg duration: {formatDuration(teamMetrics.avgCallDuration)}
+                {t('dashboard.team.avg.duration')} {formatDuration(teamMetrics.avgCallDuration)}
               </p>
             </CardContent>
           </Card>
 
           <Card data-testid="card-team-total-comments">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Comments Added</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.comments.added')}</CardTitle>
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -309,7 +311,7 @@ export default function TeamDashboard() {
 
           <Card data-testid="card-team-response-time">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('dashboard.team.avg.response.time')}</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -325,12 +327,12 @@ export default function TeamDashboard() {
       <div>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Trophy className="h-5 w-5" />
-          Team Leaderboard
+          {t('dashboard.team.leaderboard')}
         </h2>
         <Card data-testid="card-leaderboard">
           <CardHeader>
-            <CardTitle className="text-sm">Agent Performance Rankings</CardTitle>
-            <CardDescription>Team members ranked by performance score</CardDescription>
+            <CardTitle className="text-sm">{t('dashboard.team.leaderboard.rankings')}</CardTitle>
+            <CardDescription>{t('dashboard.team.leaderboard.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             {leaderboard && leaderboard.length > 0 ? (
@@ -346,7 +348,7 @@ export default function TeamDashboard() {
                       <div>
                         <p className="font-medium" data-testid={`agent-name-${index}`}>{agent.agentName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {agent.totalClients} clients • {agent.ftdCount} FTDs
+                          {agent.totalClients} {t('dashboard.team.leaderboard.clients')} • {agent.ftdCount} {t('dashboard.team.leaderboard.ftds')}
                         </p>
                       </div>
                     </div>
@@ -355,7 +357,7 @@ export default function TeamDashboard() {
                         {agent.performanceScore}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {agent.ftdConversionRate.toFixed(1)}% conv.
+                        {agent.ftdConversionRate.toFixed(1)}% {t('dashboard.team.leaderboard.conversion')}
                       </p>
                     </div>
                   </div>
@@ -363,7 +365,7 @@ export default function TeamDashboard() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No team members found
+                {t('dashboard.team.no.members')}
               </p>
             )}
           </CardContent>
