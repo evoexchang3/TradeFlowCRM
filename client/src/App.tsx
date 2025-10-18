@@ -9,7 +9,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { HeaderSearch } from "@/components/header-search";
+import { LanguageSelector } from "@/components/language-selector";
 import { AuthProvider } from "@/lib/auth";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { RouteGuard } from "@/components/route-guard";
 import Dashboard from "@/pages/dashboard";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -399,6 +401,7 @@ function AppLayout() {
             <HeaderSearch />
             <div className="flex items-center gap-2">
               <NotificationBell />
+              <LanguageSelector />
               <ThemeToggle />
             </div>
           </header>
@@ -415,12 +418,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider defaultTheme="dark">
-          <TooltipProvider>
-            <AppLayout />
-            <Toaster />
-          </TooltipProvider>
-        </ThemeProvider>
+        <LanguageProvider>
+          <ThemeProvider defaultTheme="dark">
+            <TooltipProvider>
+              <AppLayout />
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </LanguageProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
