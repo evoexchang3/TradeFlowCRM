@@ -39,6 +39,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 import type { Role, Team } from "@shared/schema";
 
 import {
@@ -55,7 +56,7 @@ import {
 } from "@/components/ui/sidebar";
 
 interface MenuItem {
-  title: string;
+  titleKey: string; // Translation key instead of hardcoded title
   url: string;
   icon: any;
   roles?: string[]; // If undefined, available to all roles
@@ -63,171 +64,167 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    title: "Dashboard",
+    titleKey: "nav.dashboard",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
   {
-    title: "Sales Clients",
+    titleKey: "nav.sales.clients",
     url: "/clients/sales",
     icon: UserPlus,
-    roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Retention Clients",
+    titleKey: "nav.retention.clients",
     url: "/clients/retention",
     icon: UserCheck,
-    roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "All Clients",
+    titleKey: "nav.all.clients",
     url: "/clients",
     icon: Users,
-    roles: ['administrator', 'crm manager', 'team leader'], // Managers and TLs only
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Global Search",
+    titleKey: "nav.global.search",
     url: "/search/global",
     icon: Search,
     roles: ['administrator', 'crm manager', 'team leader', 'agent'],
   },
   {
-    title: "Trading Symbols",
+    titleKey: "nav.trading.symbols",
     url: "/trading/symbols",
     icon: Layers,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "Symbol Groups",
+    titleKey: "nav.symbol.groups",
     url: "/trading/symbol-groups",
     icon: FolderOpen,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "CFD Accounts",
+    titleKey: "nav.cfd.accounts",
     url: "/trading/cfd-accounts",
     icon: Wallet,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Open Positions",
+    titleKey: "nav.open.positions",
     url: "/trading/open-positions",
     icon: TrendingUp,
-    roles: ['administrator', 'crm manager', 'team leader'], // Not for agents
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Closed Positions",
+    titleKey: "nav.closed.positions",
     url: "/trading/closed-positions",
     icon: TrendingDown,
-    roles: ['administrator', 'crm manager', 'team leader'], // Not for agents
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Trading",
+    titleKey: "nav.trading",
     url: "/trading",
     icon: TrendingUp,
-    // Available to all roles including agents
   },
   {
-    title: "Transactions",
+    titleKey: "nav.transactions",
     url: "/transactions",
     icon: DollarSign,
-    roles: ['administrator', 'crm manager', 'team leader'], // Not for agents
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Calendar",
+    titleKey: "nav.calendar",
     url: "/calendar",
     icon: Calendar,
-    // Available to all roles including agents
   },
   {
-    title: "Sales Dashboard",
+    titleKey: "nav.sales.dashboard",
     url: "/reports/sales",
     icon: BarChart3,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Retention Dashboard",
+    titleKey: "nav.retention.dashboard",
     url: "/reports/retention",
     icon: TrendingUp,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Activity Feed",
+    titleKey: "nav.activity.feed",
     url: "/activity-feed",
     icon: Activity,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "Affiliates",
+    titleKey: "nav.affiliates",
     url: "/affiliates",
     icon: Share2,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "Chat",
+    titleKey: "nav.chat",
     url: "/chat",
     icon: MessageSquare,
-    // Available to all roles including agents
   },
   {
-    title: "Leaderboard",
+    titleKey: "nav.leaderboard",
     url: "/leaderboard",
     icon: Trophy,
-    // Available to all roles including agents
   },
 ];
 
 const managementItems: MenuItem[] = [
   {
-    title: "User Management",
+    titleKey: "nav.user.management",
     url: "/users",
     icon: Users,
-    roles: ['administrator'], // Admin only
+    roles: ['administrator'],
   },
   {
-    title: "Roles & Permissions",
+    titleKey: "nav.roles.permissions",
     url: "/roles",
     icon: Shield,
-    roles: ['administrator'], // Admin only
+    roles: ['administrator'],
   },
   {
-    title: "Teams",
+    titleKey: "nav.teams",
     url: "/teams",
     icon: UsersRound,
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
-    title: "API Keys",
+    titleKey: "nav.api.keys",
     url: "/api-keys",
     icon: Key,
-    roles: ['administrator'], // Admin only
+    roles: ['administrator'],
   },
   {
-    title: "Import Data",
+    titleKey: "nav.import.data",
     url: "/import",
     icon: FileUp,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "Export Data",
+    titleKey: "nav.export.data",
     url: "/export",
     icon: FileDown,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "Audit Logs",
+    titleKey: "nav.audit.logs",
     url: "/audit",
     icon: History,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "Audit Reports",
+    titleKey: "nav.audit.reports",
     url: "/audit/reports",
     icon: FileText,
-    roles: ['administrator'], // Admin only
+    roles: ['administrator'],
   },
   {
-    title: "Email Templates",
+    titleKey: "nav.email.templates",
     url: "/configuration/email-templates",
     icon: Mail,
     roles: ['administrator', 'crm manager'],
@@ -236,55 +233,55 @@ const managementItems: MenuItem[] = [
 
 const configurationItems: MenuItem[] = [
   {
-    title: "Organizational Hierarchy",
+    titleKey: "nav.organizational.hierarchy",
     url: "/configuration/hierarchy",
     icon: Network,
     roles: ['administrator'],
   },
   {
-    title: "Custom Statuses",
+    titleKey: "nav.custom.statuses",
     url: "/configuration/custom-statuses",
     icon: Palette,
     roles: ['administrator'],
   },
   {
-    title: "Team Routing Rules",
+    titleKey: "nav.team.routing",
     url: "/configuration/team-routing",
     icon: ArrowRightLeft,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "Smart Assignment",
+    titleKey: "nav.smart.assignment",
     url: "/configuration/smart-assignment",
     icon: Settings2,
     roles: ['administrator', 'crm manager'],
   },
   {
-    title: "KYC Questions Builder",
+    titleKey: "nav.kyc.questions",
     url: "/configuration/kyc-questions",
     icon: ClipboardList,
     roles: ['administrator'],
   },
   {
-    title: "Template Variables",
+    titleKey: "nav.template.variables",
     url: "/configuration/template-variables",
     icon: Variable,
     roles: ['administrator'],
   },
   {
-    title: "Security Settings",
+    titleKey: "nav.security.settings",
     url: "/configuration/security-settings",
     icon: Lock,
     roles: ['administrator'],
   },
   {
-    title: "SMTP Settings",
+    titleKey: "nav.smtp.settings",
     url: "/configuration/smtp-settings",
     icon: Server,
     roles: ['administrator'],
   },
   {
-    title: "Payment Providers",
+    titleKey: "nav.payment.providers",
     url: "/configuration/payment-providers",
     icon: CreditCard,
     roles: ['administrator'],
@@ -294,6 +291,7 @@ const configurationItems: MenuItem[] = [
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
   const { logout, user } = useAuth();
+  const { t } = useLanguage();
 
   // Fetch user's role to filter menu items
   const { data: role } = useQuery<Role>({
@@ -325,16 +323,16 @@ export function AppSidebar() {
     // Department-specific filtering for CRM Managers
     if (roleName === 'crm manager' && department) {
       // Sales CRM Managers only see Sales Clients
-      if (item.title === 'Sales Clients' && department !== 'sales') {
+      if (item.titleKey === 'nav.sales.clients' && department !== 'sales') {
         return false;
       }
       // Retention CRM Managers only see Retention Clients
-      if (item.title === 'Retention Clients' && department !== 'retention') {
+      if (item.titleKey === 'nav.retention.clients' && department !== 'retention') {
         return false;
       }
       // If CRM Manager has a specific department, hide the "All Clients" aggregated view
       // They should use their department-specific view
-      if (item.title === 'All Clients' && (department === 'sales' || department === 'retention')) {
+      if (item.titleKey === 'nav.all.clients' && (department === 'sales' || department === 'retention')) {
         return false;
       }
     }
@@ -376,7 +374,7 @@ export function AppSidebar() {
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Main Menu</SidebarGroupLabel>
+          <SidebarGroupLabel>{t('nav.main.menu')}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* Dashboard link with role-specific URL */}
@@ -388,23 +386,23 @@ export function AppSidebar() {
                 >
                   <Link href={dashboardUrl}>
                     <LayoutDashboard className="h-4 w-4" />
-                    <span>Dashboard</span>
+                    <span>{t('nav.dashboard')}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               
-              {filteredMenuItems.filter(item => item.title !== "Dashboard").map((item) => {
+              {filteredMenuItems.filter(item => item.titleKey !== "nav.dashboard").map((item) => {
                 const isActive = location === item.url;
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.titleKey}>
                     <SidebarMenuButton 
                       asChild 
                       isActive={isActive}
-                      data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                      data-testid={`link-${item.titleKey.split('.')[1]}`}
                     >
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
+                        <span>{t(item.titleKey)}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -416,21 +414,21 @@ export function AppSidebar() {
 
         {filteredManagementItems.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Management</SidebarGroupLabel>
+            <SidebarGroupLabel>{t('nav.management')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {filteredManagementItems.map((item) => {
                   const isActive = location === item.url;
                   return (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem key={item.titleKey}>
                       <SidebarMenuButton 
                         asChild 
                         isActive={isActive}
-                        data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        data-testid={`link-${item.titleKey.split('.')[1]}`}
                       >
                         <Link href={item.url}>
                           <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
+                          <span>{t(item.titleKey)}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -443,21 +441,21 @@ export function AppSidebar() {
 
         {filteredConfigurationItems.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Configuration</SidebarGroupLabel>
+            <SidebarGroupLabel>{t('nav.configuration')}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {filteredConfigurationItems.map((item) => {
                   const isActive = location === item.url;
                   return (
-                    <SidebarMenuItem key={item.title}>
+                    <SidebarMenuItem key={item.titleKey}>
                       <SidebarMenuButton 
                         asChild 
                         isActive={isActive}
-                        data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                        data-testid={`link-${item.titleKey.split('.')[1]}`}
                       >
                         <Link href={item.url}>
                           <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
+                          <span>{t(item.titleKey)}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -474,7 +472,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton onClick={handleLogout} data-testid="button-logout">
               <LogOut className="h-4 w-4" />
-              <span>Logout</span>
+              <span>{t('nav.logout')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
