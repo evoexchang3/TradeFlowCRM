@@ -17,6 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SearchFilters {
   searchQuery?: string;
@@ -41,6 +42,7 @@ interface SavedFilter {
 }
 
 export default function GlobalSearch() {
+  const { t } = useLanguage();
   const [location, setLocationPath] = useLocation();
   const { toast } = useToast();
   const [filters, setFilters] = useState<SearchFilters>({});
@@ -120,7 +122,7 @@ export default function GlobalSearch() {
       setSaveDialogOpen(false);
       setFilterName("");
       setSetAsDefault(false);
-      toast({ title: "Filter saved successfully" });
+      toast({ title: t('search.filter.saved') });
     },
   });
 
@@ -132,7 +134,7 @@ export default function GlobalSearch() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/saved-filters'] });
-      toast({ title: "Filter deleted successfully" });
+      toast({ title: t('search.filter.deleted') });
     },
   });
 
@@ -144,7 +146,7 @@ export default function GlobalSearch() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/saved-filters'] });
-      toast({ title: "Default filter updated" });
+      toast({ title: t('search.filter.updated') });
     },
   });
 
@@ -169,7 +171,7 @@ export default function GlobalSearch() {
 
   const handleSaveFilter = () => {
     if (!filterName.trim()) {
-      toast({ title: "Please enter a filter name", variant: "destructive" });
+      toast({ title: t('search.filter.name.required'), variant: "destructive" });
       return;
     }
     saveFilterMutation.mutate();
@@ -185,9 +187,9 @@ export default function GlobalSearch() {
       <div className="border-b bg-card p-4">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <Search className="h-6 w-6" />
-          Global Client Search
+          {t('search.title')}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Search across all clients with advanced filters</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('search.subtitle')}</p>
       </div>
 
       <div className="flex-1 overflow-auto p-6">
@@ -196,7 +198,7 @@ export default function GlobalSearch() {
           {savedFilters.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm font-medium">Saved Filters</CardTitle>
+                <CardTitle className="text-sm font-medium">{t('search.saved.filters')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
@@ -219,14 +221,14 @@ export default function GlobalSearch() {
                         <DropdownMenuContent>
                           {!savedFilter.isDefault && (
                             <DropdownMenuItem onClick={() => setDefaultMutation.mutate(savedFilter.id)}>
-                              Set as Default
+                              {t('search.set.as.default')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem
                             onClick={() => deleteFilterMutation.mutate(savedFilter.id)}
                             className="text-destructive"
                           >
-                            Delete
+                            {t('common.delete')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -242,16 +244,16 @@ export default function GlobalSearch() {
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Filter className="h-4 w-4" />
-                Advanced Filters
+                {t('search.advanced.filters')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Search Query */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Search</Label>
+                  <Label>{t('common.search')}</Label>
                   <Input
-                    placeholder="Name, email, or ID..."
+                    placeholder={t('search.placeholder')}
                     value={filters.searchQuery || ""}
                     onChange={(e) => setFilters({ ...filters, searchQuery: e.target.value })}
                     data-testid="input-search-query"
@@ -259,14 +261,14 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Team</Label>
+                  <Label>{t('search.team')}</Label>
                   <Select value={filters.teamId || "all"} onValueChange={(v) => setFilters({ ...filters, teamId: v })}>
                     <SelectTrigger data-testid="select-team">
-                      <SelectValue placeholder="All Teams" />
+                      <SelectValue placeholder={t('search.all.teams')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Teams</SelectItem>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      <SelectItem value="all">{t('search.all.teams')}</SelectItem>
+                      <SelectItem value="unassigned">{t('search.unassigned')}</SelectItem>
                       {teams.map((team: any) => (
                         <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                       ))}
@@ -275,14 +277,14 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Agent</Label>
+                  <Label>{t('search.agent')}</Label>
                   <Select value={filters.agentId || "all"} onValueChange={(v) => setFilters({ ...filters, agentId: v })}>
                     <SelectTrigger data-testid="select-agent">
-                      <SelectValue placeholder="All Agents" />
+                      <SelectValue placeholder={t('search.all.agents')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Agents</SelectItem>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      <SelectItem value="all">{t('search.all.agents')}</SelectItem>
+                      <SelectItem value="unassigned">{t('search.unassigned')}</SelectItem>
                       {agents.map((agent: any) => (
                         <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                       ))}
@@ -291,13 +293,13 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Custom Status</Label>
+                  <Label>{t('search.custom.status')}</Label>
                   <Select value={filters.statusId || "all"} onValueChange={(v) => setFilters({ ...filters, statusId: v })}>
                     <SelectTrigger data-testid="select-status">
-                      <SelectValue placeholder="All Statuses" />
+                      <SelectValue placeholder={t('search.all.statuses')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="all">{t('search.all.statuses')}</SelectItem>
                       {customStatuses.map((status: any) => (
                         <SelectItem key={status.id} value={status.id}>{status.name}</SelectItem>
                       ))}
@@ -306,39 +308,39 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>KYC Status</Label>
+                  <Label>{t('search.kyc.status')}</Label>
                   <Select value={filters.kycStatus || "all"} onValueChange={(v) => setFilters({ ...filters, kycStatus: v })}>
                     <SelectTrigger data-testid="select-kyc">
-                      <SelectValue placeholder="All KYC Statuses" />
+                      <SelectValue placeholder={t('search.all.kyc.statuses')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All KYC Statuses</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="verified">Verified</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="all">{t('search.all.kyc.statuses')}</SelectItem>
+                      <SelectItem value="pending">{t('search.kyc.pending')}</SelectItem>
+                      <SelectItem value="verified">{t('search.kyc.verified')}</SelectItem>
+                      <SelectItem value="rejected">{t('search.kyc.rejected')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>FTD Status</Label>
+                  <Label>{t('search.ftd.status')}</Label>
                   <Select
                     value={filters.hasFTD?.toString() || "all"}
                     onValueChange={(v) => setFilters({ ...filters, hasFTD: v === "all" ? undefined : v === "true" })}
                   >
                     <SelectTrigger data-testid="select-ftd">
-                      <SelectValue placeholder="All Clients" />
+                      <SelectValue placeholder={t('search.all.clients')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Clients</SelectItem>
-                      <SelectItem value="true">Has FTD</SelectItem>
-                      <SelectItem value="false">No FTD</SelectItem>
+                      <SelectItem value="all">{t('search.all.clients')}</SelectItem>
+                      <SelectItem value="true">{t('search.has.ftd')}</SelectItem>
+                      <SelectItem value="false">{t('search.no.ftd')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Registration From</Label>
+                  <Label>{t('search.registration.from')}</Label>
                   <Input
                     type="date"
                     value={filters.dateFrom || ""}
@@ -348,7 +350,7 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Registration To</Label>
+                  <Label>{t('search.registration.to')}</Label>
                   <Input
                     type="date"
                     value={filters.dateTo || ""}
@@ -358,7 +360,7 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>FTD From</Label>
+                  <Label>{t('search.ftd.from')}</Label>
                   <Input
                     type="date"
                     value={filters.ftdDateFrom || ""}
@@ -368,7 +370,7 @@ export default function GlobalSearch() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>FTD To</Label>
+                  <Label>{t('search.ftd.to')}</Label>
                   <Input
                     type="date"
                     value={filters.ftdDateTo || ""}
@@ -382,15 +384,15 @@ export default function GlobalSearch() {
               <div className="flex items-center gap-2 pt-4 border-t">
                 <Button onClick={handleSearch} data-testid="button-search" disabled={searchMutation.isPending}>
                   <Search className="h-4 w-4 mr-2" />
-                  Search
+                  {t('common.search')}
                 </Button>
                 <Button variant="outline" onClick={handleClearFilters} data-testid="button-clear">
                   <X className="h-4 w-4 mr-2" />
-                  Clear Filters
+                  {t('search.clear.filters')}
                 </Button>
                 <Button variant="outline" onClick={() => setSaveDialogOpen(true)} data-testid="button-save-filter">
                   <Save className="h-4 w-4 mr-2" />
-                  Save Filter
+                  {t('search.save.filter')}
                 </Button>
               </div>
             </CardContent>
@@ -401,26 +403,26 @@ export default function GlobalSearch() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium">
-                  Search Results ({pagination?.total || 0} clients found)
+                  {t('search.results.count', { count: pagination?.total || 0 })}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {clients.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No clients found matching your criteria</p>
+                  <p className="text-muted-foreground text-center py-8">{t('search.no.results')}</p>
                 ) : (
                   <>
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Email</TableHead>
-                            <TableHead>Phone</TableHead>
-                            <TableHead>Team</TableHead>
-                            <TableHead>Agent</TableHead>
-                            <TableHead>KYC</TableHead>
-                            <TableHead>FTD</TableHead>
-                            <TableHead>Actions</TableHead>
+                            <TableHead>{t('common.name')}</TableHead>
+                            <TableHead>{t('common.email')}</TableHead>
+                            <TableHead>{t('common.phone')}</TableHead>
+                            <TableHead>{t('search.team')}</TableHead>
+                            <TableHead>{t('search.agent')}</TableHead>
+                            <TableHead>{t('search.kyc.status')}</TableHead>
+                            <TableHead>{t('search.ftd.status')}</TableHead>
+                            <TableHead>{t('common.actions')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -451,10 +453,10 @@ export default function GlobalSearch() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setLocation(`/clients/${client.id}`)}
+                                  onClick={() => setLocationPath(`/clients/${client.id}`)}
                                   data-testid={`button-view-${client.id}`}
                                 >
-                                  View
+                                  {t('common.view')}
                                 </Button>
                               </TableCell>
                             </TableRow>
@@ -467,7 +469,7 @@ export default function GlobalSearch() {
                     {pagination && pagination.totalPages > 1 && (
                       <div className="flex items-center justify-between mt-4">
                         <p className="text-sm text-muted-foreground">
-                          Page {pagination.page} of {pagination.totalPages}
+                          {t('search.page.of', { page: pagination.page, total: pagination.totalPages })}
                         </p>
                         <div className="flex gap-2">
                           <Button
@@ -511,13 +513,13 @@ export default function GlobalSearch() {
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Filter Preset</DialogTitle>
+            <DialogTitle>{t('search.save.preset')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Filter Name</Label>
+              <Label>{t('search.filter.name')}</Label>
               <Input
-                placeholder="e.g., High Value Clients"
+                placeholder={t('search.filter.name.placeholder')}
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 data-testid="input-filter-name"
@@ -531,15 +533,15 @@ export default function GlobalSearch() {
                 onChange={(e) => setSetAsDefault(e.target.checked)}
                 data-testid="checkbox-set-default"
               />
-              <Label htmlFor="set-default" className="cursor-pointer">Set as default filter</Label>
+              <Label htmlFor="set-default" className="cursor-pointer">{t('search.set.default.filter')}</Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveDialogOpen(false)} data-testid="button-cancel-save">
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSaveFilter} disabled={saveFilterMutation.isPending} data-testid="button-confirm-save">
-              Save Filter
+              {t('search.save.filter')}
             </Button>
           </DialogFooter>
         </DialogContent>

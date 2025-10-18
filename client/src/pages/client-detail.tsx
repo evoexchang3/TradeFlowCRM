@@ -36,21 +36,7 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-const CLIENT_STATUSES = [
-  { value: 'new', label: 'New' },
-  { value: 'reassigned', label: 'Reassigned' },
-  { value: 'potential', label: 'Potential' },
-  { value: 'low_potential', label: 'Low Potential' },
-  { value: 'mid_potential', label: 'Mid Potential' },
-  { value: 'high_potential', label: 'High Potential' },
-  { value: 'no_answer', label: 'No Answer' },
-  { value: 'voicemail', label: 'Voicemail' },
-  { value: 'callback_requested', label: 'Callback Requested' },
-  { value: 'not_interested', label: 'Not Interested' },
-  { value: 'converted', label: 'Converted' },
-  { value: 'lost', label: 'Lost' },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CustomStatus {
   id: string;
@@ -97,6 +83,22 @@ export default function ClientDetail() {
   const [modifyOpenedAt, setModifyOpenedAt] = useState('');
   const [modifyClosedAt, setModifyClosedAt] = useState('');
   const { toast } = useToast();
+  const { t } = useLanguage();
+
+  const CLIENT_STATUSES = [
+    { value: 'new', label: t('client.status.new') },
+    { value: 'reassigned', label: t('client.status.reassigned') },
+    { value: 'potential', label: t('client.status.potential') },
+    { value: 'low_potential', label: t('client.status.low_potential') },
+    { value: 'mid_potential', label: t('client.status.mid_potential') },
+    { value: 'high_potential', label: t('client.status.high_potential') },
+    { value: 'no_answer', label: t('client.status.no_answer') },
+    { value: 'voicemail', label: t('client.status.voicemail') },
+    { value: 'callback_requested', label: t('client.status.callback_requested') },
+    { value: 'not_interested', label: t('client.status.not_interested') },
+    { value: 'converted', label: t('client.status.converted') },
+    { value: 'lost', label: t('client.status.lost') },
+  ];
 
   const { data: client, isLoading } = useQuery({
     queryKey: ['/api/clients', clientId],
@@ -173,14 +175,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
-        title: "Client status updated",
-        description: "Client status has been updated successfully.",
+        title: t('client.toast.status.updated'),
+        description: t('client.toast.status.updated.description'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update client status.",
+        title: t('common.error'),
+        description: t('client.toast.status.failed'),
         variant: "destructive",
       });
     },
@@ -192,14 +194,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
-        title: "Custom status updated",
-        description: "Client custom status has been updated successfully.",
+        title: t('client.toast.custom.status.updated'),
+        description: t('client.toast.custom.status.updated.description'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update custom status.",
+        title: t('common.error'),
+        description: t('client.toast.custom.status.failed'),
         variant: "destructive",
       });
     },
@@ -214,14 +216,14 @@ export default function ClientDetail() {
       setQuickCommentDialogOpen(false);
       setQuickComment('');
       toast({
-        title: "Comment added",
-        description: "Your comment has been added successfully.",
+        title: t('client.toast.comment.added'),
+        description: t('client.toast.comment.added.description'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to add comment.",
+        title: t('common.error'),
+        description: t('client.toast.comment.failed'),
         variant: "destructive",
       });
     },
@@ -235,14 +237,14 @@ export default function ClientDetail() {
       setEditingCommentId(null);
       setEditingCommentText('');
       toast({
-        title: "Comment updated",
-        description: "Comment has been updated successfully.",
+        title: t('client.toast.comment.updated'),
+        description: t('client.toast.comment.updated.description'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update comment.",
+        title: t('common.error'),
+        description: t('client.toast.comment.update.failed'),
         variant: "destructive",
       });
     },
@@ -253,14 +255,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'comments'] });
       toast({
-        title: "Comment deleted",
-        description: "Comment has been deleted successfully.",
+        title: t('client.toast.comment.deleted'),
+        description: t('client.toast.comment.deleted.description'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to delete comment.",
+        title: t('common.error'),
+        description: t('client.toast.comment.delete.failed'),
         variant: "destructive",
       });
     },
@@ -275,14 +277,14 @@ export default function ClientDetail() {
       setNewSubaccountName('');
       setNewSubaccountCurrency('USD');
       toast({
-        title: "Subaccount created",
-        description: "New subaccount has been created successfully.",
+        title: t('client.toast.subaccount.created'),
+        description: t('client.toast.subaccount.created.description'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to create subaccount.",
+        title: t('common.error'),
+        description: t('client.toast.subaccount.failed'),
         variant: "destructive",
       });
     },
@@ -302,21 +304,21 @@ export default function ClientDetail() {
       
       if (result.status === 'rejected') {
         toast({
-          title: "Transfer rejected",
-          description: "Insufficient balance in source subaccount.",
+          title: t('client.toast.transfer.rejected'),
+          description: t('client.toast.transfer.rejected.description'),
           variant: "destructive",
         });
       } else {
         toast({
-          title: "Transfer completed",
-          description: `Successfully transferred $${result.amount} between subaccounts.`,
+          title: t('client.toast.transfer.completed'),
+          description: t('client.toast.transfer.completed.description', { amount: result.amount }),
         });
       }
     },
     onError: (error: any) => {
       toast({
-        title: "Transfer failed",
-        description: error.message || "Failed to process transfer.",
+        title: t('client.toast.transfer.failed'),
+        description: error.message || t('client.toast.transfer.failed.description'),
         variant: "destructive",
       });
     },
@@ -328,14 +330,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
-        title: "Assignment updated",
-        description: "Client assignment has been updated successfully.",
+        title: t('client.toast.assignment.updated'),
+        description: t('client.toast.assignment.updated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Assignment failed",
-        description: error.message || "Failed to update assignment.",
+        title: t('client.toast.assignment.failed'),
+        description: error.message || t('client.toast.assignment.failed.description'),
         variant: "destructive",
       });
     },
@@ -352,14 +354,14 @@ export default function ClientDetail() {
       setTransferNewTeamId('');
       setClientTransferReason('');
       toast({
-        title: "Client transferred",
-        description: "Client has been successfully transferred and status changed to Reassigned.",
+        title: t('client.toast.client.transferred'),
+        description: t('client.toast.client.transferred.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Transfer failed",
-        description: error.message || "Failed to transfer client.",
+        title: t('client.toast.client.transfer.failed'),
+        description: error.message || t('client.toast.client.transfer.failed.description'),
         variant: "destructive",
       });
     },
@@ -368,17 +370,16 @@ export default function ClientDetail() {
   const impersonateMutation = useMutation({
     mutationFn: () => apiRequest('POST', `/api/clients/${clientId}/impersonate`),
     onSuccess: (data: any) => {
-      // Open SSO URL in new tab
       window.open(data.ssoUrl, '_blank');
       toast({
-        title: "SSO token generated",
-        description: "Opening Trading Platform in new tab. Token expires in 15 minutes.",
+        title: t('client.toast.sso.generated'),
+        description: t('client.toast.sso.generated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Impersonation failed",
-        description: error.message || "Failed to generate SSO token.",
+        title: t('client.toast.sso.failed'),
+        description: error.message || t('client.toast.sso.failed.description'),
         variant: "destructive",
       });
     },
@@ -394,14 +395,14 @@ export default function ClientDetail() {
       setAdjustFundType('real');
       setAdjustNotes('');
       toast({
-        title: "Balance adjusted",
-        description: "Account balance has been successfully adjusted.",
+        title: t('client.toast.balance.adjusted'),
+        description: t('client.toast.balance.adjusted.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Balance adjustment failed",
-        description: error.message || "Failed to adjust balance.",
+        title: t('client.toast.balance.adjustment.failed'),
+        description: error.message || t('client.toast.balance.adjustment.failed.description'),
         variant: "destructive",
       });
     },
@@ -415,14 +416,14 @@ export default function ClientDetail() {
       setModifyPositionDialogOpen(false);
       setSelectedPosition(null);
       toast({
-        title: "Position modified",
-        description: "Position has been successfully updated.",
+        title: t('client.toast.position.modified'),
+        description: t('client.toast.position.modified.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Position modification failed",
-        description: error.message || "Failed to modify position.",
+        title: t('client.toast.position.modification.failed'),
+        description: error.message || t('client.toast.position.modification.failed.description'),
         variant: "destructive",
       });
     },
@@ -434,14 +435,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
-        title: "Position closed",
-        description: "Position has been successfully closed.",
+        title: t('client.toast.position.closed'),
+        description: t('client.toast.position.closed.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to close position",
-        description: error.message || "Failed to close position.",
+        title: t('client.toast.position.close.failed'),
+        description: error.message || t('client.toast.position.close.failed.description'),
         variant: "destructive",
       });
     },
@@ -453,14 +454,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
-        title: "Position deleted",
-        description: "Position has been successfully deleted.",
+        title: t('client.toast.position.deleted'),
+        description: t('client.toast.position.deleted.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to delete position",
-        description: error.message || "Failed to delete position.",
+        title: t('client.toast.position.delete.failed'),
+        description: error.message || t('client.toast.position.delete.failed.description'),
         variant: "destructive",
       });
     },
@@ -472,14 +473,14 @@ export default function ClientDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
       toast({
-        title: "Leverage updated",
-        description: "Account leverage has been successfully updated.",
+        title: t('client.toast.leverage.updated'),
+        description: t('client.toast.leverage.updated.description'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Leverage update failed",
-        description: error.message || "Failed to update leverage.",
+        title: t('client.toast.leverage.update.failed'),
+        description: error.message || t('client.toast.leverage.update.failed.description'),
         variant: "destructive",
       });
     },
@@ -488,8 +489,8 @@ export default function ClientDetail() {
   const handleClientTransfer = () => {
     if (!clientTransferReason.trim()) {
       toast({
-        title: "Transfer reason required",
-        description: "Please provide a reason for the transfer.",
+        title: t('client.toast.transfer.reason.required'),
+        description: t('client.toast.transfer.reason.required.description'),
         variant: "destructive",
       });
       return;
@@ -497,8 +498,8 @@ export default function ClientDetail() {
 
     if (!transferNewAgentId && !transferNewTeamId) {
       toast({
-        title: "Assignment required",
-        description: "Please select at least a new agent or team.",
+        title: t('client.toast.transfer.assignment.required'),
+        description: t('client.toast.transfer.assignment.required.description'),
         variant: "destructive",
       });
       return;
@@ -522,9 +523,9 @@ export default function ClientDetail() {
   if (!client) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-muted-foreground">Client not found</p>
+        <p className="text-muted-foreground">{t('client.detail.client.not.found')}</p>
         <Button asChild variant="outline">
-          <Link href="/clients">Back to Clients</Link>
+          <Link href="/clients">{t('client.detail.back.to.clients')}</Link>
         </Button>
       </div>
     );
@@ -587,7 +588,7 @@ export default function ClientDetail() {
             className="hover-elevate active-elevate-2"
           >
             <Phone className="h-4 w-4 mr-2" />
-            Call
+            {t('client.detail.call')}
           </Button>
           <Button 
             variant="outline" 
@@ -597,7 +598,7 @@ export default function ClientDetail() {
             className="hover-elevate active-elevate-2"
           >
             <Mail className="h-4 w-4 mr-2" />
-            Email
+            {t('client.detail.email')}
           </Button>
           <Button 
             variant="outline" 
@@ -607,7 +608,7 @@ export default function ClientDetail() {
             className="hover-elevate active-elevate-2"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add Comment
+            {t('client.detail.add.comment')}
           </Button>
           <Button 
             variant="outline" 
@@ -617,7 +618,7 @@ export default function ClientDetail() {
             data-testid="button-impersonate" 
             className="hover-elevate active-elevate-2"
           >
-            {impersonateMutation.isPending ? "Generating..." : "Login as Client"}
+            {impersonateMutation.isPending ? t('client.detail.generating') : t('client.detail.login.as.client')}
           </Button>
           <Button 
             variant="outline" 
@@ -627,10 +628,10 @@ export default function ClientDetail() {
             className="hover-elevate active-elevate-2"
           >
             <ArrowRightLeft className="h-4 w-4 mr-2" />
-            Transfer Client
+            {t('client.detail.transfer.client')}
           </Button>
           <Button size="sm" asChild data-testid="button-edit-client" className="hover-elevate active-elevate-2">
-            <Link href={`/clients/${client.id}/edit`}>Edit Client</Link>
+            <Link href={`/clients/${client.id}/edit`}>{t('client.detail.edit.client')}</Link>
           </Button>
         </div>
       </div>
@@ -638,7 +639,7 @@ export default function ClientDetail() {
       <div className="grid gap-6 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Contact Information</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('client.detail.contact.info')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
@@ -671,18 +672,18 @@ export default function ClientDetail() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Account Status</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('client.detail.account.summary')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Status</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.custom.status')}</span>
               <Select
                 value={client.statusId || ''}
                 onValueChange={(value) => updateCustomStatusMutation.mutate(value || null)}
                 disabled={updateCustomStatusMutation.isPending}
               >
                 <SelectTrigger className="w-[180px]" data-testid="select-status">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder={t('common.select.status')} />
                 </SelectTrigger>
                 <SelectContent>
                   {customStatuses.map((status: CustomStatus) => (
@@ -694,7 +695,7 @@ export default function ClientDetail() {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Client Status</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.client.status')}</span>
               <Select
                 value={client.status || 'new'}
                 onValueChange={(value) => updateClientStatusMutation.mutate(value)}
@@ -713,19 +714,19 @@ export default function ClientDetail() {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">KYC Status</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.language')}</span>
               <Badge variant={client.kycStatus === 'verified' ? 'default' : 'secondary'}>
                 {client.kycStatus}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Account Status</span>
+              <span className="text-sm text-muted-foreground">{t('common.status')}</span>
               <Badge variant={client.isActive ? 'default' : 'destructive'}>
-                {client.isActive ? 'Active' : 'Inactive'}
+                {client.isActive ? t('common.active') : t('common.inactive')}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Assigned Agent</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.assigned.agent')}</span>
               <Select
                 value={client.assignedAgentId || 'none'}
                 onValueChange={(value) => assignMutation.mutate({
@@ -737,7 +738,7 @@ export default function ClientDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Unassigned</SelectItem>
+                  <SelectItem value="none">{t('client.detail.unassigned')}</SelectItem>
                   {agents.map((agent: any) => (
                     <SelectItem key={agent.id} value={agent.id}>
                       {agent.name}
@@ -747,7 +748,7 @@ export default function ClientDetail() {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Assigned Team</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.assigned.team')}</span>
               <Select
                 value={client.teamId || 'none'}
                 onValueChange={(value) => assignMutation.mutate({
@@ -759,7 +760,7 @@ export default function ClientDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Team</SelectItem>
+                  <SelectItem value="none">{t('common.no.team')}</SelectItem>
                   {teams.map((team: any) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}

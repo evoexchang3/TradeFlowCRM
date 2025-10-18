@@ -25,25 +25,29 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const clientFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().transform(val => val === '' ? undefined : val).pipe(z.string().min(6, "Password must be at least 6 characters").optional()),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  country: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  kycStatus: z.enum(['pending', 'verified', 'rejected']).default('pending'),
-  assignedAgentId: z.string().optional(),
-  teamId: z.string().optional(),
-});
+type ClientFormData = z.infer<ReturnType<typeof getClientFormSchema>>;
 
-type ClientFormData = z.infer<typeof clientFormSchema>;
+function getClientFormSchema(t: (key: string) => string) {
+  return z.object({
+    firstName: z.string().min(1, t('client.form.validation.first.name.required')),
+    lastName: z.string().min(1, t('client.form.validation.last.name.required')),
+    email: z.string().email(t('client.form.validation.email.invalid')),
+    password: z.string().transform(val => val === '' ? undefined : val).pipe(z.string().min(6, t('client.form.validation.password.min')).optional()),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().optional(),
+    dateOfBirth: z.string().optional(),
+    kycStatus: z.enum(['pending', 'verified', 'rejected']).default('pending'),
+    assignedAgentId: z.string().optional(),
+    teamId: z.string().optional(),
+  });
+}
 
 export default function ClientForm() {
+  const { t } = useLanguage();
   const [, params] = useRoute("/clients/:id/edit");
   const [, setLocation] = useLocation();
   const isEdit = !!params?.id;
@@ -61,6 +65,8 @@ export default function ClientForm() {
   const { data: teams } = useQuery({
     queryKey: ['/api/teams'],
   });
+
+  const clientFormSchema = getClientFormSchema(t);
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientFormSchema),
@@ -81,15 +87,15 @@ export default function ClientForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "Success",
-        description: "Client created successfully",
+        title: t('client.form.toast.created.title'),
+        description: t('client.form.toast.created.description'),
       });
       setLocation('/clients');
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to create client",
+        title: t('client.form.toast.create.failed.title'),
+        description: t('client.form.toast.create.failed.description'),
         variant: "destructive",
       });
     },
@@ -101,22 +107,21 @@ export default function ClientForm() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "Success",
-        description: "Client updated successfully",
+        title: t('client.form.toast.updated.title'),
+        description: t('client.form.toast.updated.description'),
       });
       setLocation(`/clients/${params?.id}`);
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update client",
+        title: t('client.form.toast.update.failed.title'),
+        description: t('client.form.toast.update.failed.description'),
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: ClientFormData) => {
-    // Remove password from payload if it's empty/undefined to keep existing password in edit mode
     const submitData = { ...data };
     if (!submitData.password) {
       delete submitData.password;
@@ -147,10 +152,10 @@ export default function ClientForm() {
         </Button>
         <div>
           <h1 className="text-2xl font-semibold">
-            {isEdit ? 'Edit Client' : 'New Client'}
+            {isEdit ? t('client.form.title.edit') : t('client.form.title.new')}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {isEdit ? 'Update client information' : 'Add a new client to the system'}
+            {isEdit ? t('client.form.subtitle.edit') : t('client.form.subtitle.new')}
           </p>
         </div>
       </div>
@@ -159,7 +164,7 @@ export default function ClientForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
+              <CardTitle>{t('client.form.personal.info')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -168,7 +173,7 @@ export default function ClientForm() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t('client.form.first.name')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-first-name" />
                       </FormControl>
@@ -182,7 +187,7 @@ export default function ClientForm() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t('client.form.last.name')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-last-name" />
                       </FormControl>
@@ -198,7 +203,7 @@ export default function ClientForm() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t('client.form.email')}</FormLabel>
                       <FormControl>
                         <Input type="email" {...field} data-testid="input-email" />
                       </FormControl>
@@ -212,9 +217,9 @@ export default function ClientForm() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password {isEdit && <span className="text-muted-foreground text-xs">(leave blank to keep current)</span>}</FormLabel>
+                      <FormLabel>{t('client.form.password')} {isEdit && <span className="text-muted-foreground text-xs">{t('client.form.password.helper')}</span>}</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} data-testid="input-password" placeholder={isEdit ? "Enter new password" : "Minimum 6 characters"} />
+                        <Input type="password" {...field} data-testid="input-password" placeholder={isEdit ? t('client.form.password.placeholder.edit') : t('client.form.password.placeholder.new')} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -228,7 +233,7 @@ export default function ClientForm() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>{t('client.form.phone')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-phone" />
                       </FormControl>
@@ -242,7 +247,7 @@ export default function ClientForm() {
                   name="dateOfBirth"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
+                      <FormLabel>{t('client.form.date.of.birth')}</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} data-testid="input-date-of-birth" />
                       </FormControl>
@@ -257,7 +262,7 @@ export default function ClientForm() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Address</CardTitle>
+              <CardTitle>{t('client.form.address.section')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <FormField
@@ -265,7 +270,7 @@ export default function ClientForm() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Street Address</FormLabel>
+                    <FormLabel>{t('client.form.street.address')}</FormLabel>
                     <FormControl>
                       <Textarea {...field} data-testid="input-address" />
                     </FormControl>
@@ -280,7 +285,7 @@ export default function ClientForm() {
                   name="city"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>City</FormLabel>
+                      <FormLabel>{t('client.form.city')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-city" />
                       </FormControl>
@@ -294,7 +299,7 @@ export default function ClientForm() {
                   name="country"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Country</FormLabel>
+                      <FormLabel>{t('client.form.country')}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-country" />
                       </FormControl>
@@ -308,7 +313,7 @@ export default function ClientForm() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Account Settings</CardTitle>
+              <CardTitle>{t('client.form.account.settings')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -317,17 +322,17 @@ export default function ClientForm() {
                   name="kycStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>KYC Status</FormLabel>
+                      <FormLabel>{t('client.form.kyc.status')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-kyc-status">
-                            <SelectValue placeholder="Select status" />
+                            <SelectValue placeholder={t('client.form.kyc.select.placeholder')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="verified">Verified</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="pending">{t('client.form.kyc.pending')}</SelectItem>
+                          <SelectItem value="verified">{t('client.form.kyc.verified')}</SelectItem>
+                          <SelectItem value="rejected">{t('client.form.kyc.rejected')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -340,15 +345,15 @@ export default function ClientForm() {
                   name="assignedAgentId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assigned Agent</FormLabel>
+                      <FormLabel>{t('client.form.assigned.agent')}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-agent">
-                            <SelectValue placeholder="Select agent" />
+                            <SelectValue placeholder={t('client.form.select.agent.placeholder')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {agents?.map((agent: any) => (
+                          {(agents as any)?.map((agent: any) => (
                             <SelectItem key={agent.id} value={agent.id}>
                               {agent.name}
                             </SelectItem>
@@ -366,15 +371,15 @@ export default function ClientForm() {
                 name="teamId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Team</FormLabel>
+                    <FormLabel>{t('client.form.team')}</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-team">
-                          <SelectValue placeholder="Select team" />
+                          <SelectValue placeholder={t('client.form.select.team.placeholder')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {teams?.map((team: any) => (
+                        {(teams as any)?.map((team: any) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
                           </SelectItem>
@@ -396,7 +401,7 @@ export default function ClientForm() {
               data-testid="button-cancel"
               className="hover-elevate active-elevate-2"
             >
-              Cancel
+              {t('client.form.cancel')}
             </Button>
             <Button
               type="submit"
@@ -405,10 +410,10 @@ export default function ClientForm() {
               className="hover-elevate active-elevate-2"
             >
               {createMutation.isPending || updateMutation.isPending
-                ? 'Saving...'
+                ? t('client.form.saving')
                 : isEdit
-                ? 'Update Client'
-                : 'Create Client'}
+                ? t('client.form.update.client')
+                : t('client.form.create.client')}
             </Button>
           </div>
         </form>

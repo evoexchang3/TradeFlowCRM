@@ -271,15 +271,15 @@ export default function Clients() {
 
   const getPipelineStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string }> = {
-      new_lead: { variant: "default", label: "New Lead" },
-      contact_attempted: { variant: "secondary", label: "Contact Attempted" },
-      in_discussion: { variant: "secondary", label: "In Discussion" },
-      kyc_pending: { variant: "secondary", label: "KYC Pending" },
-      active_client: { variant: "default", label: "Active Client" },
-      cold_inactive: { variant: "secondary", label: "Cold/Inactive" },
-      lost: { variant: "destructive", label: "Lost" },
+      new_lead: { variant: "default", label: t('clients.all.pipeline.new.lead') },
+      contact_attempted: { variant: "secondary", label: t('clients.all.pipeline.contact.attempted') },
+      in_discussion: { variant: "secondary", label: t('clients.all.pipeline.in.discussion') },
+      kyc_pending: { variant: "secondary", label: t('clients.all.pipeline.kyc.pending') },
+      active_client: { variant: "default", label: t('clients.all.pipeline.active.client') },
+      cold_inactive: { variant: "secondary", label: t('clients.all.pipeline.cold.inactive') },
+      lost: { variant: "destructive", label: t('clients.all.pipeline.lost') },
     };
-    const config = variants[status] || { variant: "secondary", label: "Unknown" };
+    const config = variants[status] || { variant: "secondary", label: t('clients.all.pipeline.unknown') };
     return (
       <Badge variant={config.variant as any} className="text-xs">
         {config.label}
