@@ -67,6 +67,16 @@ export const zh = {
   'common.page.of': '第 {{current}} 页，共 {{total}} 页',
   'common.showing': '显示 {{from}}-{{to}}，共 {{total}} 条',
   'common.searching': '搜索中...',
+  'common.sidebar': '侧边栏',
+  'common.sidebar.mobile.description': '显示移动端侧边栏。',
+  'common.toggle.sidebar': '切换侧边栏',
+  'common.toggle.theme': '切换主题',
+  'common.select.language': '选择语言',
+  'common.more': '更多',
+
+  // App
+  'app.name.trading.platform': '交易平台',
+  'app.name.crm.system': 'CRM系统',
 
   // Navigation
   'nav.dashboard': '仪表板',

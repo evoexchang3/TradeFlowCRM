@@ -10,7 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { SUPPORTED_LANGUAGES } from "@/translations";
 
 export function LanguageSelector() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
 
   const currentLanguage = SUPPORTED_LANGUAGES.find(lang => lang.code === language);
 
@@ -19,7 +19,7 @@ export function LanguageSelector() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" data-testid="button-language-selector">
           <Globe className="h-5 w-5" />
-          <span className="sr-only">Select Language</span>
+          <span className="sr-only">{t('common.select.language')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">

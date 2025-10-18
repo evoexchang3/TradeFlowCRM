@@ -366,8 +366,8 @@ export function AppSidebar() {
         <div className="flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-primary" />
           <div className="flex flex-col">
-            <span className="font-semibold text-sm">Trading Platform</span>
-            <span className="text-xs text-muted-foreground">CRM System</span>
+            <span className="font-semibold text-sm">{t('app.name.trading.platform')}</span>
+            <span className="text-xs text-muted-foreground">{t('app.name.crm.system')}</span>
           </div>
         </div>
       </SidebarHeader>

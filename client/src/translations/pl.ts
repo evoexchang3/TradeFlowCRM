@@ -67,6 +67,16 @@ export const pl = {
   'common.page.of': 'Strona {{current}} z {{total}}',
   'common.showing': 'Wyświetlanie {{from}}-{{to}} z {{total}}',
   'common.searching': 'Wyszukiwanie...',
+  'common.sidebar': 'Panel boczny',
+  'common.sidebar.mobile.description': 'Wyświetla mobilny panel boczny.',
+  'common.toggle.sidebar': 'Przełącz panel boczny',
+  'common.toggle.theme': 'Przełącz motyw',
+  'common.select.language': 'Wybierz język',
+  'common.more': 'Więcej',
+
+  // App
+  'app.name.trading.platform': 'Platforma Handlowa',
+  'app.name.crm.system': 'System CRM',
 
   // Navigation
   'nav.dashboard': 'Panel główny',

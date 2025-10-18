@@ -67,6 +67,16 @@ export const de = {
   'common.page.of': 'Seite {{current}} von {{total}}',
   'common.showing': 'Anzeige {{from}}-{{to}} von {{total}}',
   'common.searching': 'Suche läuft...',
+  'common.sidebar': 'Seitenleiste',
+  'common.sidebar.mobile.description': 'Zeigt die mobile Seitenleiste an.',
+  'common.toggle.sidebar': 'Seitenleiste umschalten',
+  'common.toggle.theme': 'Design umschalten',
+  'common.select.language': 'Sprache auswählen',
+  'common.more': 'Mehr',
+
+  // App
+  'app.name.trading.platform': 'Handelsplattform',
+  'app.name.crm.system': 'CRM-System',
 
   // Navigation
   'nav.dashboard': 'Dashboard',

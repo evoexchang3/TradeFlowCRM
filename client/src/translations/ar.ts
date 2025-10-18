@@ -67,6 +67,16 @@ export const ar = {
   'common.page.of': 'صفحة {{current}} من {{total}}',
   'common.showing': 'عرض {{from}}-{{to}} من {{total}}',
   'common.searching': 'جارٍ البحث...',
+  'common.sidebar': 'الشريط الجانبي',
+  'common.sidebar.mobile.description': 'عرض الشريط الجانبي للجوال.',
+  'common.toggle.sidebar': 'تبديل الشريط الجانبي',
+  'common.toggle.theme': 'تبديل السمة',
+  'common.select.language': 'اختيار اللغة',
+  'common.more': 'المزيد',
+
+  // App
+  'app.name.trading.platform': 'منصة التداول',
+  'app.name.crm.system': 'نظام إدارة علاقات العملاء',
 
   // Navigation
   'nav.dashboard': 'لوحة التحكم',

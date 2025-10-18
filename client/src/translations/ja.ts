@@ -67,6 +67,16 @@ export const ja = {
   'common.page.of': 'ページ {{current}} / {{total}}',
   'common.showing': '{{total}}件中 {{from}}-{{to}}件を表示',
   'common.searching': '検索中...',
+  'common.sidebar': 'サイドバー',
+  'common.sidebar.mobile.description': 'モバイルサイドバーを表示します。',
+  'common.toggle.sidebar': 'サイドバーを切り替え',
+  'common.toggle.theme': 'テーマを切り替え',
+  'common.select.language': '言語を選択',
+  'common.more': 'もっと見る',
+
+  // App
+  'app.name.trading.platform': 'トレーディングプラットフォーム',
+  'app.name.crm.system': 'CRMシステム',
 
   // Navigation
   'nav.dashboard': 'ダッシュボード',

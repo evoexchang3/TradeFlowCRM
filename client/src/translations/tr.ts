@@ -67,6 +67,16 @@ export const tr = {
   'common.page.of': 'Sayfa {{current}} / {{total}}',
   'common.showing': '{{from}}-{{to}} arası gösteriliyor (Toplam: {{total}})',
   'common.searching': 'Aranıyor...',
+  'common.sidebar': 'Kenar Çubuğu',
+  'common.sidebar.mobile.description': 'Mobil kenar çubuğunu görüntüler.',
+  'common.toggle.sidebar': 'Kenar Çubuğunu Aç/Kapat',
+  'common.toggle.theme': 'Temayı Değiştir',
+  'common.select.language': 'Dil Seçin',
+  'common.more': 'Daha Fazla',
+
+  // App
+  'app.name.trading.platform': 'İşlem Platformu',
+  'app.name.crm.system': 'CRM Sistemi',
 
   // Navigation
   'nav.dashboard': 'Kontrol Paneli',

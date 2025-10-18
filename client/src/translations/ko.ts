@@ -67,6 +67,16 @@ export const ko = {
   'common.page.of': '{{current}} / {{total}} 페이지',
   'common.showing': '{{total}}개 중 {{from}}-{{to}}개 표시',
   'common.searching': '검색 중...',
+  'common.sidebar': '사이드바',
+  'common.sidebar.mobile.description': '모바일 사이드바를 표시합니다.',
+  'common.toggle.sidebar': '사이드바 토글',
+  'common.toggle.theme': '테마 전환',
+  'common.select.language': '언어 선택',
+  'common.more': '더보기',
+
+  // App
+  'app.name.trading.platform': '트레이딩 플랫폼',
+  'app.name.crm.system': 'CRM 시스템',
 
   // Navigation
   'nav.dashboard': '대시보드',

@@ -71,6 +71,16 @@ export const en = {
   'common.saving': 'Saving...',
   'common.cannot.undo': 'This action cannot be undone.',
   'common.searching': 'Searching...',
+  'common.sidebar': 'Sidebar',
+  'common.sidebar.mobile.description': 'Displays the mobile sidebar.',
+  'common.toggle.sidebar': 'Toggle Sidebar',
+  'common.toggle.theme': 'Toggle theme',
+  'common.select.language': 'Select Language',
+  'common.more': 'More',
+
+  // App
+  'app.name.trading.platform': 'Trading Platform',
+  'app.name.crm.system': 'CRM System',
 
   // Navigation
   'nav.dashboard': 'Dashboard',

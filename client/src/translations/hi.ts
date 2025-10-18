@@ -67,6 +67,16 @@ export const hi = {
   'common.page.of': 'पृष्ठ {{current}} का {{total}}',
   'common.showing': '{{total}} में से {{from}}-{{to}} दिखाया जा रहा है',
   'common.searching': 'खोज रहा है...',
+  'common.sidebar': 'साइडबार',
+  'common.sidebar.mobile.description': 'मोबाइल साइडबार प्रदर्शित करता है।',
+  'common.toggle.sidebar': 'साइडबार टॉगल करें',
+  'common.toggle.theme': 'थीम बदलें',
+  'common.select.language': 'भाषा चुनें',
+  'common.more': 'अधिक',
+
+  // App
+  'app.name.trading.platform': 'ट्रेडिंग प्लेटफॉर्म',
+  'app.name.crm.system': 'सीआरएम सिस्टम',
 
   // Navigation
   'nav.dashboard': 'डैशबोर्ड',

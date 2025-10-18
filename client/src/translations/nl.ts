@@ -67,6 +67,16 @@ export const nl = {
   'common.page.of': 'Pagina {{current}} van {{total}}',
   'common.showing': 'Weergave {{from}}-{{to}} van {{total}}',
   'common.searching': 'Zoeken...',
+  'common.sidebar': 'Zijbalk',
+  'common.sidebar.mobile.description': 'Toont de mobiele zijbalk.',
+  'common.toggle.sidebar': 'Zijbalk in-/uitschakelen',
+  'common.toggle.theme': 'Thema wisselen',
+  'common.select.language': 'Taal selecteren',
+  'common.more': 'Meer',
+
+  // App
+  'app.name.trading.platform': 'Handelsplatform',
+  'app.name.crm.system': 'CRM-systeem',
 
   // Navigation
   'nav.dashboard': 'Dashboard',

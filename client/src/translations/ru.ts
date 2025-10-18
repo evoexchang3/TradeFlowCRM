@@ -67,6 +67,16 @@ export const ru = {
   'common.page.of': 'Страница {{current}} из {{total}}',
   'common.showing': 'Показано {{from}}-{{to}} из {{total}}',
   'common.searching': 'Поиск...',
+  'common.sidebar': 'Боковая панель',
+  'common.sidebar.mobile.description': 'Отображает мобильную боковую панель.',
+  'common.toggle.sidebar': 'Переключить боковую панель',
+  'common.toggle.theme': 'Переключить тему',
+  'common.select.language': 'Выбрать язык',
+  'common.more': 'Еще',
+
+  // App
+  'app.name.trading.platform': 'Торговая Платформа',
+  'app.name.crm.system': 'CRM Система',
 
   // Navigation
   'nav.dashboard': 'Панель управления',

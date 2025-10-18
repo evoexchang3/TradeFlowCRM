@@ -67,6 +67,16 @@ export const sv = {
   'common.page.of': 'Sida {{current}} av {{total}}',
   'common.showing': 'Visar {{from}}-{{to}} av {{total}}',
   'common.searching': 'Söker...',
+  'common.sidebar': 'Sidofält',
+  'common.sidebar.mobile.description': 'Visar det mobila sidofältet.',
+  'common.toggle.sidebar': 'Växla sidofält',
+  'common.toggle.theme': 'Växla tema',
+  'common.select.language': 'Välj språk',
+  'common.more': 'Mer',
+
+  // App
+  'app.name.trading.platform': 'Handelsplattform',
+  'app.name.crm.system': 'CRM-system',
 
   // Navigation
   'nav.dashboard': 'Instrumentpanel',
