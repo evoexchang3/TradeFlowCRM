@@ -19,8 +19,10 @@ import {
 } from "@/components/ui/table";
 import { Trophy, Medal, Star, Target, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Leaderboard() {
+  const { t } = useLanguage();
   const [period, setPeriod] = useState("monthly");
   const [teamFilter, setTeamFilter] = useState("all");
 
@@ -64,7 +66,7 @@ export default function Leaderboard() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading leaderboard...</p>
+          <p className="text-muted-foreground">{t('leaderboard.loading')}</p>
         </div>
       </div>
     );
@@ -77,10 +79,10 @@ export default function Leaderboard() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2" data-testid="text-page-title">
             <Trophy className="h-8 w-8 text-primary" />
-            Leaderboard
+            {t('leaderboard.title')}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Top performers and achievement leaders
+            {t('leaderboard.subtitle')}
           </p>
         </div>
       </div>
@@ -88,32 +90,32 @@ export default function Leaderboard() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
+          <CardTitle className="text-lg">{t('leaderboard.filters')}</CardTitle>
         </CardHeader>
         <CardContent className="flex gap-4">
           <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Period</label>
+            <label className="text-sm font-medium mb-2 block">{t('leaderboard.filter.period')}</label>
             <Select value={period} onValueChange={setPeriod} data-testid="select-period">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekly">Weekly</SelectItem>
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="daily">{t('leaderboard.period.daily')}</SelectItem>
+                <SelectItem value="weekly">{t('leaderboard.period.weekly')}</SelectItem>
+                <SelectItem value="monthly">{t('leaderboard.period.monthly')}</SelectItem>
+                <SelectItem value="quarterly">{t('leaderboard.period.quarterly')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Team</label>
+            <label className="text-sm font-medium mb-2 block">{t('leaderboard.filter.team')}</label>
             <Select value={teamFilter} onValueChange={setTeamFilter} data-testid="select-team">
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Teams</SelectItem>
+                <SelectItem value="all">{t('leaderboard.all.teams')}</SelectItem>
                 {teams.map((team) => (
                   <SelectItem key={team.id} value={team.id}>
                     {team.name}
@@ -141,17 +143,17 @@ export default function Leaderboard() {
                   <div className="text-3xl font-bold text-primary" data-testid={`text-points-${index}`}>
                     {agent.totalPoints}
                   </div>
-                  <p className="text-sm text-muted-foreground">Total Points</p>
+                  <p className="text-sm text-muted-foreground">{t('leaderboard.total.points')}</p>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="text-center p-2 bg-muted rounded">
                     <div className="font-semibold">{agent.achievementCount}</div>
-                    <div className="text-muted-foreground text-xs">Achievements</div>
+                    <div className="text-muted-foreground text-xs">{t('leaderboard.achievements')}</div>
                   </div>
                   <div className="text-center p-2 bg-muted rounded">
                     <div className="font-semibold">{agent.targetCompletionRate}%</div>
-                    <div className="text-muted-foreground text-xs">Targets Met</div>
+                    <div className="text-muted-foreground text-xs">{t('leaderboard.targets.met')}</div>
                   </div>
                 </div>
               </CardContent>
@@ -163,18 +165,18 @@ export default function Leaderboard() {
       {/* Full Leaderboard Table */}
       <Card>
         <CardHeader>
-          <CardTitle>All Rankings</CardTitle>
+          <CardTitle>{t('leaderboard.all.rankings')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-20">Rank</TableHead>
-                <TableHead>Agent</TableHead>
-                <TableHead className="text-center">Points</TableHead>
-                <TableHead className="text-center">Achievements</TableHead>
-                <TableHead className="text-center">Targets Met</TableHead>
-                <TableHead className="text-center">Completion Rate</TableHead>
+                <TableHead className="w-20">{t('leaderboard.rank')}</TableHead>
+                <TableHead>{t('leaderboard.agent')}</TableHead>
+                <TableHead className="text-center">{t('leaderboard.points')}</TableHead>
+                <TableHead className="text-center">{t('leaderboard.achievements')}</TableHead>
+                <TableHead className="text-center">{t('leaderboard.targets.met')}</TableHead>
+                <TableHead className="text-center">{t('leaderboard.completion.rate')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -221,7 +223,7 @@ export default function Leaderboard() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No leaderboard data available
+                    {t('leaderboard.no.data')}
                   </TableCell>
                 </TableRow>
               )}
@@ -235,9 +237,11 @@ export default function Leaderboard() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground text-center">
-              Showing data for {period} period from{' '}
-              {new Date(leaderboardData.startDate).toLocaleDateString()} to{' '}
-              {new Date(leaderboardData.endDate).toLocaleDateString()}
+              {t('leaderboard.period.info', { 
+                period, 
+                startDate: new Date(leaderboardData.startDate).toLocaleDateString(),
+                endDate: new Date(leaderboardData.endDate).toLocaleDateString()
+              })}
             </p>
           </CardContent>
         </Card>

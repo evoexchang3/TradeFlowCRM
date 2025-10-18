@@ -18,6 +18,7 @@ import { MessageSquare, Plus, Send, Users, User, CheckCheck, Check } from "lucid
 import * as z from "zod";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const roomFormSchema = z.object({
   type: z.string(),
@@ -100,16 +101,18 @@ function RoomListItem({ room, isActive, onClick }: {
   isActive: boolean;
   onClick: () => void;
 }) {
+  const { t } = useLanguage();
+  
   const getRoomName = () => {
     if (room.name) return room.name;
-    if (room.type === 'internal') return 'Team Chat';
+    if (room.type === 'internal') return t('chat.team.chat');
     if (room.type === 'client_support' && room.client) {
       return `${room.client.firstName} ${room.client.lastName}`;
     }
     if (room.type === 'direct' && room.participant) {
       return room.participant.name;
     }
-    return room.type === 'direct' ? 'Direct Message' : 'Client Support';
+    return room.type === 'direct' ? t('chat.room.type.direct_message') : t('chat.room.type.client_support');
   };
 
   return (
@@ -151,6 +154,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const { data: rooms = [], isLoading: roomsLoading } = useQuery<ChatRoom[]>({
     queryKey: ['/api/chat/rooms'],
@@ -182,7 +186,7 @@ export default function Chat() {
     mutationFn: (data: RoomFormData) => apiRequest('POST', '/api/chat/rooms', data),
     onSuccess: (newRoom: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });
-      toast({ title: "Success", description: "Chat room created successfully" });
+      toast({ title: t('common.success'), description: t('chat.room.created') });
       if (newRoom?.id) {
         setSelectedRoomId(newRoom.id);
       }
@@ -190,7 +194,7 @@ export default function Chat() {
       form.reset();
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -202,7 +206,7 @@ export default function Chat() {
       setMessageText("");
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -246,7 +250,7 @@ export default function Chat() {
   if (roomsLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Loading chat...</p>
+        <p className="text-muted-foreground">{t('chat.loading')}</p>
       </div>
     );
   }
@@ -256,7 +260,7 @@ export default function Chat() {
       {/* Room List */}
       <Card className="w-80 flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg">Chat Rooms</CardTitle>
+          <CardTitle className="text-lg">{t('chat.rooms')}</CardTitle>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button size="icon" variant="ghost" data-testid="button-new-room">
@@ -265,7 +269,7 @@ export default function Chat() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Chat Room</DialogTitle>
+                <DialogTitle>{t('chat.create.room')}</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -274,7 +278,7 @@ export default function Chat() {
                     name="type"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Room Type</FormLabel>
+                        <FormLabel>{t('chat.room.type')}</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-room-type">
@@ -282,9 +286,9 @@ export default function Chat() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="internal">Internal Team Chat</SelectItem>
-                            <SelectItem value="client_support">Client Support</SelectItem>
-                            <SelectItem value="direct">Direct Message</SelectItem>
+                            <SelectItem value="internal">{t('chat.room.type.internal')}</SelectItem>
+                            <SelectItem value="client_support">{t('chat.room.type.client_support')}</SelectItem>
+                            <SelectItem value="direct">{t('chat.room.type.direct_message')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -298,11 +302,11 @@ export default function Chat() {
                       name="clientId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Client</FormLabel>
+                          <FormLabel>{t('chat.client')}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-client">
-                                <SelectValue placeholder="Select client" />
+                                <SelectValue placeholder={t('chat.select.client.placeholder')} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -325,11 +329,11 @@ export default function Chat() {
                       name="participantId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>User</FormLabel>
+                          <FormLabel>{t('chat.user')}</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger data-testid="select-user">
-                                <SelectValue placeholder="Select user" />
+                                <SelectValue placeholder={t('chat.select.user.placeholder')} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -351,9 +355,9 @@ export default function Chat() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Room Name (Optional)</FormLabel>
+                        <FormLabel>{t('chat.room.name.optional')}</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="General Discussion" data-testid="input-room-name" />
+                          <Input {...field} placeholder={t('chat.room.name.placeholder')} data-testid="input-room-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -367,10 +371,10 @@ export default function Chat() {
                       onClick={() => setIsDialogOpen(false)}
                       data-testid="button-cancel"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </Button>
                     <Button type="submit" disabled={createRoomMutation.isPending} data-testid="button-submit">
-                      {createRoomMutation.isPending ? "Creating..." : "Create Room"}
+                      {createRoomMutation.isPending ? t('chat.creating') : t('chat.create.room.button')}
                     </Button>
                   </div>
                 </form>
@@ -388,7 +392,7 @@ export default function Chat() {
                 data-testid="filter-all"
                 className="flex-1"
               >
-                All
+                {t('common.all')}
               </Button>
               <Button
                 variant={roomFilter === "internal" ? "default" : "outline"}
@@ -397,7 +401,7 @@ export default function Chat() {
                 data-testid="filter-internal"
                 className="flex-1"
               >
-                Team
+                {t('chat.filter.team')}
               </Button>
               <Button
                 variant={roomFilter === "client_support" ? "default" : "outline"}
@@ -406,7 +410,7 @@ export default function Chat() {
                 data-testid="filter-clients"
                 className="flex-1"
               >
-                Clients
+                {t('chat.filter.clients')}
               </Button>
               <Button
                 variant={roomFilter === "direct" ? "default" : "outline"}
@@ -415,7 +419,7 @@ export default function Chat() {
                 data-testid="filter-direct"
                 className="flex-1"
               >
-                Direct
+                {t('chat.filter.direct')}
               </Button>
             </div>
           </div>
@@ -423,8 +427,12 @@ export default function Chat() {
             {filteredRooms.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 {roomFilter === "all" 
-                  ? "No chat rooms yet. Create one to start messaging."
-                  : `No ${roomFilter === "internal" ? "team" : roomFilter === "client_support" ? "client" : "direct"} chat rooms.`
+                  ? t('chat.no.rooms')
+                  : roomFilter === "internal" 
+                    ? t('chat.no.team.rooms')
+                    : roomFilter === "client_support" 
+                      ? t('chat.no.client.rooms')
+                      : t('chat.no.direct.rooms')
                 }
               </p>
             ) : (
@@ -459,14 +467,14 @@ export default function Chat() {
                 <CardTitle>
                   {selectedRoom.name || (
                     selectedRoom.type === 'internal' 
-                      ? 'Team Chat'
+                      ? t('chat.team.chat')
                       : selectedRoom.type === 'direct' && selectedRoom.participant
                         ? selectedRoom.participant.name
                         : selectedRoom.type === 'client_support' && selectedRoom.client 
                           ? `${selectedRoom.client.firstName} ${selectedRoom.client.lastName}`
                           : selectedRoom.type === 'direct' 
-                            ? 'Direct Message'
-                            : 'Client Support'
+                            ? t('chat.room.type.direct_message')
+                            : t('chat.room.type.client_support')
                   )}
                 </CardTitle>
               </div>
@@ -474,9 +482,9 @@ export default function Chat() {
             <CardContent className="flex-1 overflow-hidden p-0">
               <ScrollArea className="h-full p-4">
                 {messagesLoading ? (
-                  <p className="text-center text-muted-foreground">Loading messages...</p>
+                  <p className="text-center text-muted-foreground">{t('chat.loading.messages')}</p>
                 ) : messages.length === 0 ? (
-                  <p className="text-center text-muted-foreground">No messages yet. Start the conversation!</p>
+                  <p className="text-center text-muted-foreground">{t('chat.no.messages')}</p>
                 ) : (
                   <>
                     {messages.map((message) => (
@@ -496,7 +504,7 @@ export default function Chat() {
                 <Input
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder={t('chat.type.message')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -519,7 +527,7 @@ export default function Chat() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Select a chat room to start messaging</p>
+              <p className="text-muted-foreground">{t('chat.select.room')}</p>
             </div>
           </div>
         )}

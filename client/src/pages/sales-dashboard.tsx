@@ -22,8 +22,10 @@ import {
 import { Users, DollarSign, TrendingUp, Target, RefreshCcw } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, FunnelChart, Funnel, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { format, subDays } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function SalesDashboard() {
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [teamFilter, setTeamFilter] = useState("all");
@@ -66,7 +68,7 @@ export default function SalesDashboard() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading dashboard...</p>
+          <p className="text-muted-foreground">{t('salesDashboard.loading')}</p>
         </div>
       </div>
     );
@@ -74,29 +76,27 @@ export default function SalesDashboard() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Sales Dashboard</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('salesDashboard.title')}</h1>
           <p className="text-muted-foreground">
-            Sales performance metrics and analytics
+            {t('salesDashboard.subtitle')}
           </p>
         </div>
         <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
           <RefreshCcw className="h-4 w-4 mr-2" />
-          Refresh
+          {t('salesDashboard.refresh')}
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle>{t('salesDashboard.filters')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">{t('salesDashboard.startDate')}</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -106,7 +106,7 @@ export default function SalesDashboard() {
               />
             </div>
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate">{t('salesDashboard.endDate')}</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -116,13 +116,13 @@ export default function SalesDashboard() {
               />
             </div>
             <div>
-              <Label htmlFor="teamFilter">Team</Label>
+              <Label htmlFor="teamFilter">{t('salesDashboard.team')}</Label>
               <Select value={teamFilter} onValueChange={setTeamFilter}>
                 <SelectTrigger id="teamFilter" data-testid="select-team-filter">
-                  <SelectValue placeholder="All Teams" />
+                  <SelectValue placeholder={t('salesDashboard.allTeams')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
+                  <SelectItem value="all">{t('salesDashboard.allTeams')}</SelectItem>
                   {teams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                   ))}
@@ -130,13 +130,13 @@ export default function SalesDashboard() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="agentFilter">Agent</Label>
+              <Label htmlFor="agentFilter">{t('salesDashboard.agent')}</Label>
               <Select value={agentFilter} onValueChange={setAgentFilter}>
                 <SelectTrigger id="agentFilter" data-testid="select-agent-filter">
-                  <SelectValue placeholder="All Agents" />
+                  <SelectValue placeholder={t('salesDashboard.allAgents')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Agents</SelectItem>
+                  <SelectItem value="all">{t('salesDashboard.allAgents')}</SelectItem>
                   {users.filter(u => u.type === 'user').map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
@@ -149,50 +149,52 @@ export default function SalesDashboard() {
         </CardContent>
       </Card>
 
-      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('salesDashboard.totalClients')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-clients">{metrics?.totalClients || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {metrics?.salesClients || 0} in sales, {metrics?.retentionClients || 0} in retention
+              {t('salesDashboard.inSalesInRetention', {
+                sales: metrics?.salesClients || 0,
+                retention: metrics?.retentionClients || 0
+              })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('salesDashboard.conversionRate')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-conversion-rate">{metrics?.conversionRate || 0}%</div>
             <p className="text-xs text-muted-foreground">
-              FTD conversion rate
+              {t('salesDashboard.ftdConversionRate')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total FTD Value</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('salesDashboard.totalFtdValue')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-ftd-value">${metrics?.totalFTDAmount || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Avg: ${metrics?.avgFTDAmount || 0}
+              {t('salesDashboard.avg', { amount: metrics?.avgFTDAmount || 0 })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">FTDs in Period</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('salesDashboard.ftdsInPeriod')}</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -204,10 +206,9 @@ export default function SalesDashboard() {
         </Card>
       </div>
 
-      {/* Time Series Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>FTD Trends Over Time</CardTitle>
+          <CardTitle>{t('salesDashboard.ftdTrendsOverTime')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -218,18 +219,17 @@ export default function SalesDashboard() {
               <YAxis yAxisId="right" orientation="right" />
               <Tooltip labelFormatter={(value) => format(new Date(value), "MMM d, yyyy")} />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="ftdCount" stroke="#8884d8" name="FTD Count" />
-              <Line yAxisId="right" type="monotone" dataKey="ftdAmount" stroke="#82ca9d" name="FTD Amount ($)" />
+              <Line yAxisId="left" type="monotone" dataKey="ftdCount" stroke="#8884d8" name={t('salesDashboard.ftdCount')} />
+              <Line yAxisId="right" type="monotone" dataKey="ftdAmount" stroke="#82ca9d" name={t('salesDashboard.ftdAmount')} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Conversion Funnel */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Conversion Funnel</CardTitle>
+            <CardTitle>{t('salesDashboard.conversionFunnel')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -246,10 +246,9 @@ export default function SalesDashboard() {
           </CardContent>
         </Card>
 
-        {/* Pipeline Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Pipeline Distribution</CardTitle>
+            <CardTitle>{t('salesDashboard.pipelineDistribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -272,20 +271,19 @@ export default function SalesDashboard() {
         </Card>
       </div>
 
-      {/* Agent Performance Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Agent Performance</CardTitle>
+          <CardTitle>{t('salesDashboard.agentPerformance')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Agent</TableHead>
-                <TableHead className="text-right">Total Clients</TableHead>
-                <TableHead className="text-right">FTD Count</TableHead>
-                <TableHead className="text-right">FTD Amount</TableHead>
-                <TableHead className="text-right">Conversion Rate</TableHead>
+                <TableHead>{t('salesDashboard.table.agent')}</TableHead>
+                <TableHead className="text-right">{t('salesDashboard.table.totalClients')}</TableHead>
+                <TableHead className="text-right">{t('salesDashboard.table.ftdCount')}</TableHead>
+                <TableHead className="text-right">{t('salesDashboard.table.ftdAmount')}</TableHead>
+                <TableHead className="text-right">{t('salesDashboard.table.conversionRate')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -302,7 +300,7 @@ export default function SalesDashboard() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No agent performance data available
+                    {t('salesDashboard.noAgentPerformanceData')}
                   </TableCell>
                 </TableRow>
               )}
@@ -311,32 +309,35 @@ export default function SalesDashboard() {
         </CardContent>
       </Card>
 
-      {/* Sales vs Retention */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Sales Clients</CardTitle>
+            <CardTitle>{t('salesDashboard.salesClients')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mb-2" data-testid="text-sales-clients">{metrics?.salesClients || 0}</div>
             <p className="text-sm text-muted-foreground">
-              {metrics?.totalClients > 0 
-                ? ((metrics.salesClients / metrics.totalClients) * 100).toFixed(1) 
-                : 0}% of total clients
+              {t('salesDashboard.percentOfTotalClients', {
+                percent: metrics?.totalClients > 0 
+                  ? ((metrics.salesClients / metrics.totalClients) * 100).toFixed(1) 
+                  : 0
+              })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Retention Clients</CardTitle>
+            <CardTitle>{t('salesDashboard.retentionClients')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mb-2" data-testid="text-retention-clients">{metrics?.retentionClients || 0}</div>
             <p className="text-sm text-muted-foreground">
-              {metrics?.totalClients > 0 
-                ? ((metrics.retentionClients / metrics.totalClients) * 100).toFixed(1) 
-                : 0}% of total clients
+              {t('salesDashboard.percentOfTotalClients', {
+                percent: metrics?.totalClients > 0 
+                  ? ((metrics.retentionClients / metrics.totalClients) * 100).toFixed(1) 
+                  : 0
+              })}
             </p>
           </CardContent>
         </Card>

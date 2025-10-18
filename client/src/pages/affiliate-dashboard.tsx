@@ -9,8 +9,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Users, DollarSign, TrendingUp, Award } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function AffiliateDashboard() {
+  const { t } = useLanguage();
   const { data: metrics, isLoading } = useQuery<any>({
     queryKey: ["/api/reports/affiliate-dashboard"],
   });
@@ -19,7 +21,7 @@ export default function AffiliateDashboard() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading dashboard...</p>
+          <p className="text-muted-foreground">{t('affiliateDashboard.loading.dashboard')}</p>
         </div>
       </div>
     );
@@ -28,84 +30,82 @@ export default function AffiliateDashboard() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Affiliate Dashboard</h1>
+        <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('affiliateDashboard.title')}</h1>
         <p className="text-muted-foreground">
-          Track affiliate performance and commissions
+          {t('affiliateDashboard.subtitle')}
         </p>
       </div>
 
-      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('affiliateDashboard.total.affiliates')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-affiliates">{metrics?.totalAffiliates || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {metrics?.activeAffiliates || 0} active
+              {metrics?.activeAffiliates || 0} {t('affiliateDashboard.active.affiliates')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('affiliateDashboard.total.referrals')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-referrals">{metrics?.totalReferrals || 0}</div>
             <p className="text-xs text-muted-foreground">
-              All time referrals
+              {t('affiliateDashboard.all.time.referrals')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('affiliateDashboard.total.commissions')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-commissions">${metrics?.totalCommissions || 0}</div>
             <p className="text-xs text-muted-foreground">
-              All time earnings
+              {t('affiliateDashboard.all.time.earnings')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payouts</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('affiliateDashboard.pending.payouts')}</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-pending-payouts">${metrics?.pendingPayouts || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Awaiting payment
+              {t('affiliateDashboard.awaiting.payment')}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Leaderboard */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Performing Affiliates</CardTitle>
+          <CardTitle>{t('affiliateDashboard.top.performing')}</CardTitle>
         </CardHeader>
         <CardContent>
           {metrics?.leaderboard && metrics.leaderboard.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Rank</TableHead>
-                  <TableHead>Affiliate</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead className="text-right">Referrals</TableHead>
-                  <TableHead className="text-right">Total Commission</TableHead>
-                  <TableHead className="text-right">Pending</TableHead>
-                  <TableHead className="text-right">Rate</TableHead>
+                  <TableHead>{t('affiliateDashboard.rank')}</TableHead>
+                  <TableHead>{t('affiliateDashboard.affiliate')}</TableHead>
+                  <TableHead>{t('affiliateDashboard.code')}</TableHead>
+                  <TableHead className="text-right">{t('affiliateDashboard.referrals')}</TableHead>
+                  <TableHead className="text-right">{t('affiliateDashboard.total.commission')}</TableHead>
+                  <TableHead className="text-right">{t('affiliateDashboard.pending')}</TableHead>
+                  <TableHead className="text-right">{t('affiliateDashboard.rate')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -131,7 +131,7 @@ export default function AffiliateDashboard() {
             </Table>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              No affiliate data available
+              {t('affiliateDashboard.no.data')}
             </div>
           )}
         </CardContent>

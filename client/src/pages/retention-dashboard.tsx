@@ -22,8 +22,10 @@ import {
 import { Users, DollarSign, TrendingUp, Repeat, RefreshCcw } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { format, subDays } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function RetentionDashboard() {
+  const { t } = useLanguage();
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [teamFilter, setTeamFilter] = useState("all");
@@ -66,7 +68,7 @@ export default function RetentionDashboard() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading dashboard...</p>
+          <p className="text-muted-foreground">{t('retentionDashboard.loading')}</p>
         </div>
       </div>
     );
@@ -74,29 +76,27 @@ export default function RetentionDashboard() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Retention Dashboard</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('retentionDashboard.title')}</h1>
           <p className="text-muted-foreground">
-            Client retention metrics and STD (Second Time Deposit) analytics
+            {t('retentionDashboard.subtitle')}
           </p>
         </div>
         <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
           <RefreshCcw className="h-4 w-4 mr-2" />
-          Refresh
+          {t('retentionDashboard.refresh')}
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle>{t('retentionDashboard.filters')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">{t('retentionDashboard.startDate')}</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -106,7 +106,7 @@ export default function RetentionDashboard() {
               />
             </div>
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate">{t('retentionDashboard.endDate')}</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -116,13 +116,13 @@ export default function RetentionDashboard() {
               />
             </div>
             <div>
-              <Label htmlFor="teamFilter">Team</Label>
+              <Label htmlFor="teamFilter">{t('retentionDashboard.team')}</Label>
               <Select value={teamFilter} onValueChange={setTeamFilter}>
                 <SelectTrigger id="teamFilter" data-testid="select-team-filter">
-                  <SelectValue placeholder="All Teams" />
+                  <SelectValue placeholder={t('retentionDashboard.allTeams')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
+                  <SelectItem value="all">{t('retentionDashboard.allTeams')}</SelectItem>
                   {teams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                   ))}
@@ -130,13 +130,13 @@ export default function RetentionDashboard() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="agentFilter">Agent</Label>
+              <Label htmlFor="agentFilter">{t('retentionDashboard.agent')}</Label>
               <Select value={agentFilter} onValueChange={setAgentFilter}>
                 <SelectTrigger id="agentFilter" data-testid="select-agent-filter">
-                  <SelectValue placeholder="All Agents" />
+                  <SelectValue placeholder={t('retentionDashboard.allAgents')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Agents</SelectItem>
+                  <SelectItem value="all">{t('retentionDashboard.allAgents')}</SelectItem>
                   {users.filter(u => u.type === 'user').map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.firstName} {user.lastName}
@@ -149,50 +149,49 @@ export default function RetentionDashboard() {
         </CardContent>
       </Card>
 
-      {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Retention Clients</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('retentionDashboard.retentionClients')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-retention-clients">{metrics?.totalRetentionClients || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Clients with FTD
+              {t('retentionDashboard.clientsWithFtd')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">STD Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('retentionDashboard.stdConversionRate')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-std-conversion">{metrics?.stdConversionRate || 0}%</div>
             <p className="text-xs text-muted-foreground">
-              FTD → STD conversion
+              {t('retentionDashboard.ftdStdConversion')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total STD Value</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('retentionDashboard.totalStdValue')}</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-std-value">${metrics?.totalSTDAmount || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Avg: ${metrics?.avgSTDAmount || 0}
+              {t('retentionDashboard.avg', { amount: metrics?.avgSTDAmount || 0 })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">STDs in Period</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('retentionDashboard.stdsInPeriod')}</CardTitle>
             <Repeat className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -204,10 +203,9 @@ export default function RetentionDashboard() {
         </Card>
       </div>
 
-      {/* Time Series Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>STD Trends Over Time</CardTitle>
+          <CardTitle>{t('retentionDashboard.stdTrendsOverTime')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -218,17 +216,16 @@ export default function RetentionDashboard() {
               <YAxis yAxisId="right" orientation="right" />
               <Tooltip labelFormatter={(value) => format(new Date(value), "MMM d, yyyy")} />
               <Legend />
-              <Line yAxisId="left" type="monotone" dataKey="stdCount" stroke="#8884d8" name="STD Count" />
-              <Line yAxisId="right" type="monotone" dataKey="stdAmount" stroke="#82ca9d" name="STD Amount ($)" />
+              <Line yAxisId="left" type="monotone" dataKey="stdCount" stroke="#8884d8" name={t('retentionDashboard.stdCount')} />
+              <Line yAxisId="right" type="monotone" dataKey="stdAmount" stroke="#82ca9d" name={t('retentionDashboard.stdAmountDollar')} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* Retention Funnel */}
       <Card>
         <CardHeader>
-          <CardTitle>Retention Funnel</CardTitle>
+          <CardTitle>{t('retentionDashboard.retentionFunnel')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -245,20 +242,19 @@ export default function RetentionDashboard() {
         </CardContent>
       </Card>
 
-      {/* Agent Performance Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Agent Retention Performance</CardTitle>
+          <CardTitle>{t('retentionDashboard.agentRetentionPerformance')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Agent</TableHead>
-                <TableHead className="text-right">Retention Clients</TableHead>
-                <TableHead className="text-right">STD Count</TableHead>
-                <TableHead className="text-right">STD Amount</TableHead>
-                <TableHead className="text-right">STD Conversion</TableHead>
+                <TableHead>{t('retentionDashboard.table.agent')}</TableHead>
+                <TableHead className="text-right">{t('retentionDashboard.table.retentionClients')}</TableHead>
+                <TableHead className="text-right">{t('retentionDashboard.table.stdCount')}</TableHead>
+                <TableHead className="text-right">{t('retentionDashboard.table.stdAmount')}</TableHead>
+                <TableHead className="text-right">{t('retentionDashboard.table.stdConversion')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -275,7 +271,7 @@ export default function RetentionDashboard() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    No agent performance data available
+                    {t('retentionDashboard.noAgentPerformanceData')}
                   </TableCell>
                 </TableRow>
               )}
@@ -284,30 +280,29 @@ export default function RetentionDashboard() {
         </CardContent>
       </Card>
 
-      {/* Client Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>STD Clients</CardTitle>
+            <CardTitle>{t('retentionDashboard.stdClients')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mb-2" data-testid="text-std-clients">{metrics?.stdClients || 0}</div>
             <p className="text-sm text-muted-foreground">
-              Clients who made 2+ deposits
+              {t('retentionDashboard.clientsMade2PlusDeposits')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Pending STD</CardTitle>
+            <CardTitle>{t('retentionDashboard.pendingStd')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mb-2" data-testid="text-pending-std">
               {(metrics?.totalRetentionClients || 0) - (metrics?.stdClients || 0)}
             </div>
             <p className="text-sm text-muted-foreground">
-              Retention clients who haven't made STD yet
+              {t('retentionDashboard.retentionClientsNoStd')}
             </p>
           </CardContent>
         </Card>

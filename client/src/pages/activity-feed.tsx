@@ -13,6 +13,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Activity, MessageSquare, UserPlus, DollarSign, TrendingUp, RefreshCcw, User, Edit } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface ActivityItem {
   id: string;
@@ -29,6 +30,7 @@ interface ActivityItem {
 }
 
 export default function ActivityFeed() {
+  const { t } = useLanguage();
   const [teamFilter, setTeamFilter] = useState("all");
   const [limit, setLimit] = useState("50");
 
@@ -108,7 +110,7 @@ export default function ActivityFeed() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Loading activity feed...</p>
+          <p className="text-muted-foreground">{t('activity.loading')}</p>
         </div>
       </div>
     );
@@ -119,32 +121,32 @@ export default function ActivityFeed() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Activity Feed</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('activity.page.title')}</h1>
           <p className="text-muted-foreground">
-            Real-time updates across the CRM
+            {t('activity.page.subtitle')}
           </p>
         </div>
         <Button onClick={handleRefresh} variant="outline" data-testid="button-refresh">
           <RefreshCcw className="h-4 w-4 mr-2" />
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
 
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle>{t('activity.filters')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="teamFilter">Team</Label>
+              <Label htmlFor="teamFilter">{t('activity.team.filter')}</Label>
               <Select value={teamFilter} onValueChange={setTeamFilter}>
                 <SelectTrigger id="teamFilter" data-testid="select-team-filter">
-                  <SelectValue placeholder="All Teams" />
+                  <SelectValue placeholder={t('activity.all.teams')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Teams</SelectItem>
+                  <SelectItem value="all">{t('activity.all.teams')}</SelectItem>
                   {teams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
                   ))}
@@ -152,16 +154,16 @@ export default function ActivityFeed() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="limit">Show Activities</Label>
+              <Label htmlFor="limit">{t('activity.show.activities')}</Label>
               <Select value={limit} onValueChange={setLimit}>
                 <SelectTrigger id="limit" data-testid="select-limit">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="25">Last 25</SelectItem>
-                  <SelectItem value="50">Last 50</SelectItem>
-                  <SelectItem value="100">Last 100</SelectItem>
-                  <SelectItem value="200">Last 200</SelectItem>
+                  <SelectItem value="25">{t('activity.last.25')}</SelectItem>
+                  <SelectItem value="50">{t('activity.last.50')}</SelectItem>
+                  <SelectItem value="100">{t('activity.last.100')}</SelectItem>
+                  <SelectItem value="200">{t('activity.last.200')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -172,7 +174,7 @@ export default function ActivityFeed() {
       {/* Activity Timeline */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity ({response?.total || 0})</CardTitle>
+          <CardTitle>{t('activity.recent.activity')} ({response?.total || 0})</CardTitle>
         </CardHeader>
         <CardContent>
           {response?.activities && response.activities.length > 0 ? (
@@ -220,7 +222,7 @@ export default function ActivityFeed() {
                             className="text-sm text-primary hover:underline"
                             data-testid={`link-client-${activity.clientId}`}
                           >
-                            View Client
+                            {t('activity.view.client')}
                           </a>
                         </div>
                       )}
@@ -237,7 +239,7 @@ export default function ActivityFeed() {
           ) : (
             <div className="text-center py-12">
               <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No recent activity</p>
+              <p className="text-muted-foreground">{t('activity.no.activity')}</p>
             </div>
           )}
         </CardContent>
