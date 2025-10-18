@@ -22,13 +22,6 @@ import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
-
 const roleRoutes: Record<string, string> = {
   'administrator': '/admin',
   'crm manager': '/crm',
@@ -41,6 +34,13 @@ export default function Landing() {
   const { toast } = useToast();
   const { login, isAuthenticated, user } = useAuth();
   const { t } = useLanguage();
+
+  const loginSchema = z.object({
+    email: z.string().min(1, t('validation.email.required')).email(t('validation.email.invalid')),
+    password: z.string().min(1, t('validation.password.required')),
+  });
+
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   // Auto-redirect if already authenticated
   useEffect(() => {
@@ -104,8 +104,8 @@ export default function Landing() {
     },
     onError: (error: any) => {
       toast({
-        title: "Login failed",
-        description: error.message || "Invalid credentials",
+        title: t('toast.login.failed'),
+        description: error.message || t('toast.invalid.credentials'),
         variant: "destructive",
       });
     },

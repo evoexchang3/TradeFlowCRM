@@ -2,6 +2,7 @@ import { useState, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -119,6 +120,7 @@ function EventForm({
   onSubmit: (data: EventFormData) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const { register, handleSubmit, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: defaultValues || {
@@ -138,11 +140,11 @@ function EventForm({
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <Label htmlFor="title">Title</Label>
+        <Label htmlFor="title">{t('calendar.title.label')}</Label>
         <Input
           id="title"
           {...register("title")}
-          placeholder="Event title"
+          placeholder={t('calendar.placeholder.event.title')}
           data-testid="input-event-title"
         />
         {errors.title && (
@@ -151,29 +153,29 @@ function EventForm({
       </div>
 
       <div>
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor="description">{t('common.description')}</Label>
         <Textarea
           id="description"
           {...register("description")}
-          placeholder="Event description"
+          placeholder={t('calendar.placeholder.event.description')}
           data-testid="input-event-description"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="eventType">Event Type</Label>
+          <Label htmlFor="eventType">{t('calendar.event.type')}</Label>
           <select
             id="eventType"
             {...register("eventType")}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             data-testid="select-event-type"
           >
-            <option value="meeting">Meeting</option>
-            <option value="call">Call</option>
-            <option value="follow_up">Follow Up</option>
-            <option value="demo">Demo</option>
-            <option value="kyc_review">KYC Review</option>
+            <option value="meeting">{t('calendar.event.type.meeting')}</option>
+            <option value="call">{t('calendar.event.type.call')}</option>
+            <option value="follow_up">{t('calendar.follow.up')}</option>
+            <option value="demo">{t('calendar.event.type.demo')}</option>
+            <option value="kyc_review">{t('calendar.event.type.kyc_review')}</option>
           </select>
           {errors.eventType && (
             <p className="text-sm text-destructive mt-1">{errors.eventType.message}</p>
@@ -181,31 +183,31 @@ function EventForm({
         </div>
 
         <div>
-          <Label htmlFor="status">Status</Label>
+          <Label htmlFor="status">{t('common.status')}</Label>
           <select
             id="status"
             {...register("status")}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             data-testid="select-event-status"
           >
-            <option value="scheduled">Scheduled</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="rescheduled">Rescheduled</option>
+            <option value="scheduled">{t('calendar.event.status.scheduled')}</option>
+            <option value="completed">{t('calendar.event.status.completed')}</option>
+            <option value="cancelled">{t('calendar.event.status.cancelled')}</option>
+            <option value="rescheduled">{t('calendar.event.status.rescheduled')}</option>
           </select>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="clientId">Client</Label>
+          <Label htmlFor="clientId">{t('calendar.client')}</Label>
           <select
             id="clientId"
             {...register("clientId")}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             data-testid="select-client"
           >
-            <option value="">No client</option>
+            <option value="">{t('calendar.no.client')}</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.firstName} {client.lastName}
@@ -215,14 +217,14 @@ function EventForm({
         </div>
 
         <div>
-          <Label htmlFor="userId">Assign To</Label>
+          <Label htmlFor="userId">{t('calendar.assign.to')}</Label>
           <select
             id="userId"
             {...register("userId")}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             data-testid="select-user"
           >
-            <option value="">No assignment</option>
+            <option value="">{t('calendar.no.assignment')}</option>
             {users.map((user) => (
               <option key={user.id} value={user.id}>
                 {user.firstName} {user.lastName}
@@ -234,7 +236,7 @@ function EventForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="startTime">Start Time</Label>
+          <Label htmlFor="startTime">{t('calendar.start.time')}</Label>
           <Input
             id="startTime"
             type="datetime-local"
@@ -247,7 +249,7 @@ function EventForm({
         </div>
 
         <div>
-          <Label htmlFor="endTime">End Time</Label>
+          <Label htmlFor="endTime">{t('calendar.end.time')}</Label>
           <Input
             id="endTime"
             type="datetime-local"
@@ -261,17 +263,17 @@ function EventForm({
       </div>
 
       <div>
-        <Label htmlFor="location">Location</Label>
+        <Label htmlFor="location">{t('calendar.location')}</Label>
         <Input
           id="location"
           {...register("location")}
-          placeholder="Meeting location or call details"
+          placeholder={t('calendar.placeholder.location')}
           data-testid="input-location"
         />
       </div>
 
       <Button type="submit" disabled={isPending} data-testid="button-submit-event">
-        {isPending ? "Saving..." : "Save Event"}
+        {isPending ? t('calendar.saving') : t('calendar.save.event')}
       </Button>
     </form>
   );
@@ -279,6 +281,7 @@ function EventForm({
 
 export default function Calendar() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"month" | "week" | "day">("month");
@@ -300,7 +303,7 @@ export default function Calendar() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       setIsCreateOpen(false);
-      toast({ title: "Event created successfully" });
+      toast({ title: t('toast.success.created') });
     },
   });
 
@@ -311,7 +314,7 @@ export default function Calendar() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       setEditEvent(null);
-      toast({ title: "Event updated successfully" });
+      toast({ title: t('toast.success.updated') });
     },
   });
 
@@ -322,7 +325,7 @@ export default function Calendar() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       setDeleteEvent(null);
-      toast({ title: "Event deleted successfully" });
+      toast({ title: t('toast.success.deleted') });
     },
   });
 
@@ -398,7 +401,15 @@ END:VEVENT
 
     return (
       <div className="grid grid-cols-7 gap-px bg-border">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+        {[
+          t('calendar.day.sunday'),
+          t('calendar.day.monday'),
+          t('calendar.day.tuesday'),
+          t('calendar.day.wednesday'),
+          t('calendar.day.thursday'),
+          t('calendar.day.friday'),
+          t('calendar.day.saturday')
+        ].map((dayName) => (
           <div key={dayName} className="bg-muted p-2 text-center text-sm font-medium">
             {dayName}
           </div>
@@ -436,7 +447,7 @@ END:VEVENT
                   </div>
                 ))}
                 {dayEvents.length > 3 && (
-                  <div className="text-xs text-muted-foreground">+{dayEvents.length - 3} more</div>
+                  <div className="text-xs text-muted-foreground">{t('calendar.more.events', { count: dayEvents.length - 3 })}</div>
                 )}
               </div>
             </div>
@@ -582,8 +593,8 @@ END:VEVENT
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Calendar</h1>
-          <p className="text-muted-foreground">Manage events and appointments</p>
+          <h1 className="text-3xl font-bold">{t('calendar.title')}</h1>
+          <p className="text-muted-foreground">{t('calendar.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -599,7 +610,7 @@ END:VEVENT
             setIsCreateOpen(true);
           }} data-testid="button-create-event">
             <Plus className="h-4 w-4 mr-2" />
-            Create Event
+            {t('calendar.create.event')}
           </Button>
         </div>
       </div>
@@ -621,7 +632,7 @@ END:VEVENT
                 onClick={() => setCurrentDate(new Date())}
                 data-testid="button-today"
               >
-                Today
+                {t('calendar.today')}
               </Button>
               <Button
                 variant="outline"
@@ -633,7 +644,7 @@ END:VEVENT
               </Button>
               <div className="text-lg font-semibold ml-2">
                 {view === "month" && format(currentDate, "MMMM yyyy")}
-                {view === "week" && `Week of ${format(startOfWeek(currentDate), "MMM d, yyyy")}`}
+                {view === "week" && t('calendar.week.of', { date: format(startOfWeek(currentDate), "MMM d, yyyy") })}
                 {view === "day" && format(currentDate, "MMMM d, yyyy")}
               </div>
             </div>
@@ -641,36 +652,36 @@ END:VEVENT
             <div className="flex items-center gap-2">
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-40" data-testid="select-filter-type">
-                  <SelectValue placeholder="Event type" />
+                  <SelectValue placeholder={t('calendar.placeholder.event.type')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="meeting">Meeting</SelectItem>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="follow_up">Follow Up</SelectItem>
-                  <SelectItem value="demo">Demo</SelectItem>
-                  <SelectItem value="kyc_review">KYC Review</SelectItem>
+                  <SelectItem value="all">{t('calendar.all.types')}</SelectItem>
+                  <SelectItem value="meeting">{t('calendar.event.type.meeting')}</SelectItem>
+                  <SelectItem value="call">{t('calendar.event.type.call')}</SelectItem>
+                  <SelectItem value="follow_up">{t('calendar.follow.up')}</SelectItem>
+                  <SelectItem value="demo">{t('calendar.event.type.demo')}</SelectItem>
+                  <SelectItem value="kyc_review">{t('calendar.event.type.kyc_review')}</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="w-40" data-testid="select-filter-status">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('calendar.placeholder.status')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="rescheduled">Rescheduled</SelectItem>
+                  <SelectItem value="all">{t('calendar.all.status')}</SelectItem>
+                  <SelectItem value="scheduled">{t('calendar.event.status.scheduled')}</SelectItem>
+                  <SelectItem value="completed">{t('calendar.event.status.completed')}</SelectItem>
+                  <SelectItem value="cancelled">{t('calendar.event.status.cancelled')}</SelectItem>
+                  <SelectItem value="rescheduled">{t('calendar.event.status.rescheduled')}</SelectItem>
                 </SelectContent>
               </Select>
 
               <Tabs value={view} onValueChange={(v) => setView(v as any)}>
                 <TabsList data-testid="tabs-view-selector">
-                  <TabsTrigger value="month" data-testid="tab-month">Month</TabsTrigger>
-                  <TabsTrigger value="week" data-testid="tab-week">Week</TabsTrigger>
-                  <TabsTrigger value="day" data-testid="tab-day">Day</TabsTrigger>
+                  <TabsTrigger value="month" data-testid="tab-month">{t('calendar.view.month')}</TabsTrigger>
+                  <TabsTrigger value="week" data-testid="tab-week">{t('calendar.view.week')}</TabsTrigger>
+                  <TabsTrigger value="day" data-testid="tab-day">{t('calendar.view.day')}</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -679,7 +690,7 @@ END:VEVENT
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center h-96">
-              <div className="text-muted-foreground">Loading calendar...</div>
+              <div className="text-muted-foreground">{t('calendar.loading')}</div>
             </div>
           ) : (
             <>
@@ -694,8 +705,8 @@ END:VEVENT
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent data-testid="dialog-create-event">
           <DialogHeader>
-            <DialogTitle>Create Event</DialogTitle>
-            <DialogDescription>Add a new event to the calendar</DialogDescription>
+            <DialogTitle>{t('calendar.create.event.dialog.title')}</DialogTitle>
+            <DialogDescription>{t('calendar.create.event.dialog.description')}</DialogDescription>
           </DialogHeader>
           <EventForm
             defaultValues={selectedDate ? {
@@ -711,8 +722,8 @@ END:VEVENT
       <Dialog open={!!editEvent} onOpenChange={(open) => !open && setEditEvent(null)}>
         <DialogContent data-testid="dialog-edit-event">
           <DialogHeader>
-            <DialogTitle>Edit Event</DialogTitle>
-            <DialogDescription>Update event details</DialogDescription>
+            <DialogTitle>{t('calendar.edit.event.dialog.title')}</DialogTitle>
+            <DialogDescription>{t('calendar.edit.event.dialog.description')}</DialogDescription>
           </DialogHeader>
           {editEvent && (
             <div className="space-y-4">
@@ -740,7 +751,7 @@ END:VEVENT
                 data-testid="button-delete-event"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Event
+                {t('calendar.delete.event')}
               </Button>
             </div>
           )}
@@ -750,18 +761,18 @@ END:VEVENT
       <AlertDialog open={!!deleteEvent} onOpenChange={(open) => !open && setDeleteEvent(null)}>
         <AlertDialogContent data-testid="dialog-delete-confirm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogTitle>{t('calendar.delete.event.dialog.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteEvent?.title}"? This action cannot be undone.
+              {t('calendar.delete.event.dialog.description', { title: deleteEvent?.title || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteEvent && deleteMutation.mutate(deleteEvent.id)}
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

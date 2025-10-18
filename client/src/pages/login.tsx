@@ -20,18 +20,18 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
-
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { login } = useAuth();
   const { t } = useLanguage();
+
+  const loginSchema = z.object({
+    email: z.string().min(1, t('validation.email.required')).email(t('validation.email.invalid')),
+    password: z.string().min(1, t('validation.password.required')),
+  });
+
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -52,8 +52,8 @@ export default function Login() {
     },
     onError: (error: any) => {
       toast({
-        title: "Login failed",
-        description: error.message || "Invalid credentials",
+        title: t('toast.login.failed'),
+        description: error.message || t('toast.invalid.credentials'),
         variant: "destructive",
       });
     },

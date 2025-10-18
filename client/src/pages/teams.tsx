@@ -23,6 +23,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const EUROPEAN_LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -86,6 +87,7 @@ const EUROPEAN_LANGUAGES = [
 ];
 
 export default function Teams() {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({ 
     name: '', 
@@ -107,7 +109,7 @@ export default function Teams() {
     mutationFn: (data: any) => apiRequest('POST', '/api/teams', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/teams'] });
-      toast({ title: "Team created successfully" });
+      toast({ title: t('common.success') });
       setIsOpen(false);
       setFormData({ name: '', leaderId: '', languageCode: '', department: 'sales' });
     },
@@ -117,34 +119,34 @@ export default function Teams() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-teams-title">Teams</h1>
+          <h1 className="text-2xl font-semibold" data-testid="text-teams-title">{t('teams.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage teams and member assignments
+            {t('teams.subtitle.description')}
           </p>
         </div>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button size="sm" data-testid="button-create-team" className="hover-elevate active-elevate-2">
               <Plus className="h-4 w-4 mr-2" />
-              Create Team
+              {t('teams.create.team')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Team</DialogTitle>
+              <DialogTitle>{t('teams.create.new.team')}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Team Name</Label>
+                <Label>{t('teams.team.name')}</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g., Sales Team Alpha"
+                  placeholder={t('teams.team.name.placeholder')}
                   data-testid="input-team-name"
                 />
               </div>
               <div>
-                <Label>Department</Label>
+                <Label>{t('teams.department')}</Label>
                 <RadioGroup 
                   value={formData.department} 
                   onValueChange={(value: 'sales' | 'retention') => setFormData({ ...formData, department: value })}
@@ -153,19 +155,19 @@ export default function Teams() {
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="sales" id="sales" data-testid="radio-department-sales" />
-                    <Label htmlFor="sales" className="font-normal cursor-pointer">Sales</Label>
+                    <Label htmlFor="sales" className="font-normal cursor-pointer">{t('teams.department.sales')}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="retention" id="retention" data-testid="radio-department-retention" />
-                    <Label htmlFor="retention" className="font-normal cursor-pointer">Retention</Label>
+                    <Label htmlFor="retention" className="font-normal cursor-pointer">{t('teams.department.retention')}</Label>
                   </div>
                 </RadioGroup>
               </div>
               <div>
-                <Label>Language</Label>
+                <Label>{t('teams.language')}</Label>
                 <Select value={formData.languageCode} onValueChange={(value) => setFormData({ ...formData, languageCode: value })}>
                   <SelectTrigger data-testid="select-language">
-                    <SelectValue placeholder="Select language" />
+                    <SelectValue placeholder={t('teams.select.language')} />
                   </SelectTrigger>
                   <SelectContent>
                     {EUROPEAN_LANGUAGES.map((lang) => (
@@ -177,10 +179,10 @@ export default function Teams() {
                 </Select>
               </div>
               <div>
-                <Label>Team Leader</Label>
+                <Label>{t('teams.team.leader')}</Label>
                 <Select value={formData.leaderId} onValueChange={(value) => setFormData({ ...formData, leaderId: value })}>
                   <SelectTrigger data-testid="select-team-leader">
-                    <SelectValue placeholder="Select team leader" />
+                    <SelectValue placeholder={t('teams.select.team.leader')} />
                   </SelectTrigger>
                   <SelectContent>
                     {users?.map((user: any) => (
@@ -192,14 +194,14 @@ export default function Teams() {
                 </Select>
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setIsOpen(false)}>{t('common.cancel')}</Button>
                 <Button
                   onClick={() => createMutation.mutate(formData)}
                   disabled={createMutation.isPending}
                   data-testid="button-save-team"
                   className="hover-elevate active-elevate-2"
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Create Team'}
+                  {createMutation.isPending ? t('teams.creating') : t('teams.create.team')}
                 </Button>
               </div>
             </div>
@@ -227,36 +229,36 @@ export default function Teams() {
                     <User className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Team Leader</p>
-                    <p className="text-sm text-muted-foreground">{team.leader?.name || 'Not assigned'}</p>
+                    <p className="text-sm font-medium">{t('teams.team.leader')}</p>
+                    <p className="text-sm text-muted-foreground">{team.leader?.name || t('teams.not.assigned')}</p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Department</span>
-                    <span className="font-medium capitalize">{team.department || 'Not set'}</span>
+                    <span className="text-muted-foreground">{t('teams.department')}</span>
+                    <span className="font-medium capitalize">{team.department || t('teams.not.set')}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Language</span>
-                    <span className="font-medium">{team.languageCode ? EUROPEAN_LANGUAGES.find(l => l.code === team.languageCode)?.name.split(' ')[0] : 'Not set'}</span>
+                    <span className="text-muted-foreground">{t('teams.language')}</span>
+                    <span className="font-medium">{team.languageCode ? EUROPEAN_LANGUAGES.find(l => l.code === team.languageCode)?.name.split(' ')[0] : t('teams.not.set')}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Members</span>
+                    <span className="text-muted-foreground">{t('teams.members.count')}</span>
                     <span className="font-medium">{team.memberCount || 0}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Clients</span>
+                    <span className="text-muted-foreground">{t('teams.clients.count')}</span>
                     <span className="font-medium">{team.clientCount || 0}</span>
                   </div>
                 </div>
                 <Button variant="outline" className="w-full" asChild data-testid={`button-manage-team-${team.id}`}>
-                  <Link href={`/teams/${team.id}`}>Manage Team</Link>
+                  <Link href={`/teams/${team.id}`}>{t('teams.manage.team')}</Link>
                 </Button>
               </CardContent>
             </Card>
           )) || (
             <div className="col-span-full text-center py-12">
-              <p className="text-sm text-muted-foreground">No teams found</p>
+              <p className="text-sm text-muted-foreground">{t('teams.no.teams.found')}</p>
             </div>
           )}
         </div>

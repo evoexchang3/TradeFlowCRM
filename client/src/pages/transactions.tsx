@@ -19,8 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Transactions() {
+  const { t } = useLanguage();
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -32,14 +34,14 @@ export default function Transactions() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-transactions-title">Transactions</h1>
+          <h1 className="text-2xl font-semibold" data-testid="text-transactions-title">{t('transactions.title')}</h1>
           <p className="text-sm text-muted-foreground">
-            Monitor all deposits and withdrawals
+            {t('transactions.monitor.subtitle')}
           </p>
         </div>
         <Button size="sm" data-testid="button-new-transaction" className="hover-elevate active-elevate-2">
           <Plus className="h-4 w-4 mr-2" />
-          New Transaction
+          {t('transactions.new.transaction')}
         </Button>
       </div>
 
@@ -48,24 +50,24 @@ export default function Transactions() {
           <div className="flex items-center gap-4 mb-6">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-[180px]" data-testid="select-type-filter">
-                <SelectValue placeholder="Type" />
+                <SelectValue placeholder={t('transactions.type')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="deposit">Deposits</SelectItem>
-                <SelectItem value="withdrawal">Withdrawals</SelectItem>
+                <SelectItem value="all">{t('transactions.filter.all.types')}</SelectItem>
+                <SelectItem value="deposit">{t('transactions.filter.type.deposits')}</SelectItem>
+                <SelectItem value="withdrawal">{t('transactions.filter.type.withdrawals')}</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder={t('transactions.status')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="all">{t('transactions.filter.all.statuses')}</SelectItem>
+                <SelectItem value="pending">{t('transactions.status.pending')}</SelectItem>
+                <SelectItem value="completed">{t('transactions.status.completed')}</SelectItem>
+                <SelectItem value="rejected">{t('transactions.status.rejected')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -78,15 +80,15 @@ export default function Transactions() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Fund Type</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Processed By</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t('transactions.date')}</TableHead>
+                  <TableHead>{t('transactions.client')}</TableHead>
+                  <TableHead>{t('transactions.type')}</TableHead>
+                  <TableHead>{t('transactions.fund.type')}</TableHead>
+                  <TableHead>{t('transactions.amount')}</TableHead>
+                  <TableHead>{t('transactions.method')}</TableHead>
+                  <TableHead>{t('transactions.status')}</TableHead>
+                  <TableHead>{t('transactions.processed.by')}</TableHead>
+                  <TableHead>{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -105,7 +107,7 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={transaction.type === 'deposit' ? 'default' : 'secondary'}>
-                        {transaction.type}
+                        {transaction.type === 'deposit' ? t('transactions.type.deposit') : t('transactions.type.withdrawal')}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -120,14 +122,14 @@ export default function Transactions() {
                         }
                         data-testid={`badge-fundtype-${transaction.id}`}
                       >
-                        {transaction.fundType ? transaction.fundType.charAt(0).toUpperCase() + transaction.fundType.slice(1) : 'N/A'}
+                        {transaction.fundType === 'real' ? t('transactions.fund.real') : transaction.fundType === 'demo' ? t('transactions.fund.demo') : transaction.fundType === 'bonus' ? t('transactions.fund.bonus') : t('common.na')}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono font-semibold">
                       ${transaction.amount}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {transaction.method || 'N/A'}
+                      {transaction.method || t('common.na')}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -139,7 +141,7 @@ export default function Transactions() {
                             : 'secondary'
                         }
                       >
-                        {transaction.status}
+                        {transaction.status === 'completed' ? t('transactions.status.completed') : transaction.status === 'rejected' ? t('transactions.status.rejected') : t('transactions.status.pending')}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -149,10 +151,10 @@ export default function Transactions() {
                       {transaction.status === 'pending' && (
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" data-testid={`button-approve-${transaction.id}`}>
-                            Approve
+                            {t('transactions.approve')}
                           </Button>
                           <Button variant="outline" size="sm" data-testid={`button-reject-${transaction.id}`}>
-                            Reject
+                            {t('transactions.reject')}
                           </Button>
                         </div>
                       )}
@@ -161,7 +163,7 @@ export default function Transactions() {
                 )) || (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center py-12">
-                      <p className="text-sm text-muted-foreground">No transactions found</p>
+                      <p className="text-sm text-muted-foreground">{t('transactions.no.transactions')}</p>
                     </TableCell>
                   </TableRow>
                 )}

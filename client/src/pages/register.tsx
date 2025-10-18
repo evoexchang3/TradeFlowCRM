@@ -19,24 +19,24 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const registerSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-  phone: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterFormData = z.infer<typeof registerSchema>;
-
 export default function Register() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { t } = useLanguage();
+
+  const registerSchema = z.object({
+    firstName: z.string().min(1, t('validation.first.name.required')),
+    lastName: z.string().min(1, t('validation.last.name.required')),
+    email: z.string().min(1, t('validation.email.required')).email(t('validation.email.invalid')),
+    password: z.string().min(8, t('validation.password.min')),
+    confirmPassword: z.string().min(1, t('validation.password.confirm.required')),
+    phone: z.string().optional(),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: t('validation.password.match'),
+    path: ["confirmPassword"],
+  });
+
+  type RegisterFormData = z.infer<typeof registerSchema>;
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -54,15 +54,15 @@ export default function Register() {
     mutationFn: (data: RegisterFormData) => apiRequest('POST', '/api/register', data),
     onSuccess: () => {
       toast({
-        title: "Registration successful!",
-        description: "Your account has been created. Please check your email to verify your account.",
+        title: t('toast.registration.success'),
+        description: t('toast.registration.success.description'),
       });
       setLocation('/login');
     },
     onError: (error: any) => {
       toast({
-        title: "Registration failed",
-        description: error.message || "An error occurred during registration",
+        title: t('toast.registration.failed'),
+        description: error.message || t('toast.registration.error'),
         variant: "destructive",
       });
     },

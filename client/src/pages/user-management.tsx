@@ -42,52 +42,54 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatDistanceToNow } from "date-fns";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const createUserSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  roleId: z.string().min(1, "Role is required"),
+const createUserSchema = (t: (key: string) => string) => z.object({
+  firstName: z.string().min(1, t("users.validation.first.name.required")),
+  lastName: z.string().min(1, t("users.validation.last.name.required")),
+  email: z.string().email(t("users.validation.email.invalid")),
+  password: z.string().min(6, t("users.validation.password.min")),
+  roleId: z.string().min(1, t("users.validation.role.required")),
   teamId: z.string().optional(),
 });
 
-const editUserSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email address"),
-  roleId: z.string().min(1, "Role is required"),
+const editUserSchema = (t: (key: string) => string) => z.object({
+  firstName: z.string().min(1, t("users.validation.first.name.required")),
+  lastName: z.string().min(1, t("users.validation.last.name.required")),
+  email: z.string().email(t("users.validation.email.invalid")),
+  roleId: z.string().min(1, t("users.validation.role.required")),
   teamId: z.string().optional(),
 });
 
-const resetPasswordSchema = z.object({
-  newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
+const resetPasswordSchema = (t: (key: string) => string) => z.object({
+  newPassword: z.string().min(6, t("users.validation.password.min")),
+  confirmPassword: z.string().min(6, t("users.validation.password.min")),
 }).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
+  message: t("users.validation.passwords.no.match"),
   path: ["confirmPassword"],
 });
 
-const adjustWorkloadSchema = z.object({
-  currentWorkload: z.coerce.number().min(0, "Current workload cannot be negative"),
-  maxWorkload: z.coerce.number().min(1, "Max workload must be at least 1").max(200, "Max workload cannot exceed 200"),
+const adjustWorkloadSchema = (t: (key: string) => string) => z.object({
+  currentWorkload: z.coerce.number().min(0, t("users.validation.workload.negative")),
+  maxWorkload: z.coerce.number().min(1, t("users.validation.max.workload.min")).max(200, t("users.validation.max.workload.max")),
 }).refine((data) => data.currentWorkload <= data.maxWorkload, {
-  message: "Current workload cannot exceed max workload",
+  message: t("users.validation.workload.exceeds"),
   path: ["currentWorkload"],
 });
 
-type CreateUserData = z.infer<typeof createUserSchema>;
-type EditUserData = z.infer<typeof editUserSchema>;
-type ResetPasswordData = z.infer<typeof resetPasswordSchema>;
-type AdjustWorkloadData = z.infer<typeof adjustWorkloadSchema>;
-
 export default function UserManagement() {
+  const { t } = useLanguage();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [adjustWorkloadDialogOpen, setAdjustWorkloadDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const { toast } = useToast();
+
+  type CreateUserData = z.infer<ReturnType<typeof createUserSchema>>;
+  type EditUserData = z.infer<ReturnType<typeof editUserSchema>>;
+  type ResetPasswordData = z.infer<ReturnType<typeof resetPasswordSchema>>;
+  type AdjustWorkloadData = z.infer<ReturnType<typeof adjustWorkloadSchema>>;
 
   const { data: users = [], isLoading: usersLoading } = useQuery<any[]>({
     queryKey: ['/api/users'],
@@ -102,7 +104,7 @@ export default function UserManagement() {
   });
 
   const createForm = useForm<CreateUserData>({
-    resolver: zodResolver(createUserSchema),
+    resolver: zodResolver(createUserSchema(t)),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -114,7 +116,7 @@ export default function UserManagement() {
   });
 
   const editForm = useForm<EditUserData>({
-    resolver: zodResolver(editUserSchema),
+    resolver: zodResolver(editUserSchema(t)),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -125,7 +127,7 @@ export default function UserManagement() {
   });
 
   const resetPasswordForm = useForm<ResetPasswordData>({
-    resolver: zodResolver(resetPasswordSchema),
+    resolver: zodResolver(resetPasswordSchema(t)),
     defaultValues: {
       newPassword: "",
       confirmPassword: "",
@@ -133,7 +135,7 @@ export default function UserManagement() {
   });
 
   const adjustWorkloadForm = useForm<AdjustWorkloadData>({
-    resolver: zodResolver(adjustWorkloadSchema),
+    resolver: zodResolver(adjustWorkloadSchema(t)),
     defaultValues: {
       currentWorkload: 0,
       maxWorkload: 50,
@@ -151,8 +153,8 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "User created successfully",
+        title: t("common.success"),
+        description: t("users.created.success"),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setCreateDialogOpen(false);
@@ -160,8 +162,8 @@ export default function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to create user",
+        title: t("common.error"),
+        description: error.message || t("users.created.error"),
         variant: "destructive",
       });
     },
@@ -178,8 +180,8 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "User updated successfully",
+        title: t("common.success"),
+        description: t("users.updated.success"),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setEditDialogOpen(false);
@@ -187,8 +189,8 @@ export default function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update user",
+        title: t("common.error"),
+        description: error.message || t("users.updated.error"),
         variant: "destructive",
       });
     },
@@ -201,8 +203,8 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "Password reset successfully",
+        title: t("common.success"),
+        description: t("users.password.reset.success"),
       });
       setResetPasswordDialogOpen(false);
       setSelectedUser(null);
@@ -210,8 +212,8 @@ export default function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to reset password",
+        title: t("common.error"),
+        description: error.message || t("users.password.reset.error"),
         variant: "destructive",
       });
     },
@@ -224,15 +226,15 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "User status updated successfully",
+        title: t("common.success"),
+        description: t("users.status.updated.success"),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update user status",
+        title: t("common.error"),
+        description: error.message || t("users.status.updated.error"),
         variant: "destructive",
       });
     },
@@ -245,8 +247,8 @@ export default function UserManagement() {
     },
     onSuccess: () => {
       toast({
-        title: "Success",
-        description: "Workload adjusted successfully",
+        title: t("common.success"),
+        description: t("users.workload.adjusted.success"),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setAdjustWorkloadDialogOpen(false);
@@ -255,8 +257,8 @@ export default function UserManagement() {
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to adjust workload",
+        title: t("common.error"),
+        description: error.message || t("users.workload.adjusted.error"),
         variant: "destructive",
       });
     },
@@ -294,49 +296,49 @@ export default function UserManagement() {
   };
 
   const getRoleName = (roleId: string) => {
-    return roles.find(r => r.id === roleId)?.name || 'N/A';
+    return roles.find(r => r.id === roleId)?.name || t("common.na");
   };
 
   const getTeamName = (teamId: string) => {
-    return teams.find(t => t.id === teamId)?.name || 'N/A';
+    return teams.find(t => t.id === teamId)?.name || t("common.na");
   };
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">User Management</h1>
+          <h1 className="text-2xl font-semibold" data-testid="text-page-title">{t("users.title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage CRM staff users, roles, and permissions
+            {t("users.subtitle")}
           </p>
         </div>
         <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-user">
           <Plus className="h-4 w-4 mr-2" />
-          Create User
+          {t("users.create.user")}
         </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
+          <CardTitle>{t("users.all.users")}</CardTitle>
         </CardHeader>
         <CardContent>
           {usersLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
           ) : users.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No users found</div>
+            <div className="text-center py-8 text-muted-foreground">{t("users.no.users.found")}</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Team</TableHead>
-                  <TableHead>Workload</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("users.name")}</TableHead>
+                  <TableHead>{t("users.email")}</TableHead>
+                  <TableHead>{t("users.role")}</TableHead>
+                  <TableHead>{t("users.team")}</TableHead>
+                  <TableHead>{t("users.workload")}</TableHead>
+                  <TableHead>{t("users.status")}</TableHead>
+                  <TableHead>{t("users.last.login")}</TableHead>
+                  <TableHead>{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -359,15 +361,15 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell>
                       {user.isActive ? (
-                        <Badge variant="default" data-testid={`badge-user-active-${user.id}`}>Active</Badge>
+                        <Badge variant="default" data-testid={`badge-user-active-${user.id}`}>{t("users.active")}</Badge>
                       ) : (
-                        <Badge variant="secondary" data-testid={`badge-user-inactive-${user.id}`}>Inactive</Badge>
+                        <Badge variant="secondary" data-testid={`badge-user-inactive-${user.id}`}>{t("users.inactive")}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm" data-testid={`text-user-lastlogin-${user.id}`}>
                       {user.lastLogin
                         ? formatDistanceToNow(new Date(user.lastLogin), { addSuffix: true })
-                        : 'Never'}
+                        : t("users.never")}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -422,9 +424,9 @@ export default function UserManagement() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent data-testid="dialog-create-user">
           <DialogHeader>
-            <DialogTitle>Create New User</DialogTitle>
+            <DialogTitle>{t("users.create.new.user")}</DialogTitle>
             <DialogDescription>
-              Add a new CRM staff member with assigned role and team
+              {t("users.create.description")}
             </DialogDescription>
           </DialogHeader>
           <Form {...createForm}>
@@ -435,7 +437,7 @@ export default function UserManagement() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t("users.first.name")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-firstname" />
                       </FormControl>
@@ -448,7 +450,7 @@ export default function UserManagement() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t("users.last.name")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-lastname" />
                       </FormControl>
@@ -463,7 +465,7 @@ export default function UserManagement() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("users.email")}</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} data-testid="input-email" />
                     </FormControl>
@@ -477,7 +479,7 @@ export default function UserManagement() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("users.password")}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} data-testid="input-password" />
                     </FormControl>
@@ -491,11 +493,11 @@ export default function UserManagement() {
                 name="roleId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
+                    <FormLabel>{t("users.role")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-role">
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue placeholder={t("users.select.role")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -516,15 +518,15 @@ export default function UserManagement() {
                 name="teamId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Team (Optional)</FormLabel>
+                    <FormLabel>{t("users.team.optional")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger data-testid="select-team">
-                          <SelectValue placeholder="Select a team" />
+                          <SelectValue placeholder={t("users.select.team")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">No Team</SelectItem>
+                        <SelectItem value="none">{t("users.no.team")}</SelectItem>
                         {teams.map((team) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
@@ -544,14 +546,14 @@ export default function UserManagement() {
                   onClick={() => setCreateDialogOpen(false)}
                   data-testid="button-cancel"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={createMutation.isPending}
                   data-testid="button-submit"
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Create User'}
+                  {createMutation.isPending ? t("users.creating") : t("users.create.user")}
                 </Button>
               </DialogFooter>
             </form>
@@ -563,9 +565,9 @@ export default function UserManagement() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent data-testid="dialog-edit-user">
           <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
+            <DialogTitle>{t("users.edit.user")}</DialogTitle>
             <DialogDescription>
-              Update user information, role, and team assignment
+              {t("users.edit.description")}
             </DialogDescription>
           </DialogHeader>
           <Form {...editForm}>
@@ -576,7 +578,7 @@ export default function UserManagement() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t("users.first.name")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-edit-firstname" />
                       </FormControl>
@@ -589,7 +591,7 @@ export default function UserManagement() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t("users.last.name")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-edit-lastname" />
                       </FormControl>
@@ -604,7 +606,7 @@ export default function UserManagement() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("users.email")}</FormLabel>
                     <FormControl>
                       <Input type="email" {...field} data-testid="input-edit-email" />
                     </FormControl>
@@ -618,11 +620,11 @@ export default function UserManagement() {
                 name="roleId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
+                    <FormLabel>{t("users.role")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-role">
-                          <SelectValue placeholder="Select a role" />
+                          <SelectValue placeholder={t("users.select.role")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -643,15 +645,15 @@ export default function UserManagement() {
                 name="teamId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Team (Optional)</FormLabel>
+                    <FormLabel>{t("users.team.optional")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value || undefined}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-team">
-                          <SelectValue placeholder="Select a team" />
+                          <SelectValue placeholder={t("users.select.team")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">No Team</SelectItem>
+                        <SelectItem value="none">{t("users.no.team")}</SelectItem>
                         {teams.map((team) => (
                           <SelectItem key={team.id} value={team.id}>
                             {team.name}
@@ -671,14 +673,14 @@ export default function UserManagement() {
                   onClick={() => setEditDialogOpen(false)}
                   data-testid="button-cancel-edit"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={updateMutation.isPending}
                   data-testid="button-submit-edit"
                 >
-                  {updateMutation.isPending ? 'Updating...' : 'Update User'}
+                  {updateMutation.isPending ? t("users.updating") : t("common.update")}
                 </Button>
               </DialogFooter>
             </form>
@@ -686,13 +688,12 @@ export default function UserManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Reset Password Dialog */}
       <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
         <DialogContent data-testid="dialog-reset-password">
           <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
+            <DialogTitle>{t("users.reset.password.title")}</DialogTitle>
             <DialogDescription>
-              Set a new password for {selectedUser?.firstName} {selectedUser?.lastName}
+              {t("users.reset.password.description")}
             </DialogDescription>
           </DialogHeader>
           <Form {...resetPasswordForm}>
@@ -702,7 +703,7 @@ export default function UserManagement() {
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password</FormLabel>
+                    <FormLabel>{t("users.new.password")}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} data-testid="input-new-password" />
                     </FormControl>
@@ -716,7 +717,7 @@ export default function UserManagement() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>{t("users.confirm.password")}</FormLabel>
                     <FormControl>
                       <Input type="password" {...field} data-testid="input-confirm-password" />
                     </FormControl>
@@ -732,14 +733,14 @@ export default function UserManagement() {
                   onClick={() => setResetPasswordDialogOpen(false)}
                   data-testid="button-cancel-reset"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={resetPasswordMutation.isPending}
                   data-testid="button-submit-reset"
                 >
-                  {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+                  {resetPasswordMutation.isPending ? t("users.resetting") : t("users.reset.password")}
                 </Button>
               </DialogFooter>
             </form>
@@ -747,13 +748,12 @@ export default function UserManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Adjust Workload Dialog */}
       <Dialog open={adjustWorkloadDialogOpen} onOpenChange={setAdjustWorkloadDialogOpen}>
         <DialogContent data-testid="dialog-adjust-workload">
           <DialogHeader>
-            <DialogTitle>Adjust Workload</DialogTitle>
+            <DialogTitle>{t("users.adjust.workload.title")}</DialogTitle>
             <DialogDescription>
-              Update workload settings for {selectedUser?.firstName} {selectedUser?.lastName}
+              {t("users.adjust.workload.description")}
             </DialogDescription>
           </DialogHeader>
           <Form {...adjustWorkloadForm}>
@@ -763,7 +763,7 @@ export default function UserManagement() {
                 name="currentWorkload"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Current Workload</FormLabel>
+                    <FormLabel>{t("users.current.workload")}</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} data-testid="input-current-workload" />
                     </FormControl>
@@ -777,7 +777,7 @@ export default function UserManagement() {
                 name="maxWorkload"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Max Workload</FormLabel>
+                    <FormLabel>{t("users.maximum.workload")}</FormLabel>
                     <FormControl>
                       <Input type="number" {...field} data-testid="input-max-workload" />
                     </FormControl>
@@ -793,14 +793,14 @@ export default function UserManagement() {
                   onClick={() => setAdjustWorkloadDialogOpen(false)}
                   data-testid="button-cancel-workload"
                 >
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   type="submit"
                   disabled={adjustWorkloadMutation.isPending}
                   data-testid="button-submit-workload"
                 >
-                  {adjustWorkloadMutation.isPending ? 'Adjusting...' : 'Adjust Workload'}
+                  {adjustWorkloadMutation.isPending ? t("users.adjusting") : t("users.adjust.workload")}
                 </Button>
               </DialogFooter>
             </form>

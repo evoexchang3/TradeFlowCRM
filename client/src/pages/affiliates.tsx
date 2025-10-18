@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -70,6 +71,7 @@ function AffiliateForm({
   onSubmit: (data: AffiliateFormData) => void;
   isPending: boolean;
 }) {
+  const { t } = useLanguage();
   const { register, handleSubmit, formState: { errors } } = useForm<AffiliateFormData>({
     resolver: zodResolver(affiliateFormSchema),
     defaultValues: defaultValues || {
@@ -82,11 +84,11 @@ function AffiliateForm({
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="code">Affiliate Code</Label>
+          <Label htmlFor="code">{t('affiliates.affiliate.code')}</Label>
           <Input
             id="code"
             {...register("code")}
-            placeholder="e.g., AFF001"
+            placeholder={t('affiliates.placeholder.code')}
             data-testid="input-affiliate-code"
           />
           {errors.code && (
@@ -95,11 +97,11 @@ function AffiliateForm({
         </div>
 
         <div>
-          <Label htmlFor="name">Name</Label>
+          <Label htmlFor="name">{t('common.name')}</Label>
           <Input
             id="name"
             {...register("name")}
-            placeholder="Affiliate name"
+            placeholder={t('affiliates.placeholder.name')}
             data-testid="input-affiliate-name"
           />
           {errors.name && (
@@ -110,12 +112,12 @@ function AffiliateForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">{t('common.email')}</Label>
           <Input
             id="email"
             type="email"
             {...register("email")}
-            placeholder="affiliate@example.com"
+            placeholder={t('affiliates.placeholder.email')}
             data-testid="input-affiliate-email"
           />
           {errors.email && (
@@ -124,13 +126,13 @@ function AffiliateForm({
         </div>
 
         <div>
-          <Label htmlFor="commissionRate">Commission Rate (%)</Label>
+          <Label htmlFor="commissionRate">{t('affiliates.commission.rate.percent')}</Label>
           <Input
             id="commissionRate"
             type="number"
             step="0.01"
             {...register("commissionRate")}
-            placeholder="10.00"
+            placeholder={t('affiliates.placeholder.commission')}
             data-testid="input-commission-rate"
           />
           {errors.commissionRate && (
@@ -141,38 +143,39 @@ function AffiliateForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="paymentMethod">Payment Method</Label>
+          <Label htmlFor="paymentMethod">{t('affiliates.payment.method')}</Label>
           <Input
             id="paymentMethod"
             {...register("paymentMethod")}
-            placeholder="Bank transfer, PayPal, etc."
+            placeholder={t('affiliates.placeholder.payment')}
             data-testid="input-payment-method"
           />
         </div>
 
         <div>
-          <Label htmlFor="status">Status</Label>
+          <Label htmlFor="status">{t('common.status')}</Label>
           <select
             id="status"
             {...register("status")}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             data-testid="select-affiliate-status"
           >
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-            <option value="inactive">Inactive</option>
+            <option value="active">{t('common.active')}</option>
+            <option value="suspended">{t('common.suspended')}</option>
+            <option value="inactive">{t('common.inactive')}</option>
           </select>
         </div>
       </div>
 
       <Button type="submit" disabled={isPending} data-testid="button-submit-affiliate">
-        {isPending ? "Saving..." : "Save Affiliate"}
+        {isPending ? t('common.saving') : t('affiliates.save.affiliate')}
       </Button>
     </form>
   );
 }
 
 export default function Affiliates() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editAffiliate, setEditAffiliate] = useState<Affiliate | null>(null);
@@ -189,7 +192,7 @@ export default function Affiliates() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliates"] });
       setIsCreateOpen(false);
-      toast({ title: "Affiliate created successfully" });
+      toast({ title: t('affiliates.toast.created') });
     },
   });
 
@@ -200,7 +203,7 @@ export default function Affiliates() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliates"] });
       setEditAffiliate(null);
-      toast({ title: "Affiliate updated successfully" });
+      toast({ title: t('affiliates.toast.updated') });
     },
   });
 
@@ -211,7 +214,7 @@ export default function Affiliates() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/affiliates"] });
       setDeleteAffiliate(null);
-      toast({ title: "Affiliate deleted successfully" });
+      toast({ title: t('affiliates.toast.deleted') });
     },
   });
 
@@ -219,27 +222,27 @@ export default function Affiliates() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Affiliate Management</h1>
+          <h1 className="text-3xl font-bold" data-testid="text-page-title">{t('affiliates.title')}</h1>
           <p className="text-muted-foreground">
-            Manage affiliate partners and track referrals
+            {t('affiliates.subtitle.detailed')}
           </p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} data-testid="button-create-affiliate">
           <Plus className="h-4 w-4 mr-2" />
-          Add Affiliate
+          {t('affiliates.add.new')}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('affiliates.total.affiliates')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-affiliates">{affiliates.length}</div>
             <p className="text-xs text-muted-foreground">
-              {affiliates.filter(a => a.status === 'active').length} active
+              {t('affiliates.active.count', { count: affiliates.filter(a => a.status === 'active').length })}
             </p>
           </CardContent>
         </Card>
@@ -247,26 +250,26 @@ export default function Affiliates() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Affiliates</CardTitle>
+          <CardTitle>{t('nav.affiliates')}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading affiliates...</div>
+            <div className="text-center py-8 text-muted-foreground">{t('affiliates.loading')}</div>
           ) : affiliates.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No affiliates yet. Create your first affiliate to get started.
+              {t('affiliates.no.affiliates')}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Commission Rate</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('affiliates.code')}</TableHead>
+                  <TableHead>{t('common.name')}</TableHead>
+                  <TableHead>{t('common.email')}</TableHead>
+                  <TableHead className="text-right">{t('affiliates.commission.rate')}</TableHead>
+                  <TableHead>{t('affiliates.payment.method')}</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -284,7 +287,8 @@ export default function Affiliates() {
                           affiliate.status === 'suspended' ? 'destructive' : 'secondary'
                         }
                       >
-                        {affiliate.status}
+                        {affiliate.status === 'active' ? t('common.active') :
+                         affiliate.status === 'suspended' ? t('common.suspended') : t('common.inactive')}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -318,8 +322,8 @@ export default function Affiliates() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent data-testid="dialog-create-affiliate">
           <DialogHeader>
-            <DialogTitle>Create Affiliate</DialogTitle>
-            <DialogDescription>Add a new affiliate partner</DialogDescription>
+            <DialogTitle>{t('affiliates.create.affiliate')}</DialogTitle>
+            <DialogDescription>{t('affiliates.create.description')}</DialogDescription>
           </DialogHeader>
           <AffiliateForm
             onSubmit={(data) => createMutation.mutate(data)}
@@ -331,8 +335,8 @@ export default function Affiliates() {
       <Dialog open={!!editAffiliate} onOpenChange={(open) => !open && setEditAffiliate(null)}>
         <DialogContent data-testid="dialog-edit-affiliate">
           <DialogHeader>
-            <DialogTitle>Edit Affiliate</DialogTitle>
-            <DialogDescription>Update affiliate details</DialogDescription>
+            <DialogTitle>{t('affiliates.edit.affiliate')}</DialogTitle>
+            <DialogDescription>{t('affiliates.edit.description')}</DialogDescription>
           </DialogHeader>
           {editAffiliate && (
             <AffiliateForm
@@ -354,18 +358,18 @@ export default function Affiliates() {
       <AlertDialog open={!!deleteAffiliate} onOpenChange={(open) => !open && setDeleteAffiliate(null)}>
         <AlertDialogContent data-testid="dialog-delete-confirm">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Affiliate</AlertDialogTitle>
+            <AlertDialogTitle>{t('affiliates.delete.affiliate')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{deleteAffiliate?.name}"? This action cannot be undone.
+              {t('affiliates.delete.confirm', { name: deleteAffiliate?.name || '' })} {t('common.cannot.undo')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="button-cancel-delete">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteAffiliate && deleteMutation.mutate(deleteAffiliate.id)}
               data-testid="button-confirm-delete"
             >
-              Delete
+              {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
