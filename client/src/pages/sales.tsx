@@ -51,14 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-interface CustomStatus {
-  id: string;
-  name: string;
-  color: string;
-  icon?: string;
-  category: string;
-}
+import type { Client, Team, User, CustomStatus } from "@shared/schema";
 
 export default function SalesClients() {
   const { t } = useLanguage();
@@ -95,15 +88,15 @@ export default function SalesClients() {
     },
   });
   
-  const { data: salesClients, isLoading } = useQuery({
+  const { data: salesClients, isLoading } = useQuery<Client[]>({
     queryKey: ['/api/clients/sales'],
   });
 
-  const { data: teams = [] } = useQuery({
+  const { data: teams = [] } = useQuery<Team[]>({
     queryKey: ['/api/teams'],
   });
 
-  const { data: agents = [] } = useQuery({
+  const { data: agents = [] } = useQuery<User[]>({
     queryKey: ['/api/users/agents'],
   });
 

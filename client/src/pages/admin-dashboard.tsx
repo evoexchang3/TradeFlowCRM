@@ -6,6 +6,18 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, TrendingUp, DollarSign, Activity, Shield, Settings } from "lucide-react";
 
+interface DashboardStats {
+  totalUsers: number;
+  totalClients: number;
+  totalVolume: number;
+  activePositions: number;
+  recentActivity?: Array<{
+    description: string;
+    timestamp: string;
+    type: string;
+  }>;
+}
+
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
@@ -17,7 +29,7 @@ export default function AdminDashboard() {
     }
   }, [isAuthenticated, setLocation]);
 
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<DashboardStats>({
     queryKey: ['/api/dashboard/stats'],
   });
 

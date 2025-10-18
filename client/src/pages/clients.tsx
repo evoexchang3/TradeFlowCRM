@@ -40,13 +40,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { Client, Team, User, CustomStatus, Role } from "@shared/schema";
 
-interface CustomStatus {
-  id: string;
-  name: string;
-  color: string;
-  icon?: string;
-  category: string;
+interface UserWithRole extends User {
+  role?: Role;
 }
 
 export default function Clients() {
@@ -64,19 +61,19 @@ export default function Clients() {
   const [commentText, setCommentText] = useState('');
   const { toast } = useToast();
   
-  const { data: currentUser } = useQuery({
+  const { data: currentUser } = useQuery<UserWithRole>({
     queryKey: ['/api/auth/me'],
   });
   
-  const { data: allClients, isLoading } = useQuery({
+  const { data: allClients, isLoading } = useQuery<Client[]>({
     queryKey: ['/api/clients'],
   });
 
-  const { data: teams = [] } = useQuery({
+  const { data: teams = [] } = useQuery<Team[]>({
     queryKey: ['/api/teams'],
   });
 
-  const { data: agents = [] } = useQuery({
+  const { data: agents = [] } = useQuery<User[]>({
     queryKey: ['/api/users/agents'],
   });
 
