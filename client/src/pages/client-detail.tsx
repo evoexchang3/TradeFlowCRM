@@ -786,13 +786,13 @@ export default function ClientDetail() {
                         }).then(() => {
                           queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
                           toast({
-                            title: "Follow-up date set",
-                            description: "Next follow-up date has been set.",
+                            title: t('client.detail.followup.date.set'),
+                            description: t('client.detail.followup.date.set.description'),
                           });
                         }).catch(() => {
                           toast({
-                            title: "Error",
-                            description: "Failed to update follow-up date.",
+                            title: t('common.error'),
+                            description: t('client.detail.followup.date.update.failed'),
                             variant: "destructive",
                           });
                         });
@@ -802,13 +802,13 @@ export default function ClientDetail() {
                         }).then(() => {
                           queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
                           toast({
-                            title: "Follow-up date cleared",
-                            description: "Next follow-up date has been cleared.",
+                            title: t('client.detail.followup.date.cleared'),
+                            description: t('client.detail.followup.date.cleared.description'),
                           });
                         }).catch(() => {
                           toast({
-                            title: "Error",
-                            description: "Failed to clear follow-up date.",
+                            title: t('common.error'),
+                            description: t('client.detail.followup.date.clear.failed'),
                             variant: "destructive",
                           });
                         });
@@ -828,13 +828,13 @@ export default function ClientDetail() {
                         }).then(() => {
                           queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
                           toast({
-                            title: "Follow-up date cleared",
-                            description: "Next follow-up date has been removed.",
+                            title: t('client.detail.followup.date.cleared'),
+                            description: t('client.detail.followup.date.removed.description'),
                           });
                         }).catch(() => {
                           toast({
-                            title: "Error",
-                            description: "Failed to clear follow-up date.",
+                            title: t('common.error'),
+                            description: t('client.detail.followup.date.clear.failed'),
                             variant: "destructive",
                           });
                         });
@@ -864,47 +864,47 @@ export default function ClientDetail() {
               <DialogTrigger asChild>
                 <Button size="sm" variant="outline" data-testid="button-adjust-balance" className="hover-elevate active-elevate-2">
                   <DollarSign className="h-4 w-4 mr-2" />
-                  Adjust Balance
+                  {t('client.detail.adjust.balance.button')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Adjust Account Balance</DialogTitle>
+                  <DialogTitle>{t('client.detail.adjust.balance.dialog.title')}</DialogTitle>
                   <DialogDescription>
-                    Adjust account balance by fund type. Positive amount for credit, negative for debit.
+                    {t('client.detail.adjust.balance.dialog.description')}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="adjust-amount">Amount</Label>
+                    <Label htmlFor="adjust-amount">{t('client.detail.amount')}</Label>
                     <Input
                       id="adjust-amount"
                       type="number"
                       step="0.01"
-                      placeholder="100.00 or -50.00"
+                      placeholder={t('client.detail.adjust.amount.placeholder')}
                       value={adjustAmount}
                       onChange={(e) => setAdjustAmount(e.target.value)}
                       data-testid="input-adjust-amount"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="fund-type">Fund Type</Label>
+                    <Label htmlFor="fund-type">{t('client.detail.fund.type')}</Label>
                     <Select value={adjustFundType} onValueChange={(value: 'real' | 'demo' | 'bonus') => setAdjustFundType(value)}>
                       <SelectTrigger id="fund-type" data-testid="select-fund-type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="real">Real</SelectItem>
-                        <SelectItem value="demo">Demo</SelectItem>
-                        <SelectItem value="bonus">Bonus</SelectItem>
+                        <SelectItem value="real">{t('client.detail.real')}</SelectItem>
+                        <SelectItem value="demo">{t('client.detail.demo')}</SelectItem>
+                        <SelectItem value="bonus">{t('client.detail.bonus')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="adjust-notes">Notes/Reason</Label>
+                    <Label htmlFor="adjust-notes">{t('client.detail.adjust.notes.label')}</Label>
                     <Textarea
                       id="adjust-notes"
-                      placeholder="Enter reason for balance adjustment..."
+                      placeholder={t('client.detail.adjust.notes.placeholder')}
                       value={adjustNotes}
                       onChange={(e) => setAdjustNotes(e.target.value)}
                       data-testid="textarea-adjust-notes"
@@ -916,8 +916,8 @@ export default function ClientDetail() {
                     onClick={() => {
                       if (!adjustAmount || parseFloat(adjustAmount) === 0) {
                         toast({
-                          title: "Invalid amount",
-                          description: "Please enter a valid amount.",
+                          title: t('client.toast.invalid.amount'),
+                          description: t('client.toast.invalid.amount.description'),
                           variant: "destructive",
                         });
                         return;
@@ -931,7 +931,7 @@ export default function ClientDetail() {
                     disabled={adjustBalanceMutation.isPending}
                     data-testid="button-save-adjustment"
                   >
-                    {adjustBalanceMutation.isPending ? "Saving..." : "Save"}
+                    {adjustBalanceMutation.isPending ? t('common.saving') : t('common.save')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -945,43 +945,43 @@ export default function ClientDetail() {
             }}>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Modify Position</DialogTitle>
+                  <DialogTitle>{t('client.detail.modify.position.dialog.title')}</DialogTitle>
                   <DialogDescription>
-                    Edit position details: {selectedPosition?.symbol} ({selectedPosition?.id})
+                    {t('client.detail.modify.position.dialog.description')}: {selectedPosition?.symbol} ({selectedPosition?.id})
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="modify-side">Type</Label>
+                    <Label htmlFor="modify-side">{t('client.detail.type')}</Label>
                     <Select value={modifySide} onValueChange={(value: 'buy' | 'sell') => setModifySide(value)}>
                       <SelectTrigger id="modify-side" data-testid="select-modify-side">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="buy">Buy</SelectItem>
-                        <SelectItem value="sell">Sell</SelectItem>
+                        <SelectItem value="buy">{t('client.detail.buy')}</SelectItem>
+                        <SelectItem value="sell">{t('client.detail.sell')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modify-quantity">Volume (Lot)</Label>
+                    <Label htmlFor="modify-quantity">{t('client.detail.volume')}</Label>
                     <Input
                       id="modify-quantity"
                       type="number"
                       step="0.01"
-                      placeholder="1.00"
+                      placeholder={t('client.detail.modify.position.placeholder.quantity')}
                       value={modifyQuantity}
                       onChange={(e) => setModifyQuantity(e.target.value)}
                       data-testid="input-modify-quantity"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modify-open-price">Open Price</Label>
+                    <Label htmlFor="modify-open-price">{t('client.detail.open.price')}</Label>
                     <Input
                       id="modify-open-price"
                       type="number"
                       step="0.00001"
-                      placeholder="1.16000"
+                      placeholder={t('client.detail.modify.position.placeholder.price')}
                       value={modifyOpenPrice}
                       onChange={(e) => setModifyOpenPrice(e.target.value)}
                       data-testid="input-modify-open-price"
@@ -989,12 +989,12 @@ export default function ClientDetail() {
                   </div>
                   {selectedPosition?.status === 'closed' && (
                     <div className="space-y-2">
-                      <Label htmlFor="modify-close-price">Close Price</Label>
+                      <Label htmlFor="modify-close-price">{t('client.detail.close.price')}</Label>
                       <Input
                         id="modify-close-price"
                         type="number"
                         step="0.00001"
-                        placeholder="1.16000"
+                        placeholder={t('client.detail.modify.position.placeholder.price')}
                         value={modifyClosePrice}
                         onChange={(e) => setModifyClosePrice(e.target.value)}
                         data-testid="input-modify-close-price"
@@ -1002,19 +1002,19 @@ export default function ClientDetail() {
                     </div>
                   )}
                   <div className="space-y-2">
-                    <Label htmlFor="modify-pnl">P/L ($)</Label>
+                    <Label htmlFor="modify-pnl">{t('client.detail.modify.position.pnl.label')}</Label>
                     <Input
                       id="modify-pnl"
                       type="number"
                       step="0.0001"
-                      placeholder="0.0000"
+                      placeholder={t('client.detail.modify.position.pnl.placeholder')}
                       value={modifyPnl}
                       onChange={(e) => setModifyPnl(e.target.value)}
                       data-testid="input-modify-pnl"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="modify-opened-at">Opened Date/Time</Label>
+                    <Label htmlFor="modify-opened-at">{t('client.detail.modify.position.opened.at')}</Label>
                     <Input
                       id="modify-opened-at"
                       type="datetime-local"
@@ -1025,7 +1025,7 @@ export default function ClientDetail() {
                   </div>
                   {selectedPosition?.status === 'closed' && (
                     <div className="space-y-2">
-                      <Label htmlFor="modify-closed-at">Closed Date/Time</Label>
+                      <Label htmlFor="modify-closed-at">{t('client.detail.modify.position.closed.at')}</Label>
                       <Input
                         id="modify-closed-at"
                         type="datetime-local"
@@ -1061,7 +1061,7 @@ export default function ClientDetail() {
                     disabled={modifyPositionMutation.isPending}
                     data-testid="button-save-position"
                   >
-                    {modifyPositionMutation.isPending ? "Saving..." : "Save Changes"}
+                    {modifyPositionMutation.isPending ? t('client.detail.modify.position.saving') : t('client.detail.modify.position.save.changes')}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -1069,38 +1069,38 @@ export default function ClientDetail() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Balance</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.balance')}</span>
               <span className="text-sm font-mono font-medium" data-testid="text-account-balance">
                 ${(client.account?.balance || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex flex-wrap gap-1 items-center" data-testid="fund-breakdown">
               <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                Real: ${(client.account?.realBalance || 0).toLocaleString()}
+                {t('client.detail.real.label')} ${(client.account?.realBalance || 0).toLocaleString()}
               </Badge>
               <span className="text-muted-foreground">|</span>
               <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
-                Demo: ${(client.account?.demoBalance || 0).toLocaleString()}
+                {t('client.detail.demo.label')} ${(client.account?.demoBalance || 0).toLocaleString()}
               </Badge>
               <span className="text-muted-foreground">|</span>
               <Badge variant="default" className="bg-yellow-600 hover:bg-yellow-700">
-                Bonus: ${(client.account?.bonusBalance || 0).toLocaleString()}
+                {t('client.detail.bonus.label')} ${(client.account?.bonusBalance || 0).toLocaleString()}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Equity</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.equity')}</span>
               <span className="text-sm font-mono font-medium">
                 ${(client.account?.equity || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Margin</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.margin')}</span>
               <span className="text-sm font-mono">
                 ${(client.account?.margin || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Leverage</span>
+              <span className="text-sm text-muted-foreground">{t('client.detail.leverage')}</span>
               <Select
                 value={client.account?.leverage?.toString() || '100'}
                 onValueChange={(value) => updateLeverageMutation.mutate(parseInt(value))}
@@ -1126,31 +1126,31 @@ export default function ClientDetail() {
 
       <Tabs defaultValue="positions" className="w-full">
         <TabsList>
-          <TabsTrigger value="positions" data-testid="tab-positions">Open Positions</TabsTrigger>
-          <TabsTrigger value="trade-history" data-testid="tab-trade-history">Trade History</TabsTrigger>
-          <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">Subaccounts</TabsTrigger>
-          <TabsTrigger value="transfers" data-testid="tab-transfers">Transfers</TabsTrigger>
-          <TabsTrigger value="comments" data-testid="tab-comments">Comments</TabsTrigger>
-          <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
+          <TabsTrigger value="positions" data-testid="tab-positions">{t('client.detail.tab.positions')}</TabsTrigger>
+          <TabsTrigger value="trade-history" data-testid="tab-trade-history">{t('client.detail.tab.trade.history')}</TabsTrigger>
+          <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">{t('client.detail.tab.subaccounts')}</TabsTrigger>
+          <TabsTrigger value="transfers" data-testid="tab-transfers">{t('client.detail.tab.transfers')}</TabsTrigger>
+          <TabsTrigger value="comments" data-testid="tab-comments">{t('client.detail.tab.comments')}</TabsTrigger>
+          <TabsTrigger value="documents" data-testid="tab-documents">{t('client.detail.tab.documents')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="positions" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Open Positions</CardTitle>
+              <CardTitle className="text-lg">{t('client.detail.tab.positions')}</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Symbol</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Volume</TableHead>
-                    <TableHead>Open Price</TableHead>
-                    <TableHead>Current Price</TableHead>
-                    <TableHead>P/L</TableHead>
-                    <TableHead>Opened</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('client.detail.symbol')}</TableHead>
+                    <TableHead>{t('client.detail.type')}</TableHead>
+                    <TableHead>{t('client.detail.volume')}</TableHead>
+                    <TableHead>{t('client.detail.open.price')}</TableHead>
+                    <TableHead>{t('client.detail.current.price')}</TableHead>
+                    <TableHead>{t('client.detail.pnl')}</TableHead>
+                    <TableHead>{t('client.detail.opened')}</TableHead>
+                    <TableHead>{t('client.detail.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1160,7 +1160,7 @@ export default function ClientDetail() {
                         <TableCell className="font-medium">{position.symbol}</TableCell>
                         <TableCell>
                           <Badge variant={position.side === 'buy' ? 'default' : 'destructive'}>
-                            {position.side}
+                            {t(`client.detail.side.${position.side}`)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono">{position.quantity}</TableCell>
@@ -1216,7 +1216,7 @@ export default function ClientDetail() {
                               variant="destructive" 
                               size="sm"
                               onClick={() => {
-                                if (confirm(`Are you sure you want to delete position ${position.symbol}?`)) {
+                                if (confirm(t('client.detail.delete.position.confirm', { symbol: position.symbol }))) {
                                   deletePositionMutation.mutate(position.id);
                                 }
                               }}
@@ -1232,7 +1232,7 @@ export default function ClientDetail() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-8">
-                        <p className="text-sm text-muted-foreground">No open positions</p>
+                        <p className="text-sm text-muted-foreground">{t('client.detail.no.open.positions')}</p>
                       </TableCell>
                     </TableRow>
                   )}
@@ -1245,7 +1245,7 @@ export default function ClientDetail() {
         <TabsContent value="subaccounts" className="mt-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
-              <CardTitle className="text-lg">Subaccounts</CardTitle>
+              <CardTitle className="text-lg">{t('client.detail.tab.subaccounts')}</CardTitle>
               <div className="flex gap-2">
                 <Dialog open={transferDialogOpen} onOpenChange={(open) => {
                   setTransferDialogOpen(open);
@@ -1260,22 +1260,22 @@ export default function ClientDetail() {
                   <DialogTrigger asChild>
                     <Button size="sm" variant="outline" data-testid="button-internal-transfer" disabled={subaccounts.length < 2}>
                       <ArrowRightLeft className="h-4 w-4 mr-2" />
-                      Internal Transfer
+                      {t('client.detail.internal.transfer.button')}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Internal Transfer</DialogTitle>
+                      <DialogTitle>{t('client.detail.transfer.dialog.title')}</DialogTitle>
                       <DialogDescription>
-                        Transfer funds between subaccounts within this client's account.
+                        {t('client.detail.transfer.dialog.description')}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="from-subaccount">From Subaccount</Label>
+                        <Label htmlFor="from-subaccount">{t('client.detail.transfer.from.label')}</Label>
                         <Select value={transferFromSubaccountId} onValueChange={setTransferFromSubaccountId}>
                           <SelectTrigger id="from-subaccount" data-testid="select-from-subaccount">
-                            <SelectValue placeholder="Select source subaccount" />
+                            <SelectValue placeholder={t('client.detail.transfer.from.placeholder')} />
                           </SelectTrigger>
                           <SelectContent>
                             {subaccounts.map((sub: any) => (
@@ -1287,10 +1287,10 @@ export default function ClientDetail() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="to-subaccount">To Subaccount</Label>
+                        <Label htmlFor="to-subaccount">{t('client.detail.transfer.to.label')}</Label>
                         <Select value={transferToSubaccountId} onValueChange={setTransferToSubaccountId}>
                           <SelectTrigger id="to-subaccount" data-testid="select-to-subaccount">
-                            <SelectValue placeholder="Select destination subaccount" />
+                            <SelectValue placeholder={t('client.detail.transfer.to.placeholder')} />
                           </SelectTrigger>
                           <SelectContent>
                             {subaccounts.map((sub: any) => (
@@ -1302,23 +1302,23 @@ export default function ClientDetail() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="transfer-amount">Amount</Label>
+                        <Label htmlFor="transfer-amount">{t('client.detail.transfer.amount.label')}</Label>
                         <Input
                           id="transfer-amount"
                           type="number"
                           step="0.01"
                           min="0"
-                          placeholder="0.00"
+                          placeholder={t('client.detail.transfer.amount.placeholder')}
                           value={transferAmount}
                           onChange={(e) => setTransferAmount(e.target.value)}
                           data-testid="input-transfer-amount"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="transfer-notes">Notes (Optional)</Label>
+                        <Label htmlFor="transfer-notes">{t('client.detail.transfer.notes.label')}</Label>
                         <Textarea
                           id="transfer-notes"
-                          placeholder="Add any notes about this transfer..."
+                          placeholder={t('client.detail.transfer.notes.placeholder')}
                           value={transferNotes}
                           onChange={(e) => setTransferNotes(e.target.value)}
                           data-testid="textarea-transfer-notes"
@@ -1331,7 +1331,7 @@ export default function ClientDetail() {
                         onClick={() => setTransferDialogOpen(false)}
                         data-testid="button-cancel-transfer"
                       >
-                        Cancel
+                        {t('client.detail.cancel')}
                       </Button>
                       <Button
                         onClick={() => {
@@ -1345,8 +1345,8 @@ export default function ClientDetail() {
                             });
                           } else if (amount <= 0 || !Number.isFinite(amount)) {
                             toast({
-                              title: "Invalid amount",
-                              description: "Please enter a valid amount greater than zero.",
+                              title: t('client.toast.invalid.amount'),
+                              description: t('client.toast.invalid.amount.description'),
                               variant: "destructive",
                             });
                           }
@@ -1354,7 +1354,7 @@ export default function ClientDetail() {
                         disabled={!transferFromSubaccountId || !transferToSubaccountId || !transferAmount || Number(transferAmount) <= 0 || transferMutation.isPending}
                         data-testid="button-confirm-transfer"
                       >
-                        {transferMutation.isPending ? 'Processing...' : 'Transfer Funds'}
+                        {transferMutation.isPending ? t('client.detail.transfer.processing') : t('client.detail.transfer.button')}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -1363,29 +1363,29 @@ export default function ClientDetail() {
                   <DialogTrigger asChild>
                     <Button size="sm" data-testid="button-create-subaccount">
                       <Plus className="h-4 w-4 mr-2" />
-                      Create Subaccount
+                      {t('client.detail.create.subaccount.button')}
                     </Button>
                   </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Create New Subaccount</DialogTitle>
+                    <DialogTitle>{t('client.detail.subaccount.dialog.title')}</DialogTitle>
                     <DialogDescription>
-                      Create a new subaccount for managing separate balances and positions.
+                      {t('client.detail.subaccount.dialog.description')}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="subaccount-name">Subaccount Name</Label>
+                      <Label htmlFor="subaccount-name">{t('client.detail.subaccount.name.label')}</Label>
                       <Input
                         id="subaccount-name"
-                        placeholder="e.g., Trading Account A"
+                        placeholder={t('client.detail.subaccount.name.placeholder')}
                         value={newSubaccountName}
                         onChange={(e) => setNewSubaccountName(e.target.value)}
                         data-testid="input-subaccount-name"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="subaccount-currency">Currency</Label>
+                      <Label htmlFor="subaccount-currency">{t('client.detail.subaccount.currency.label')}</Label>
                       <Select value={newSubaccountCurrency} onValueChange={setNewSubaccountCurrency}>
                         <SelectTrigger id="subaccount-currency" data-testid="select-subaccount-currency">
                           <SelectValue />
@@ -1405,7 +1405,7 @@ export default function ClientDetail() {
                       onClick={() => setCreateSubaccountOpen(false)}
                       data-testid="button-cancel-subaccount"
                     >
-                      Cancel
+                      {t('client.detail.cancel')}
                     </Button>
                     <Button
                       onClick={() => {
@@ -1420,7 +1420,7 @@ export default function ClientDetail() {
                       disabled={!newSubaccountName.trim() || createSubaccountMutation.isPending}
                       data-testid="button-confirm-create-subaccount"
                     >
-                      Create Subaccount
+                      {t('client.detail.create.subaccount.button')}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -1431,13 +1431,13 @@ export default function ClientDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Currency</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead>Equity</TableHead>
-                    <TableHead>Margin</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Default</TableHead>
+                    <TableHead>{t('client.detail.name')}</TableHead>
+                    <TableHead>{t('client.detail.currency')}</TableHead>
+                    <TableHead>{t('client.detail.balance')}</TableHead>
+                    <TableHead>{t('client.detail.equity')}</TableHead>
+                    <TableHead>{t('client.detail.margin')}</TableHead>
+                    <TableHead>{t('client.detail.status')}</TableHead>
+                    <TableHead>{t('client.detail.default')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1459,7 +1459,7 @@ export default function ClientDetail() {
                         </TableCell>
                         <TableCell>
                           <Badge variant={subaccount.isActive ? 'default' : 'secondary'}>
-                            {subaccount.isActive ? 'Active' : 'Inactive'}
+                            {subaccount.isActive ? t('client.detail.active') : t('client.detail.inactive')}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -1472,9 +1472,9 @@ export default function ClientDetail() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8">
-                        <p className="text-sm text-muted-foreground">No subaccounts yet</p>
+                        <p className="text-sm text-muted-foreground">{t('client.detail.no.subaccounts.yet')}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Create a subaccount to manage separate balances and positions
+                          {t('client.detail.create.subaccount.helper')}
                         </p>
                       </TableCell>
                     </TableRow>
@@ -1488,21 +1488,21 @@ export default function ClientDetail() {
         <TabsContent value="trade-history" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Trade History (Closed Positions)</CardTitle>
+              <CardTitle className="text-lg">{t('client.detail.tab.trade.history.full')}</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Symbol</TableHead>
-                    <TableHead>Side</TableHead>
-                    <TableHead>Volume</TableHead>
-                    <TableHead>Open Price</TableHead>
-                    <TableHead>Close Price</TableHead>
-                    <TableHead>P/L</TableHead>
-                    <TableHead>Opened</TableHead>
-                    <TableHead>Closed</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('client.detail.symbol')}</TableHead>
+                    <TableHead>{t('client.detail.side')}</TableHead>
+                    <TableHead>{t('client.detail.volume')}</TableHead>
+                    <TableHead>{t('client.detail.open.price')}</TableHead>
+                    <TableHead>{t('client.detail.close.price')}</TableHead>
+                    <TableHead>{t('client.detail.pnl')}</TableHead>
+                    <TableHead>{t('client.detail.opened')}</TableHead>
+                    <TableHead>{t('client.detail.closed')}</TableHead>
+                    <TableHead>{t('client.detail.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1512,7 +1512,7 @@ export default function ClientDetail() {
                         <TableCell className="font-medium">{position.symbol}</TableCell>
                         <TableCell>
                           <Badge variant={position.side === 'buy' ? 'default' : 'destructive'}>
-                            {position.side}
+                            {t(`client.detail.side.${position.side}`)}
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono">{position.quantity}</TableCell>
@@ -1573,19 +1573,19 @@ export default function ClientDetail() {
                               variant="outline" 
                               size="sm"
                               onClick={async () => {
-                                if (confirm('Are you sure you want to delete this trade? This action cannot be undone.')) {
+                                if (confirm(t('client.detail.delete.trade.confirm'))) {
                                   try {
                                     await apiRequest('DELETE', `/api/positions/${position.id}`);
                                     toast({
-                                      title: "Success",
-                                      description: "Trade deleted successfully",
+                                      title: t('common.success'),
+                                      description: t('client.detail.delete.trade.success'),
                                     });
                                     queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'closed-positions'] });
                                     queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
                                   } catch (error) {
                                     toast({
-                                      title: "Error",
-                                      description: "Failed to delete trade",
+                                      title: t('common.error'),
+                                      description: t('client.detail.delete.trade.failed'),
                                       variant: "destructive",
                                     });
                                   }
@@ -1602,7 +1602,7 @@ export default function ClientDetail() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-8">
-                        <p className="text-sm text-muted-foreground">No closed trades</p>
+                        <p className="text-sm text-muted-foreground">{t('client.detail.no.closed.trades')}</p>
                       </TableCell>
                     </TableRow>
                   )}
@@ -1616,7 +1616,7 @@ export default function ClientDetail() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between gap-4">
-                <CardTitle className="text-lg">Internal Transfer History</CardTitle>
+                <CardTitle className="text-lg">{t('client.detail.internal.transfer.history')}</CardTitle>
                 <Button
                   size="sm"
                   variant="outline"
@@ -1646,18 +1646,18 @@ export default function ClientDetail() {
                 }}
                 data-testid="button-export-transfers"
               >
-                Export to CSV
+                {t('client.detail.export.csv')}
               </Button>
               </div>
               <div className="flex gap-4 mt-4">
                 <div className="flex-1">
-                  <Label htmlFor="filter-subaccount" className="text-sm">Filter by Subaccount</Label>
+                  <Label htmlFor="filter-subaccount" className="text-sm">{t('client.detail.filter.by.subaccount')}</Label>
                   <Select value={filterSubaccount} onValueChange={setFilterSubaccount}>
                     <SelectTrigger id="filter-subaccount" data-testid="select-filter-subaccount">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Subaccounts</SelectItem>
+                      <SelectItem value="all">{t('client.detail.all.subaccounts')}</SelectItem>
                       {subaccounts.map((sub: any) => (
                         <SelectItem key={sub.id} value={sub.id}>
                           {sub.name} ({sub.currency})
@@ -1667,7 +1667,7 @@ export default function ClientDetail() {
                   </Select>
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="filter-date-from" className="text-sm">From Date</Label>
+                  <Label htmlFor="filter-date-from" className="text-sm">{t('client.detail.filter.date.from')}</Label>
                   <Input
                     id="filter-date-from"
                     type="date"
@@ -1677,7 +1677,7 @@ export default function ClientDetail() {
                   />
                 </div>
                 <div className="flex-1">
-                  <Label htmlFor="filter-date-to" className="text-sm">To Date</Label>
+                  <Label htmlFor="filter-date-to" className="text-sm">{t('client.detail.filter.date.to')}</Label>
                   <Input
                     id="filter-date-to"
                     type="date"
@@ -1692,12 +1692,12 @@ export default function ClientDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>From</TableHead>
-                    <TableHead>To</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
+                    <TableHead>{t('client.detail.date')}</TableHead>
+                    <TableHead>{t('client.detail.from')}</TableHead>
+                    <TableHead>{t('client.detail.to')}</TableHead>
+                    <TableHead>{t('client.detail.amount')}</TableHead>
+                    <TableHead>{t('client.detail.status')}</TableHead>
+                    <TableHead>{t('client.detail.notes')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1711,11 +1711,11 @@ export default function ClientDetail() {
                             {new Date(transfer.createdAt).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-sm">
-                            <div className="font-medium">{fromSub?.name || 'Unknown'}</div>
+                            <div className="font-medium">{fromSub?.name || t('client.detail.unknown')}</div>
                             <div className="text-xs text-muted-foreground">{fromSub?.currency}</div>
                           </TableCell>
                           <TableCell className="text-sm">
-                            <div className="font-medium">{toSub?.name || 'Unknown'}</div>
+                            <div className="font-medium">{toSub?.name || t('client.detail.unknown')}</div>
                             <div className="text-xs text-muted-foreground">{toSub?.currency}</div>
                           </TableCell>
                           <TableCell className="font-mono font-medium" data-testid="text-transfer-amount">
@@ -1730,7 +1730,7 @@ export default function ClientDetail() {
                               }
                               data-testid="badge-transfer-status"
                             >
-                              {transfer.status}
+                              {t(`client.detail.${transfer.status}`)}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground max-w-xs truncate" data-testid="text-transfer-notes">
@@ -1742,9 +1742,9 @@ export default function ClientDetail() {
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8">
-                        <p className="text-sm text-muted-foreground">No internal transfers</p>
+                        <p className="text-sm text-muted-foreground">{t('client.detail.no.internal.transfers')}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Transfers between subaccounts will appear here
+                          {t('client.detail.transfers.helper')}
                         </p>
                       </TableCell>
                     </TableRow>
@@ -1758,12 +1758,12 @@ export default function ClientDetail() {
         <TabsContent value="comments" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Client Comments</CardTitle>
+              <CardTitle className="text-lg">{t('client.detail.client.comments')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <Textarea
-                  placeholder="Add a comment..."
+                  placeholder={t('client.detail.comment.placeholder')}
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   rows={3}
@@ -1776,7 +1776,7 @@ export default function ClientDetail() {
                     data-testid="button-add-comment"
                   >
                     <Send className="h-4 w-4 mr-2" />
-                    Add Comment
+                    {t('client.detail.quick.comment.button')}
                   </Button>
                 </div>
               </div>
@@ -1794,7 +1794,7 @@ export default function ClientDetail() {
                           </div>
                           <div>
                             <p className="text-sm font-medium" data-testid="text-comment-user">
-                              {comment.user?.name || 'Unknown User'}
+                              {comment.user?.name || t('client.detail.unknown.user')}
                             </p>
                             <p className="text-xs text-muted-foreground" data-testid="text-comment-timestamp">
                               {new Date(comment.createdAt).toLocaleString()}
@@ -1832,7 +1832,7 @@ export default function ClientDetail() {
                                 disabled={updateCommentMutation.isPending}
                                 data-testid="button-save-comment"
                               >
-                                Save
+                                {t('client.detail.save')}
                               </Button>
                               <Button
                                 variant="ghost"
@@ -1843,7 +1843,7 @@ export default function ClientDetail() {
                                 }}
                                 data-testid="button-cancel-edit"
                               >
-                                Cancel
+                                {t('client.detail.cancel')}
                               </Button>
                             </>
                           ) : (
@@ -1881,14 +1881,14 @@ export default function ClientDetail() {
                         {comment.updatedAt !== comment.createdAt && (
                           <>
                             <span>•</span>
-                            <span className="italic">edited</span>
+                            <span className="italic">{t('client.detail.edited')}</span>
                           </>
                         )}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">No comments yet</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">{t('client.detail.no.comments')}</p>
                 )}
               </div>
             </CardContent>
@@ -1898,7 +1898,7 @@ export default function ClientDetail() {
         <TabsContent value="documents" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">KYC Documents</CardTitle>
+              <CardTitle className="text-lg">{t('client.detail.kyc.documents')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -1907,13 +1907,13 @@ export default function ClientDetail() {
                     <div key={index} className="flex items-center justify-between p-3 border rounded-md hover-elevate">
                       <div className="flex items-center gap-3">
                         <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{doc.name || `Document ${index + 1}`}</span>
+                        <span className="text-sm">{doc.name || t('client.detail.document.default', { number: index + 1 })}</span>
                       </div>
-                      <Button variant="ghost" size="sm">View</Button>
+                      <Button variant="ghost" size="sm">{t('common.view')}</Button>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No documents uploaded</p>
+                  <p className="text-sm text-muted-foreground">{t('client.detail.no.documents')}</p>
                 )}
               </div>
             </CardContent>
@@ -1925,20 +1925,20 @@ export default function ClientDetail() {
       <Dialog open={clientTransferDialogOpen} onOpenChange={setClientTransferDialogOpen}>
         <DialogContent data-testid="dialog-transfer-client">
           <DialogHeader>
-            <DialogTitle>Transfer Client</DialogTitle>
+            <DialogTitle>{t('client.detail.transfer.client.dialog.title')}</DialogTitle>
             <DialogDescription>
-              Transfer this client to a different agent or team. The client's status will automatically change to "Reassigned".
+              {t('client.detail.transfer.client.dialog.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="transfer-agent">New Agent</Label>
+              <Label htmlFor="transfer-agent">{t('client.detail.transfer.client.new.agent')}</Label>
               <Select
                 value={transferNewAgentId}
                 onValueChange={setTransferNewAgentId}
               >
                 <SelectTrigger id="transfer-agent" data-testid="select-transfer-agent">
-                  <SelectValue placeholder="Select new agent (optional)" />
+                  <SelectValue placeholder={t('client.detail.transfer.client.new.agent.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {agents.map((agent: any) => (
@@ -1957,7 +1957,7 @@ export default function ClientDetail() {
                 onValueChange={setTransferNewTeamId}
               >
                 <SelectTrigger id="transfer-team" data-testid="select-transfer-team">
-                  <SelectValue placeholder="Select new team (optional)" />
+                  <SelectValue placeholder={t('client.detail.transfer.client.new.team.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {teams.map((team: any) => (
@@ -1970,17 +1970,17 @@ export default function ClientDetail() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="transfer-reason">Transfer Reason *</Label>
+              <Label htmlFor="transfer-reason">{t('client.detail.transfer.client.reason')}</Label>
               <Textarea
                 id="transfer-reason"
-                placeholder="Explain why this client is being transferred..."
+                placeholder={t('client.detail.transfer.client.reason.placeholder')}
                 value={clientTransferReason}
                 onChange={(e) => setClientTransferReason(e.target.value)}
                 rows={4}
                 data-testid="textarea-transfer-reason"
               />
               <p className="text-xs text-muted-foreground">
-                This reason will be logged in the audit trail and added as a comment.
+                {t('client.detail.transfer.client.reason.note')}
               </p>
             </div>
           </div>
@@ -1996,7 +1996,7 @@ export default function ClientDetail() {
               data-testid="button-cancel-transfer"
               className="hover-elevate active-elevate-2"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={handleClientTransfer}
@@ -2004,7 +2004,7 @@ export default function ClientDetail() {
               data-testid="button-confirm-transfer"
               className="hover-elevate active-elevate-2"
             >
-              {clientTransferMutation.isPending ? "Transferring..." : "Transfer Client"}
+              {clientTransferMutation.isPending ? t('client.detail.transfer.client.transferring') : t('client.detail.transfer.client.button')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2014,17 +2014,17 @@ export default function ClientDetail() {
       <Dialog open={quickCommentDialogOpen} onOpenChange={setQuickCommentDialogOpen}>
         <DialogContent data-testid="dialog-quick-comment">
           <DialogHeader>
-            <DialogTitle>Add Quick Comment</DialogTitle>
+            <DialogTitle>{t('client.detail.quick.comment.dialog.title')}</DialogTitle>
             <DialogDescription>
-              Add a quick note or comment about this client.
+              {t('client.detail.quick.comment.dialog.description')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="quick-comment">Comment *</Label>
+              <Label htmlFor="quick-comment">{t('client.detail.quick.comment.label')}</Label>
               <Textarea
                 id="quick-comment"
-                placeholder="Enter your comment..."
+                placeholder={t('client.detail.quick.comment.placeholder')}
                 value={quickComment}
                 onChange={(e) => setQuickComment(e.target.value)}
                 rows={4}
@@ -2042,14 +2042,14 @@ export default function ClientDetail() {
               data-testid="button-cancel-quick-comment"
               className="hover-elevate active-elevate-2"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               onClick={() => {
                 if (!quickComment.trim()) {
                   toast({
-                    title: "Error",
-                    description: "Please enter a comment.",
+                    title: t('common.error'),
+                    description: t('client.toast.comment.required'),
                     variant: "destructive",
                   });
                   return;
@@ -2060,7 +2060,7 @@ export default function ClientDetail() {
               data-testid="button-submit-quick-comment"
               className="hover-elevate active-elevate-2"
             >
-              {addCommentMutation.isPending ? "Adding..." : "Add Comment"}
+              {addCommentMutation.isPending ? t('client.detail.quick.comment.adding') : t('client.detail.quick.comment.button')}
             </Button>
           </DialogFooter>
         </DialogContent>
