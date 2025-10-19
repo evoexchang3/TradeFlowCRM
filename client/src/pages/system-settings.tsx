@@ -36,10 +36,7 @@ export default function SystemSettings() {
   // Update timezone mutation
   const updateTimezoneMutation = useMutation({
     mutationFn: async (timezone: string) => {
-      return await apiRequest("/api/system-settings/timezone", {
-        method: "PATCH",
-        body: JSON.stringify({ value: timezone }),
-      });
+      return await apiRequest("PATCH", `/api/system-settings/timezone`, { value: timezone });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/system-settings/timezone"] });
