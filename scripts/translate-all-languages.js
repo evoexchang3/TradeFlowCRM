@@ -3,7 +3,7 @@
 /**
  * Complete Multi-Language Translation Automation
  * Uses DeepL Pro API with financial trading glossary
- * Translates all 16 languages for Trading Platform CRM
+ * Translates all 30 languages for Trading Platform CRM
  */
 
 import fs from 'fs';
@@ -31,6 +31,20 @@ const DEEPL_LANG_CODES = {
   'nl': 'NL',  // Dutch
   'hi': 'HI',  // Hindi
   'sv': 'SV',  // Swedish
+  'bg': 'BG',  // Bulgarian
+  'cs': 'CS',  // Czech
+  'da': 'DA',  // Danish
+  'et': 'ET',  // Estonian
+  'fi': 'FI',  // Finnish
+  'el': 'EL',  // Greek
+  'hu': 'HU',  // Hungarian
+  'id': 'ID',  // Indonesian
+  'lv': 'LV',  // Latvian
+  'lt': 'LT',  // Lithuanian
+  'nb': 'NB',  // Norwegian (Bokmål)
+  'ro': 'RO',  // Romanian
+  'sk': 'SK',  // Slovak
+  'sl': 'SL',  // Slovenian
 };
 
 // Initialize DeepL translator
@@ -205,7 +219,7 @@ async function main() {
   console.log(`   • Master keys: ${Object.keys(masterEntries).length}`);
   console.log(`   • Languages processed: ${languagesToProcess.length}`);
   console.log(`   • Total translations: ${Object.keys(masterEntries).length * languagesToProcess.length}`);
-  console.log('\n🎉 All 16 languages are now fully synchronized!');
+  console.log('\n🎉 All 30 languages are now fully synchronized!');
 }
 
 // Run the script
