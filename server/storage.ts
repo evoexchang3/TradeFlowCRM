@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -21,6 +21,7 @@ import {
   type Candle,
   type TradingRobot, type InsertTradingRobot,
   type RobotClientAssignment, type InsertRobotClientAssignment,
+  type SystemSetting, type InsertSystemSetting,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -128,6 +129,11 @@ export interface IStorage {
   assignRobotToAccounts(robotId: string, accountIds: string[]): Promise<RobotClientAssignment[]>;
   unassignRobotFromAccount(robotId: string, accountId: string): Promise<void>;
   toggleRobotAssignment(assignmentId: string, isActive: boolean): Promise<RobotClientAssignment>;
+  
+  // System Settings
+  getSystemSetting(key: string): Promise<SystemSetting | undefined>;
+  getAllSystemSettings(): Promise<SystemSetting[]>;
+  updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -621,6 +627,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(robotClientAssignments.id, assignmentId))
       .returning();
     return assignment;
+  }
+
+  // System Settings
+  async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    return setting || undefined;
+  }
+
+  async getAllSystemSettings(): Promise<SystemSetting[]> {
+    return await db.select().from(systemSettings).orderBy(systemSettings.key);
+  }
+
+  async updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting> {
+    // Upsert: insert if not exists, update if exists
+    const [setting] = await db.insert(systemSettings)
+      .values({ key, value, updatedBy, updatedAt: new Date() })
+      .onConflictDoUpdate({
+        target: systemSettings.key,
+        set: { value, updatedBy, updatedAt: new Date() }
+      })
+      .returning();
+    return setting;
   }
 }
 

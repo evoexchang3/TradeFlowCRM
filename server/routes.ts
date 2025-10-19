@@ -7678,6 +7678,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =======================
+  // System Settings Routes
+  // =======================
+
+  // Get all system settings (Administrator only)
+  app.get("/api/system-settings", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+      const settings = await storage.getAllSystemSettings();
+      res.json(settings);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get specific system setting by key (Administrator only)
+  app.get("/api/system-settings/:key", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+      const setting = await storage.getSystemSetting(req.params.key);
+      if (!setting) {
+        return res.status(404).json({ error: 'Setting not found' });
+      }
+      res.json(setting);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update system setting (Administrator only)
+  app.patch("/api/system-settings/:key", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { value } = req.body;
+      if (!value || typeof value !== 'string') {
+        return res.status(400).json({ error: 'Value is required and must be a string' });
+      }
+
+      const setting = await storage.updateSystemSetting(
+        req.params.key,
+        value,
+        req.user?.id
+      );
+
+      res.json(setting);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ====================
   // Trading Robot Routes
   // ====================

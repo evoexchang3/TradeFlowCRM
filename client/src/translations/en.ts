@@ -122,6 +122,7 @@ export default {
   'nav.payment.providers': 'Payment Providers',
   'nav.trading.robots': 'Trading Robots',
   'nav.robot.assignments': 'Robot Assignments',
+  'nav.system.settings': 'System Settings',
   'nav.main.menu': 'Main Menu',
   'nav.management': 'Management',
   'nav.configuration': 'Configuration',

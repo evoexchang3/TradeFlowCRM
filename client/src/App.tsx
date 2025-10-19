@@ -65,6 +65,7 @@ import Leaderboard from "@/pages/leaderboard";
 import AuditReports from "@/pages/audit-reports";
 import Robots from "@/pages/robots";
 import RobotAssignments from "@/pages/robot-assignments";
+import SystemSettings from "@/pages/system-settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -357,6 +358,13 @@ function Router() {
       <Route path="/configuration/robots/:id/assignments">
         <RouteGuard allowedRoles={['Administrator']}>
           <RobotAssignments />
+        </RouteGuard>
+      </Route>
+
+      {/* System Settings - Admin only */}
+      <Route path="/configuration/system-settings">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <SystemSettings />
         </RouteGuard>
       </Route>
 

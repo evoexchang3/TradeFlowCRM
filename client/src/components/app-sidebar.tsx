@@ -293,6 +293,12 @@ const configurationItems: MenuItem[] = [
     icon: CreditCard,
     roles: ['administrator'],
   },
+  {
+    titleKey: "nav.system.settings",
+    url: "/configuration/system-settings",
+    icon: Settings,
+    roles: ['administrator'],
+  },
 ];
 
 export function AppSidebar() {

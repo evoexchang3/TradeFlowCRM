@@ -1,6 +1,7 @@
 import { storage } from '../storage';
 import { robotTradeGenerator } from './robot-trade-generator';
 import type { TradingRobot } from '@shared/schema';
+import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
 
 export class RobotExecutor {
   private executionTimeouts: Map<string, NodeJS.Timeout> = new Map();
@@ -15,7 +16,7 @@ export class RobotExecutor {
     const activeRobots = robots.filter(r => r.status === 'active');
 
     for (const robot of activeRobots) {
-      this.scheduleRobot(robot);
+      await this.scheduleRobot(robot);
     }
 
     console.log(`[ROBOT EXECUTOR] Initialized ${activeRobots.length} active robots`);
@@ -24,13 +25,13 @@ export class RobotExecutor {
   /**
    * Schedule a single robot to run at its configured execution time
    */
-  scheduleRobot(robot: TradingRobot): void {
+  async scheduleRobot(robot: TradingRobot): Promise<void> {
     // Clear existing schedule if any
     if (this.executionTimeouts.has(robot.id)) {
       clearTimeout(this.executionTimeouts.get(robot.id)!);
     }
 
-    const nextRunTime = this.getNextRunTime(robot.executionTime || '05:00');
+    const nextRunTime = await this.getNextRunTime(robot.executionTime || '05:00');
     const msUntilRun = nextRunTime.getTime() - Date.now();
 
     console.log(`[ROBOT EXECUTOR] Scheduling robot ${robot.name} to run at ${nextRunTime.toLocaleString()}`);
@@ -38,14 +39,10 @@ export class RobotExecutor {
     const timeout = setTimeout(async () => {
       await this.executeRobot(robot.id);
       
-      // Reschedule for tomorrow (24 hours from now)
-      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const tomorrowRun = this.getNextRunTime(robot.executionTime || '05:00');
-      
-      // Re-fetch robot to check if still active
+      // Reschedule for next execution
       const updatedRobot = await storage.getRobot(robot.id);
       if (updatedRobot && updatedRobot.status === 'active') {
-        this.scheduleRobot(updatedRobot);
+        await this.scheduleRobot(updatedRobot);
       }
     }, msUntilRun);
 
@@ -54,21 +51,45 @@ export class RobotExecutor {
 
   /**
    * Calculate next run time based on configured execution time
-   * Returns next occurrence of the time (today or tomorrow)
+   * Returns next occurrence of the time (today or tomorrow) in the platform's configured timezone
    */
-  private getNextRunTime(executionTime: string): Date {
+  private async getNextRunTime(executionTime: string): Promise<Date> {
+    // Get platform timezone from system settings (default to UTC)
+    const timezoneSetting = await storage.getSystemSetting('timezone');
+    const timezone = timezoneSetting?.value || 'UTC';
+
     const [hours, minutes] = executionTime.split(':').map(Number);
     
-    const now = new Date();
-    const nextRun = new Date();
-    nextRun.setHours(hours, minutes, 0, 0);
+    // Get current time in the configured timezone
+    const nowUtc = new Date();
+    const nowInTimezone = utcToZonedTime(nowUtc, timezone);
+    
+    // Construct datetime string in the configured timezone (YYYY-MM-DD HH:MM:SS format)
+    const year = nowInTimezone.getFullYear();
+    const month = String(nowInTimezone.getMonth() + 1).padStart(2, '0');
+    const day = String(nowInTimezone.getDate()).padStart(2, '0');
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(minutes).padStart(2, '0');
+    
+    // Create datetime string for today at execution time in configured timezone
+    let dateTimeStr = `${year}-${month}-${day} ${hoursStr}:${minutesStr}:00`;
+    let nextRunUtc = zonedTimeToUtc(dateTimeStr, timezone);
 
-    // If time has already passed today, schedule for tomorrow
-    if (nextRun.getTime() <= now.getTime()) {
-      nextRun.setDate(nextRun.getDate() + 1);
+    // If time has already passed, schedule for tomorrow
+    if (nextRunUtc.getTime() <= nowUtc.getTime()) {
+      const tomorrow = nowInTimezone.getDate() + 1;
+      const tomorrowDate = new Date(nowInTimezone);
+      tomorrowDate.setDate(tomorrow);
+      
+      const tomorrowYear = tomorrowDate.getFullYear();
+      const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
+      const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
+      
+      dateTimeStr = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay} ${hoursStr}:${minutesStr}:00`;
+      nextRunUtc = zonedTimeToUtc(dateTimeStr, timezone);
     }
 
-    return nextRun;
+    return nextRunUtc;
   }
 
   /**

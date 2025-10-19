@@ -336,6 +336,17 @@ export const robotClientAssignments = pgTable("robot_client_assignments", {
   robotAccountIdx: uniqueIndex("robot_account_unique_idx").on(table.robotId, table.accountId),
 }));
 
+// System Settings (Global Configuration)
+export const systemSettings = pgTable("system_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(), // e.g., 'timezone', 'business_hours', 'maintenance_mode'
+  value: text("value").notNull(), // e.g., 'America/New_York', '09:00-17:00', 'false'
+  description: text("description"), // Human-readable description of the setting
+  updatedBy: varchar("updated_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Audit Logs
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -860,6 +871,12 @@ export const insertRobotClientAssignmentSchema = createInsertSchema(robotClientA
   updatedAt: true,
 });
 
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -909,6 +926,9 @@ export type InsertTradingRobot = z.infer<typeof insertTradingRobotSchema>;
 
 export type RobotClientAssignment = typeof robotClientAssignments.$inferSelect;
 export type InsertRobotClientAssignment = z.infer<typeof insertRobotClientAssignmentSchema>;
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
 
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
   id: true,
