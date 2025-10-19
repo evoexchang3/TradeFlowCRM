@@ -270,14 +270,14 @@ export default function Hierarchy() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('hierarchy.parent.team.optional')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-parent">
                             <SelectValue placeholder={t('hierarchy.select.parent')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">{t('common.none')}</SelectItem>
+                          <SelectItem value="none">{t('common.none')}</SelectItem>
                           {allTeams.map((team) => (
                             <SelectItem key={team.id} value={team.id}>
                               {team.name} ({team.level})
@@ -296,14 +296,14 @@ export default function Hierarchy() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('hierarchy.team.leader.optional')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                         <FormControl>
                           <SelectTrigger data-testid="select-leader">
                             <SelectValue placeholder={t('hierarchy.select.leader')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">{t('common.none')}</SelectItem>
+                          <SelectItem value="none">{t('common.none')}</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.firstName} {user.lastName}

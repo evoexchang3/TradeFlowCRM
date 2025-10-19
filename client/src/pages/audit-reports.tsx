@@ -87,7 +87,7 @@ const TARGET_TYPES = [
 
 export default function AuditReports() {
   const { t } = useLanguage();
-  const [userId, setUserId] = useState("");
+  const [userId, setUserId] = useState("all");
   const [actionType, setActionType] = useState("all");
   const [targetType, setTargetType] = useState("all");
   const [startDate, setStartDate] = useState("");
@@ -97,7 +97,7 @@ export default function AuditReports() {
   const limit = 50;
 
   const queryParams = {
-    ...(userId && { userId }),
+    ...(userId !== 'all' && { userId }),
     ...(actionType !== 'all' && { actionType }),
     ...(targetType !== 'all' && { targetType }),
     ...(startDate && { startDate }),
@@ -182,7 +182,7 @@ export default function AuditReports() {
                   <SelectValue placeholder={t('auditReports.allUsers')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('auditReports.allUsers')}</SelectItem>
+                  <SelectItem value="all">{t('auditReports.allUsers')}</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name} ({user.email})

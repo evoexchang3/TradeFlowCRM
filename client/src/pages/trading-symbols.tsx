@@ -491,14 +491,14 @@ function SymbolForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('symbols.form.symbol.group')}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ""}>
+                <Select onValueChange={(val) => field.onChange(val === "none" ? null : val)} value={field.value || "none"}>
                   <FormControl>
                     <SelectTrigger data-testid="select-group">
                       <SelectValue placeholder={t('symbols.form.placeholder.select.group')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">{t('common.none')}</SelectItem>
+                    <SelectItem value="none">{t('common.none')}</SelectItem>
                     {groups.map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name}
