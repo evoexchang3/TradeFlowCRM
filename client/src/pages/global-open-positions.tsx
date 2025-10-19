@@ -326,11 +326,9 @@ export default function GlobalOpenPositions() {
                   return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
                       <TableCell>
-                        <Link href={`/clients/${position.clientId}`}>
-                          <a className="hover:underline" data-testid={`link-client-${position.id}`}>
-                            <div className="font-medium">{position.clientName}</div>
-                            <div className="text-sm text-muted-foreground">{position.accountNumber}</div>
-                          </a>
+                        <Link href={`/clients/${position.clientId}`} className="hover:underline" data-testid={`link-client-${position.id}`}>
+                          <div className="font-medium">{position.clientName}</div>
+                          <div className="text-sm text-muted-foreground">{position.accountNumber}</div>
                         </Link>
                       </TableCell>
                       <TableCell className="font-medium" data-testid={`text-symbol-${position.id}`}>

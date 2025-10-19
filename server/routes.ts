@@ -2595,7 +2595,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const client = account ? await storage.getClient(account.clientId) : null;
         return {
           ...position,
-          clientName: client?.name || 'Unknown',
+          clientId: client?.id || '',
+          clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown',
           clientEmail: client?.email || '',
           accountNumber: account?.accountNumber || '',
         };
@@ -2657,7 +2658,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const client = account ? await storage.getClient(account.clientId) : null;
         return {
           ...position,
-          clientName: client?.name || 'Unknown',
+          clientId: client?.id || '',
+          clientName: client ? `${client.firstName} ${client.lastName}` : 'Unknown',
           clientEmail: client?.email || '',
           accountNumber: account?.accountNumber || '',
         };
