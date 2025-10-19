@@ -3,6 +3,24 @@
 ## Overview
 This enterprise-grade CRM system for a trading platform manages clients, accounts, and trading operations. It features an in-house trading engine with real-time market data, comprehensive client management, role-based access control, and audit logging. Designed as a customizable template, it supports easy replication and export for various partners and brokers. The business vision is to provide a robust, scalable, and secure platform that streamlines trading operations and client relationship management for financial institutions.
 
+## Recent Changes
+
+### P/L Calculation Fix (October 19, 2025)
+Fixed critical P/L calculation errors affecting all trading positions. The system now correctly handles instrument-aware position sizing with lot-to-units conversion for forex instruments.
+
+**Changes Made:**
+- Added `getPositionUnits()` helper function in `server/config/instruments.ts` to convert forex lots to base units
+- Updated P/L formulas in `updatePositionPnL()`, `closePosition()`, and `modifyPosition()` to use correct position units
+- Forex positions: Quantity stored in "lots" is converted to base units (lots × lotSize = 100,000) before P/L calculation
+- Other instruments (crypto, indices, commodities): Quantity used as-is
+
+**Formula:**
+- Gross P/L = priceChange × positionUnits × contractMultiplier
+- For forex: positionUnits = lots × lotSize (e.g., 0.01 lots × 100,000 = 1,000 units)
+- For crypto/indices: positionUnits = quantity (no conversion)
+
+**Impact:** All P/L calculations now accurately reflect profits and losses across all instrument types.
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
