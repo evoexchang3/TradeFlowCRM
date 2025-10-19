@@ -100,7 +100,7 @@ async function fixSymbolFormats(dryRun: boolean = true) {
       } else {
         // For closed positions, recalculate with stored prices
         const openPrice = parseFloat(position.openPrice);
-        const closePrice = parseFloat((position.closePrice || position.currentPrice) || '0');
+        const closePrice = parseFloat(position.closePrice || position.currentPrice || '0');
         
         console.log(`  Close Price: $${closePrice.toFixed(5)}`);
         
