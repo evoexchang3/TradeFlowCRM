@@ -39,7 +39,7 @@ async function recalculatePnL(dryRun: boolean = true) {
     if (position.status === 'closed') {
       // Recalculate realized P/L for closed positions
       const openPrice = parseFloat(position.openPrice);
-      const closePrice = parseFloat(position.closePrice || position.currentPrice || '0');
+      const closePrice = parseFloat((position.closePrice || position.currentPrice) || '0');
       
       const priceChange = position.side === 'buy'
         ? closePrice - openPrice
@@ -146,7 +146,7 @@ async function recalculatePnL(dryRun: boolean = true) {
     }
 
     // Apply balance adjustments for closed positions
-    for (const [accountId, adjustment] of accountAdjustments.entries()) {
+    for (const [accountId, adjustment] of Array.from(accountAdjustments.entries())) {
       if (Math.abs(adjustment) > 0.01) {
         const account = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
         
@@ -168,7 +168,7 @@ async function recalculatePnL(dryRun: boolean = true) {
           // Create transaction record
           await db.insert(transactions).values({
             accountId,
-            type: adjustment >= 0 ? 'adjustment' : 'adjustment',
+            type: adjustment >= 0 ? 'profit' : 'loss',
             amount: Math.abs(adjustment).toFixed(8),
             fundType: 'real',
             status: 'completed',
