@@ -37,7 +37,8 @@ import {
   insertSmartAssignmentSettingSchema,
   users,
   savedFilters,
-  customStatuses
+  customStatuses,
+  insertTradingRobotSchema
 } from "@shared/schema";
 import { eq, or, and, isNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
 
@@ -7672,6 +7673,213 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate: now.toISOString(),
         leaderboard: leaderboardData,
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ====================
+  // Trading Robot Routes
+  // ====================
+  
+  // Get all robots (Administrator only)
+  app.get("/api/robots", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+      const robots = await storage.getAllTradingRobots();
+      res.json(robots);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get robot by ID (Administrator only)
+  app.get("/api/robots/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+      const robot = await storage.getTradingRobotById(req.params.id);
+      if (!robot) {
+        return res.status(404).json({ error: 'Robot not found' });
+      }
+      res.json(robot);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create robot (Administrator only)
+  app.post("/api/robots", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      // Validate request body
+      const validatedData = insertTradingRobotSchema.parse(req.body);
+      const robot = await storage.createTradingRobot(validatedData);
+      
+      if (req.user?.id) {
+        await storage.createAuditLog({
+          userId: req.user.id,
+          action: 'robot_create',
+          targetType: 'robot',
+          targetId: robot.id,
+          details: { name: robot.name },
+        });
+      }
+      
+      res.json(robot);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update robot (Administrator only)
+  app.put("/api/robots/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      // Validate request body
+      const validatedData = insertTradingRobotSchema.partial().parse(req.body);
+      const robot = await storage.updateTradingRobot(req.params.id, validatedData);
+      
+      if (req.user?.id) {
+        await storage.createAuditLog({
+          userId: req.user.id,
+          action: 'robot_edit',
+          targetType: 'robot',
+          targetId: robot.id,
+          details: { name: robot.name, changes: req.body },
+        });
+      }
+      
+      res.json(robot);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Invalid request data', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete robot (Administrator only)
+  app.delete("/api/robots/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      await storage.deleteTradingRobot(req.params.id);
+      
+      if (req.user?.id) {
+        await storage.createAuditLog({
+          userId: req.user.id,
+          action: 'robot_delete',
+          targetType: 'robot',
+          targetId: req.params.id,
+          details: {},
+        });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get robot client assignments (Administrator only)
+  app.get("/api/robots/:id/assignments", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+      const assignments = await storage.getRobotClientAssignments(req.params.id);
+      res.json(assignments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Assign robot to client (Administrator only)
+  app.post("/api/robots/:id/assignments", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { accountId, isActive } = req.body;
+      
+      // Validate inputs
+      if (!accountId) {
+        return res.status(400).json({ error: 'accountId is required' });
+      }
+
+      const assignment = await storage.upsertRobotClientAssignment({
+        robotId: req.params.id,
+        accountId,
+        isActive: isActive ?? true,
+      });
+      res.json(assignment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulk assign robot to multiple clients (Administrator only)
+  app.post("/api/robots/:id/assignments/bulk", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { accountIds, isActive } = req.body;
+
+      // Validate inputs
+      if (!Array.isArray(accountIds) || accountIds.length === 0) {
+        return res.status(400).json({ error: 'accountIds must be a non-empty array' });
+      }
+
+      // Filter out any empty/undefined account IDs
+      const validAccountIds = accountIds.filter(id => id && typeof id === 'string');
+      
+      if (validAccountIds.length === 0) {
+        return res.status(400).json({ error: 'No valid account IDs provided' });
+      }
+
+      const assignments = await Promise.all(
+        validAccountIds.map((accountId: string) =>
+          storage.upsertRobotClientAssignment({
+            robotId: req.params.id,
+            accountId,
+            isActive: isActive ?? true,
+          })
+        )
+      );
+      res.json(assignments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Execute robot manually (Administrator only)
+  app.post("/api/robots/:id/execute", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { robotExecutor } = await import("./services/robot-executor");
+      const result = await robotExecutor.executeRobot(req.params.id, req.user?.id);
+      res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -63,6 +63,8 @@ import UserManagement from "@/pages/user-management";
 import GlobalSearch from "@/pages/global-search";
 import Leaderboard from "@/pages/leaderboard";
 import AuditReports from "@/pages/audit-reports";
+import Robots from "@/pages/robots";
+import RobotAssignments from "@/pages/robot-assignments";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -343,6 +345,18 @@ function Router() {
       <Route path="/configuration/smart-assignment">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <SmartAssignmentSettings />
+        </RouteGuard>
+      </Route>
+
+      {/* Trading Robots - Admin only */}
+      <Route path="/configuration/robots">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <Robots />
+        </RouteGuard>
+      </Route>
+      <Route path="/configuration/robots/:id/assignments">
+        <RouteGuard allowedRoles={['Administrator']}>
+          <RobotAssignments />
         </RouteGuard>
       </Route>
 
