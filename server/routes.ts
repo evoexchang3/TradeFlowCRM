@@ -562,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastCommentsQuery = await db
           .select({
             clientId: clientComments.clientId,
-            text: clientComments.text,
+            text: clientComments.comment,
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
@@ -640,7 +640,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastCommentsQuery = await db
           .select({
             clientId: clientComments.clientId,
-            text: clientComments.text,
+            text: clientComments.comment,
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
@@ -718,7 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastCommentsQuery = await db
           .select({
             clientId: clientComments.clientId,
-            text: clientComments.text,
+            text: clientComments.comment,
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
@@ -1096,7 +1096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastCommentsQuery = await db
           .select({
             clientId: clientComments.clientId,
-            text: clientComments.text,
+            text: clientComments.comment,
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
