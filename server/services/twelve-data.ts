@@ -383,6 +383,122 @@ class TwelveDataService {
     return this.generateSimulatedCandles(symbol, count);
   }
 
+  /**
+   * Fetch historical 1-minute candles for a specific time window
+   * Used by trading robots to generate realistic historical trades
+   */
+  async getHistoricalCandlesForWindow(
+    symbol: string,
+    startTime: Date,
+    endTime: Date
+  ): Promise<Array<{
+    symbol: string;
+    interval: string;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+    volume: string;
+    timestamp: Date;
+  }>> {
+    const interval = '1min';
+    
+    // Calculate expected number of 1-minute candles
+    const durationMs = endTime.getTime() - startTime.getTime();
+    const expectedCount = Math.floor(durationMs / 60000); // 60000ms = 1 minute
+
+    // Try database cache first - look for candles in this specific time range
+    const cached = await storage.getCandles(symbol, interval, expectedCount * 2);
+    const filteredCache = cached
+      .filter(c => {
+        const ts = new Date(c.timestamp);
+        return ts >= startTime && ts <= endTime;
+      })
+      .map(c => ({
+        symbol: c.symbol,
+        interval: c.interval,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        volume: c.volume || '0',
+        timestamp: c.timestamp,
+      }));
+    
+    if (filteredCache.length >= expectedCount * 0.7) {
+      // If we have at least 70% of expected candles, use cache
+      return filteredCache;
+    }
+
+    // Fetch from API if available
+    if (TWELVE_DATA_API_KEY) {
+      try {
+        // TwelveData requires start_date and end_date in YYYY-MM-DD HH:mm:ss format
+        const startDateStr = startTime.toISOString().slice(0, 19).replace('T', ' ');
+        const endDateStr = endTime.toISOString().slice(0, 19).replace('T', ' ');
+        
+        const response = await fetch(
+          `${TWELVE_DATA_REST_URL}/time_series?symbol=${symbol}&interval=${interval}&start_date=${encodeURIComponent(startDateStr)}&end_date=${encodeURIComponent(endDateStr)}&apikey=${TWELVE_DATA_API_KEY}`
+        );
+        const data = await response.json();
+        
+        if (data.values && Array.isArray(data.values)) {
+          const candles = data.values.map((v: any) => ({
+            symbol,
+            interval,
+            open: v.open,
+            high: v.high,
+            low: v.low,
+            close: v.close,
+            volume: v.volume || '0',
+            timestamp: new Date(v.datetime),
+          }));
+          
+          // Cache in database for future use
+          await storage.saveCandles(candles);
+          return candles;
+        }
+      } catch (error) {
+        console.error('Error fetching historical candles:', error);
+      }
+    }
+
+    // Fallback to simulated candles for this time window
+    return this.generateSimulatedCandlesForWindow(symbol, startTime, endTime);
+  }
+
+  private generateSimulatedCandlesForWindow(symbol: string, startTime: Date, endTime: Date) {
+    const candles = [];
+    let price = this.getBasePrice(symbol);
+    const intervalMs = 60000; // 1 minute
+    
+    let currentTime = new Date(startTime);
+    
+    while (currentTime <= endTime) {
+      const volatility = price * 0.002; // 0.2% volatility per minute
+      const open = price;
+      const close = price + (Math.random() - 0.5) * volatility * 2;
+      const high = Math.max(open, close) + Math.random() * volatility * 0.5;
+      const low = Math.min(open, close) - Math.random() * volatility * 0.5;
+
+      candles.push({
+        symbol,
+        interval: '1min',
+        open: open.toString(),
+        high: high.toString(),
+        low: low.toString(),
+        close: close.toString(),
+        volume: (Math.random() * 10000).toString(),
+        timestamp: new Date(currentTime),
+      });
+
+      price = close; // Next candle starts from previous close
+      currentTime = new Date(currentTime.getTime() + intervalMs);
+    }
+
+    return candles;
+  }
+
   private generateSimulatedCandles(symbol: string, count: number) {
     const candles = [];
     let price = this.getBasePrice(symbol);

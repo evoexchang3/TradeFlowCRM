@@ -39,7 +39,8 @@ export const auditActionEnum = pgEnum('audit_action', [
   'calendar_event_create', 'calendar_event_edit', 'calendar_event_delete',
   'email_template_create', 'email_template_edit', 'email_template_delete', 'webhook_received',
   'workload_adjusted', 'routing_rule_create', 'routing_rule_edit', 'routing_rule_delete',
-  'smart_assignment_toggle', 'smart_assignment_config'
+  'smart_assignment_toggle', 'smart_assignment_config',
+  'robot_create', 'robot_edit', 'robot_delete', 'robot_executed', 'robot_execution_failed', 'robot_paused', 'robot_resumed'
 ]);
 export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
 export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
