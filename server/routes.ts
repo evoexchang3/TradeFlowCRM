@@ -7688,7 +7688,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
-      const robots = await storage.getAllTradingRobots();
+      const robots = await storage.getRobots();
       res.json(robots);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -7701,7 +7701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
-      const robot = await storage.getTradingRobotById(req.params.id);
+      const robot = await storage.getRobot(req.params.id);
       if (!robot) {
         return res.status(404).json({ error: 'Robot not found' });
       }
@@ -7802,7 +7802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
-      const assignments = await storage.getRobotClientAssignments(req.params.id);
+      const assignments = await storage.getRobotAssignments(req.params.id);
       res.json(assignments);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
