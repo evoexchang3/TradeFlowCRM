@@ -13,6 +13,7 @@ Fixed critical P/L calculation errors affecting all trading positions. The syste
 - Updated P/L formulas in `updatePositionPnL()`, `closePosition()`, and `modifyPosition()` to use correct position units
 - Forex positions: Quantity stored in "lots" is converted to base units (lots × lotSize = 100,000) before P/L calculation
 - Other instruments (crypto, indices, commodities): Quantity used as-is
+- One-time migration recalculated all existing positions (14 positions updated, $4.7M balance adjustment)
 
 **Formula:**
 - Gross P/L = priceChange × positionUnits × contractMultiplier
@@ -20,6 +21,27 @@ Fixed critical P/L calculation errors affecting all trading positions. The syste
 - For crypto/indices: positionUnits = quantity (no conversion)
 
 **Impact:** All P/L calculations now accurately reflect profits and losses across all instrument types.
+
+### Symbol Format & Contract Multiplier Fix (October 19, 2025)
+Fixed symbol format inconsistencies and incorrect contract multipliers that caused massive P/L errors.
+
+**Issues Found:**
+- 3 positions had symbol format `EURUSD` instead of `EUR/USD` (missing slash)
+- Contract multiplier incorrectly stored as `100000` instead of `1` (confused with lot size)
+- One position had garbage current price ($99.90 instead of ~$1.16) causing $493,729 P/L error
+
+**Changes Made:**
+- Corrected all symbol formats to use proper format with slashes (e.g., `EUR/USD`, `GBP/USD`)
+- Fixed contract multipliers: Forex = 1 (lot size of 100,000 is handled separately in position units calculation)
+- Integrated live price fetching from TwelveData API for all open positions
+- Recalculated P/L with correct values
+
+**Example Fix:**
+- Position: 0.05 lots EUR/USD
+- Before: Symbol=EURUSD, Multiplier=100000, Price=$99.90, P/L=$493,729.98
+- After: Symbol=EUR/USD, Multiplier=1, Price=$1.16139 (live), P/L=$9.19
+
+**Impact:** All positions now use correct symbol formats, proper contract multipliers, and live market data from TwelveData.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
