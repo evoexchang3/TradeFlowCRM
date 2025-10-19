@@ -306,20 +306,34 @@ export const candles = pgTable("candles", {
 export const tradingRobots = pgTable("trading_robots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  accountIds: text("account_ids").array().notNull(), // Array of account IDs this robot manages
   status: robotStatusEnum("status").notNull().default('active'),
-  dailyProfitMin: decimal("daily_profit_min", { precision: 18, scale: 2 }).notNull(), // Min daily profit target
-  dailyProfitMax: decimal("daily_profit_max", { precision: 18, scale: 2 }).notNull(), // Max daily profit target
+  profitRangeMin: decimal("profit_range_min", { precision: 18, scale: 2 }).notNull(), // Min profit per client (e.g., $20)
+  profitRangeMax: decimal("profit_range_max", { precision: 18, scale: 2 }).notNull(), // Max profit per client (e.g., $25)
   winRate: decimal("win_rate", { precision: 5, scale: 2 }).default('80'), // Target win rate percentage (default 80%)
-  maxTradesPerDay: integer("max_trades_per_day").default(10),
-  allowedSymbols: text("allowed_symbols").array(), // Specific symbols or null for all
+  minTradesPerDay: integer("min_trades_per_day").default(10), // Min number of trades to generate
+  maxTradesPerDay: integer("max_trades_per_day").default(20), // Max number of trades to generate
+  symbols: text("symbols").array().notNull(), // Crypto symbols to trade (e.g., ['BTC/USD', 'ETH/USD'])
+  executionTime: text("execution_time").notNull().default('05:00'), // Time to run daily (HH:MM format)
+  tradeWindowStart: text("trade_window_start").notNull().default('01:00'), // Historical window start (HH:MM)
+  tradeWindowEnd: text("trade_window_end").notNull().default('04:00'), // Historical window end (HH:MM)
+  minAccountBalance: decimal("min_account_balance", { precision: 18, scale: 2 }).default('100'), // Min balance required to run
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   lastRunAt: timestamp("last_run_at"),
-  todayProfit: decimal("today_profit", { precision: 18, scale: 2 }).default('0'),
-  todayTrades: integer("today_trades").default(0),
 });
+
+// Robot-Client Assignments (Junction table)
+export const robotClientAssignments = pgTable("robot_client_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  robotId: varchar("robot_id").notNull().references(() => tradingRobots.id),
+  accountId: varchar("account_id").notNull().references(() => accounts.id),
+  isActive: boolean("is_active").notNull().default(true), // Individual on/off per client
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  robotAccountIdx: uniqueIndex("robot_account_unique_idx").on(table.robotId, table.accountId),
+}));
 
 // Audit Logs
 export const auditLogs = pgTable("audit_logs", {
@@ -837,8 +851,12 @@ export const insertTradingRobotSchema = createInsertSchema(tradingRobots).omit({
   createdAt: true,
   updatedAt: true,
   lastRunAt: true,
-  todayProfit: true,
-  todayTrades: true,
+});
+
+export const insertRobotClientAssignmentSchema = createInsertSchema(robotClientAssignments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Types
@@ -887,6 +905,9 @@ export type InsertClientComment = z.infer<typeof insertClientCommentSchema>;
 
 export type TradingRobot = typeof tradingRobots.$inferSelect;
 export type InsertTradingRobot = z.infer<typeof insertTradingRobotSchema>;
+
+export type RobotClientAssignment = typeof robotClientAssignments.$inferSelect;
+export type InsertRobotClientAssignment = z.infer<typeof insertRobotClientAssignmentSchema>;
 
 export const insertApiKeySchema = createInsertSchema(apiKeys).omit({
   id: true,

@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -19,6 +19,8 @@ import {
   type InternalTransfer, type InsertInternalTransfer,
   type MarketData,
   type Candle,
+  type TradingRobot, type InsertTradingRobot,
+  type RobotClientAssignment, type InsertRobotClientAssignment,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -112,6 +114,20 @@ export interface IStorage {
   // Candles
   getCandles(symbol: string, interval: string, limit?: number): Promise<Candle[]>;
   saveCandles(candleData: Candle[]): Promise<void>;
+  
+  // Trading Robots
+  getRobots(): Promise<TradingRobot[]>;
+  getRobot(id: string): Promise<TradingRobot | undefined>;
+  createRobot(robot: InsertTradingRobot): Promise<TradingRobot>;
+  updateRobot(id: string, updates: Partial<InsertTradingRobot>): Promise<TradingRobot>;
+  deleteRobot(id: string): Promise<void>;
+  
+  // Robot Client Assignments
+  getRobotAssignments(robotId: string): Promise<RobotClientAssignment[]>;
+  getAccountRobotAssignments(accountId: string): Promise<RobotClientAssignment[]>;
+  assignRobotToAccounts(robotId: string, accountIds: string[]): Promise<RobotClientAssignment[]>;
+  unassignRobotFromAccount(robotId: string, accountId: string): Promise<void>;
+  toggleRobotAssignment(assignmentId: string, isActive: boolean): Promise<RobotClientAssignment>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -523,6 +539,88 @@ export class DatabaseStorage implements IStorage {
     if (candleData.length > 0) {
       await db.insert(candles).values(candleData).onConflictDoNothing();
     }
+  }
+
+  // Trading Robots
+  async getRobots(): Promise<TradingRobot[]> {
+    return await db.select().from(tradingRobots).orderBy(desc(tradingRobots.createdAt));
+  }
+
+  async getRobot(id: string): Promise<TradingRobot | undefined> {
+    const [robot] = await db.select().from(tradingRobots).where(eq(tradingRobots.id, id));
+    return robot || undefined;
+  }
+
+  async createRobot(insertRobot: InsertTradingRobot): Promise<TradingRobot> {
+    const [robot] = await db.insert(tradingRobots).values(insertRobot).returning();
+    return robot;
+  }
+
+  async updateRobot(id: string, updates: Partial<InsertTradingRobot>): Promise<TradingRobot> {
+    const [robot] = await db.update(tradingRobots)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tradingRobots.id, id))
+      .returning();
+    return robot;
+  }
+
+  async deleteRobot(id: string): Promise<void> {
+    await db.delete(tradingRobots).where(eq(tradingRobots.id, id));
+  }
+
+  // Robot Client Assignments
+  async getRobotAssignments(robotId: string): Promise<RobotClientAssignment[]> {
+    return await db.select()
+      .from(robotClientAssignments)
+      .where(eq(robotClientAssignments.robotId, robotId))
+      .orderBy(desc(robotClientAssignments.createdAt));
+  }
+
+  async getAccountRobotAssignments(accountId: string): Promise<RobotClientAssignment[]> {
+    return await db.select()
+      .from(robotClientAssignments)
+      .where(eq(robotClientAssignments.accountId, accountId))
+      .orderBy(desc(robotClientAssignments.createdAt));
+  }
+
+  async assignRobotToAccounts(robotId: string, accountIds: string[]): Promise<RobotClientAssignment[]> {
+    const assignments = accountIds.map(accountId => ({
+      robotId,
+      accountId,
+      isActive: true,
+    }));
+    
+    if (assignments.length === 0) {
+      return [];
+    }
+    
+    // Use onConflictDoUpdate to handle existing assignments
+    return await db.insert(robotClientAssignments)
+      .values(assignments)
+      .onConflictDoUpdate({
+        target: [robotClientAssignments.robotId, robotClientAssignments.accountId],
+        set: {
+          isActive: true,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+  }
+
+  async unassignRobotFromAccount(robotId: string, accountId: string): Promise<void> {
+    await db.delete(robotClientAssignments)
+      .where(and(
+        eq(robotClientAssignments.robotId, robotId),
+        eq(robotClientAssignments.accountId, accountId)
+      ));
+  }
+
+  async toggleRobotAssignment(assignmentId: string, isActive: boolean): Promise<RobotClientAssignment> {
+    const [assignment] = await db.update(robotClientAssignments)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(robotClientAssignments.id, assignmentId))
+      .returning();
+    return assignment;
   }
 }
 
