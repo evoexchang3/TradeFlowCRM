@@ -34,7 +34,8 @@ import {
   Activity,
   Search,
   Trophy,
-  FileText
+  FileText,
+  Bot
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
@@ -255,6 +256,18 @@ const configurationItems: MenuItem[] = [
     url: "/configuration/smart-assignment",
     icon: Settings2,
     roles: ['administrator', 'crm manager'],
+  },
+  {
+    titleKey: "nav.trading.robots",
+    url: "/configuration/robots",
+    icon: Bot,
+    roles: ['administrator'],
+  },
+  {
+    titleKey: "nav.robot.assignments",
+    url: "/configuration/robot-assignments",
+    icon: Bot,
+    roles: ['administrator'],
   },
   {
     titleKey: "nav.kyc.questions",

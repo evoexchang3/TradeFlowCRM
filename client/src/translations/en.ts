@@ -120,6 +120,8 @@ export default {
   'nav.security.settings': 'Security Settings',
   'nav.smtp.settings': 'SMTP Settings',
   'nav.payment.providers': 'Payment Providers',
+  'nav.trading.robots': 'Trading Robots',
+  'nav.robot.assignments': 'Robot Assignments',
   'nav.main.menu': 'Main Menu',
   'nav.management': 'Management',
   'nav.configuration': 'Configuration',
