@@ -49,6 +49,7 @@ export const fundTypeEnum = pgEnum('fund_type', ['real', 'demo', 'bonus']);
 export const departmentEnum = pgEnum('department', ['sales', 'retention', 'support']);
 export const targetPeriodEnum = pgEnum('target_period', ['daily', 'weekly', 'monthly', 'quarterly']);
 export const achievementTypeEnum = pgEnum('achievement_type', ['badge', 'streak', 'milestone', 'level']);
+export const robotExecutionStatusEnum = pgEnum('robot_execution_status', ['success', 'partial', 'failed']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -306,19 +307,40 @@ export const candles = pgTable("candles", {
 export const tradingRobots = pgTable("trading_robots", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  description: text("description"),
   accountIds: text("account_ids").array().notNull(), // Array of account IDs this robot manages
   status: robotStatusEnum("status").notNull().default('active'),
-  dailyProfitMin: decimal("daily_profit_min", { precision: 18, scale: 2 }).notNull(), // Min daily profit target
-  dailyProfitMax: decimal("daily_profit_max", { precision: 18, scale: 2 }).notNull(), // Max daily profit target
-  winRate: decimal("win_rate", { precision: 5, scale: 2 }).default('80'), // Target win rate percentage (default 80%)
-  maxTradesPerDay: integer("max_trades_per_day").default(10),
-  allowedSymbols: text("allowed_symbols").array(), // Specific symbols or null for all
+  symbols: text("symbols").array().notNull(), // Only crypto symbols: BTC/USD, ETH/USD, etc.
+  profitRate: decimal("profit_rate", { precision: 5, scale: 2 }).notNull().default('80'), // Win rate percentage (e.g., 80%)
+  profitMarginMin: decimal("profit_margin_min", { precision: 18, scale: 2 }).notNull(), // Min daily profit target (e.g., 20)
+  profitMarginMax: decimal("profit_margin_max", { precision: 18, scale: 2 }).notNull(), // Max daily profit target (e.g., 25)
+  minTradesPerDay: integer("min_trades_per_day").notNull().default(10),
+  maxTradesPerDay: integer("max_trades_per_day").notNull().default(20),
+  minLotSize: decimal("min_lot_size", { precision: 18, scale: 8 }).notNull().default('0.01'), // Minimum lot size per trade
+  maxLotSize: decimal("max_lot_size", { precision: 18, scale: 8 }).notNull().default('1.0'), // Maximum lot size per trade
+  tradeTimeStartHour: integer("trade_time_start_hour").notNull().default(1), // Start hour (0-23), e.g., 1 for 1am
+  tradeTimeEndHour: integer("trade_time_end_hour").notNull().default(4), // End hour (0-23), e.g., 4 for 4am
+  executionTimeHour: integer("execution_time_hour").notNull().default(5), // When to run the robot (0-23), e.g., 5 for 5am
+  fundType: fundTypeEnum("fund_type").notNull().default('demo'), // Which fund type to use for trades
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   lastRunAt: timestamp("last_run_at"),
-  todayProfit: decimal("today_profit", { precision: 18, scale: 2 }).default('0'),
-  todayTrades: integer("today_trades").default(0),
+});
+
+// Robot Execution Logs
+export const robotExecutionLogs = pgTable("robot_execution_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  robotId: varchar("robot_id").notNull().references(() => tradingRobots.id, { onDelete: 'cascade' }),
+  status: robotExecutionStatusEnum("status").notNull(),
+  tradesGenerated: integer("trades_generated").notNull().default(0),
+  totalProfit: decimal("total_profit", { precision: 18, scale: 2 }).notNull().default('0'),
+  actualProfitRate: decimal("actual_profit_rate", { precision: 5, scale: 2 }),
+  accountsProcessed: integer("accounts_processed").notNull().default(0),
+  errorMessage: text("error_message"),
+  executionDetails: jsonb("execution_details").default('{}'), // Detailed stats per account
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"),
 });
 
 // Audit Logs
