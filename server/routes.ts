@@ -7685,9 +7685,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all system settings (Administrator only)
   app.get("/api/system-settings", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
+
       const settings = await storage.getAllSystemSettings();
       res.json(settings);
     } catch (error: any) {
@@ -7698,9 +7704,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get specific system setting by key (Administrator only)
   app.get("/api/system-settings/:key", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
+
       const setting = await storage.getSystemSetting(req.params.key);
       if (!setting) {
         return res.status(404).json({ error: 'Setting not found' });
@@ -7714,7 +7726,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update system setting (Administrator only)
   app.patch("/api/system-settings/:key", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
@@ -7742,9 +7759,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all robots (Administrator only)
   app.get("/api/robots", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
+
       const robots = await storage.getRobots();
       res.json(robots);
     } catch (error: any) {
@@ -7755,9 +7778,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get robot by ID (Administrator only)
   app.get("/api/robots/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
+
       const robot = await storage.getRobot(req.params.id);
       if (!robot) {
         return res.status(404).json({ error: 'Robot not found' });
@@ -7771,7 +7800,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create robot (Administrator only)
   app.post("/api/robots", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
@@ -7801,7 +7835,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update robot (Administrator only)
   app.put("/api/robots/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
@@ -7831,7 +7870,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete robot (Administrator only)
   app.delete("/api/robots/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
@@ -7856,9 +7900,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get robot client assignments (Administrator only)
   app.get("/api/robots/:id/assignments", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
+
       const assignments = await storage.getRobotAssignments(req.params.id);
       res.json(assignments);
     } catch (error: any) {
@@ -7869,7 +7919,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Assign robot to client (Administrator only)
   app.post("/api/robots/:id/assignments", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
@@ -7894,7 +7949,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk assign robot to multiple clients (Administrator only)
   app.post("/api/robots/:id/assignments/bulk", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
@@ -7930,7 +7990,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Execute robot manually (Administrator only)
   app.post("/api/robots/:id/execute", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      if (req.user?.type !== 'user' || req.user?.roleName !== 'Administrator') {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
