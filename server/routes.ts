@@ -39,7 +39,7 @@ import {
   savedFilters,
   customStatuses
 } from "@shared/schema";
-import { eq, or, and, isNull, sql, desc, gte, lte } from "drizzle-orm";
+import { eq, or, and, isNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -566,7 +566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
-          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .where(inArray(clientComments.clientId, clientIds))
           .orderBy(desc(clientComments.createdAt));
 
         // Group comments by client ID and get the most recent one
@@ -644,7 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
-          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .where(inArray(clientComments.clientId, clientIds))
           .orderBy(desc(clientComments.createdAt));
 
         // Group comments by client ID and get the most recent one
@@ -722,7 +722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
-          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .where(inArray(clientComments.clientId, clientIds))
           .orderBy(desc(clientComments.createdAt));
 
         // Group comments by client ID and get the most recent one
@@ -1100,7 +1100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             createdAt: clientComments.createdAt,
           })
           .from(clientComments)
-          .where(sql`${clientComments.clientId} = ANY(${clientIds})`)
+          .where(inArray(clientComments.clientId, clientIds))
           .orderBy(desc(clientComments.createdAt));
 
         for (const comment of lastCommentsQuery) {
