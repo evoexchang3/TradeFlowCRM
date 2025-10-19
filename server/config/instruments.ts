@@ -246,3 +246,24 @@ export function quantityToLots(quantity: number, symbol: string): number {
   // If no lot size defined, quantity = lots
   return quantity;
 }
+
+/**
+ * Get effective position units for P/L calculation
+ * Converts lots to base units for forex, returns quantity as-is for other instruments
+ * 
+ * @param quantity - The stored quantity value (lots for forex, base units for others)
+ * @param symbol - The trading symbol
+ * @returns The effective position size in base units for P/L calculation
+ */
+export function getPositionUnits(quantity: string | number, symbol: string): number {
+  const config = getInstrumentConfig(symbol);
+  const quantityValue = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
+  
+  // For forex, convert lots to base units
+  if (config.kind === 'forex' && config.lotSize) {
+    return quantityValue * config.lotSize;
+  }
+  
+  // For all other instruments (crypto, indices, commodities), quantity is already in base units
+  return quantityValue;
+}

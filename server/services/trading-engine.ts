@@ -1,7 +1,7 @@
 import { storage } from '../storage';
 import { twelveDataService } from './twelve-data';
 import type { InsertOrder, InsertPosition, Order, Position } from '@shared/schema';
-import { getInstrumentConfig, roundToQtyStep, roundToTickSize } from '../config/instruments';
+import { getInstrumentConfig, roundToQtyStep, roundToTickSize, getPositionUnits } from '../config/instruments';
 
 interface PlaceOrderRequest {
   accountId: string;
@@ -237,12 +237,18 @@ class TradingEngine {
     const openPrice = parseFloat(position.openPrice);
     const quantity = parseFloat(position.quantity);
     const contractMultiplier = parseFloat(position.contractMultiplier || '1');
+    
+    // Convert quantity to effective position units (handles forex lot conversion)
+    const positionUnits = getPositionUnits(position.quantity, position.symbol);
+    
     const priceChange = position.side === 'buy' 
       ? currentPrice - openPrice
       : openPrice - currentPrice;
 
-    // Gross P/L with contract multiplier
-    const grossPnl = priceChange * quantity * contractMultiplier;
+    // Gross P/L with position units and contract multiplier
+    // For forex: priceChange × (lots × lotSize) × contractMultiplier
+    // For crypto/indices: priceChange × quantity × contractMultiplier
+    const grossPnl = priceChange * positionUnits * contractMultiplier;
     
     // Deduct fees (open fees are paid, close fees will be paid on close)
     const feesPaid = parseFloat(position.fees || '0');
@@ -252,6 +258,7 @@ class TradingEngine {
       currentPrice,
       openPrice,
       quantity,
+      positionUnits,
       contractMultiplier,
       priceChange,
       grossPnl,
@@ -279,17 +286,23 @@ class TradingEngine {
     const closingQuantity = quantity ? parseFloat(quantity) : parseFloat(position.quantity);
     const openPrice = parseFloat(position.openPrice);
     const contractMultiplier = parseFloat(position.contractMultiplier || '1');
+    
+    // Convert closing quantity to effective position units (handles forex lot conversion)
+    const closingUnits = getPositionUnits(closingQuantity, position.symbol);
+    
     const priceChange = position.side === 'buy'
       ? closePrice - openPrice
       : openPrice - closePrice;
 
-    // Calculate gross realized P/L with contract multiplier
-    const grossRealizedPnl = priceChange * closingQuantity * contractMultiplier;
+    // Calculate gross realized P/L with position units and contract multiplier
+    // For forex: priceChange × (lots × lotSize) × contractMultiplier
+    // For crypto/indices: priceChange × quantity × contractMultiplier
+    const grossRealizedPnl = priceChange * closingUnits * contractMultiplier;
     
     // Calculate fees: open fees were already paid, now add estimated close fees
     const openFees = parseFloat(position.fees || '0');
     const closeFeeRate = 0.0005; // 0.05% close fee (configurable per instrument later)
-    const positionValue = closingQuantity * closePrice * contractMultiplier;
+    const positionValue = closingUnits * closePrice * contractMultiplier;
     const closeFees = positionValue * closeFeeRate;
     const totalFees = openFees + closeFees;
     
@@ -422,21 +435,26 @@ class TradingEngine {
         const quantity = parseFloat(updates.quantity || position.quantity);
         const side = updates.side || position.side;
         
+        // Convert quantity to effective position units (handles forex lot conversion)
+        const positionUnits = getPositionUnits(quantity, position.symbol);
+        
         // Calculate price change based on side
         const priceChange = side === 'buy' 
           ? closePrice - openPrice
           : openPrice - closePrice;
         
-        // Calculate gross P/L with contract multiplier
-        const grossPnl = priceChange * quantity * contractMultiplier;
+        // Calculate gross P/L with position units and contract multiplier
+        // For forex: priceChange × (lots × lotSize) × contractMultiplier
+        // For crypto/indices: priceChange × quantity × contractMultiplier
+        const grossPnl = priceChange * positionUnits * contractMultiplier;
         
         // Calculate fees from first principles to avoid compounding on repeated edits
         // Open fees: calculated based on opening the position
-        const openPositionValue = quantity * openPrice * contractMultiplier;
+        const openPositionValue = positionUnits * openPrice * contractMultiplier;
         const openFees = openPositionValue * closeFeeRate; // 0.05% of open position value
         
         // Close fees: calculated based on closing the position
-        const closePositionValue = quantity * closePrice * contractMultiplier;
+        const closePositionValue = positionUnits * closePrice * contractMultiplier;
         const closeFees = closePositionValue * closeFeeRate; // 0.05% of close position value
         
         const totalFees = openFees + closeFees;
@@ -575,14 +593,19 @@ class TradingEngine {
         const quantity = parseFloat(updates.quantity || position.quantity);
         const side = updates.side || position.side;
         
+        // Convert quantity to effective position units (handles forex lot conversion)
+        const positionUnits = getPositionUnits(quantity, position.symbol);
+        
         // Use the updated side value to select correct price (bid for buy, ask for sell)
         const currentPrice = side === 'buy' ? (quote.bid || quote.price) : (quote.ask || quote.price);
         const priceChange = side === 'buy' 
           ? currentPrice - openPrice
           : openPrice - currentPrice;
         
-        // Calculate gross P/L with contract multiplier
-        const grossPnl = priceChange * quantity * contractMultiplier;
+        // Calculate gross P/L with position units and contract multiplier
+        // For forex: priceChange × (lots × lotSize) × contractMultiplier
+        // For crypto/indices: priceChange × quantity × contractMultiplier
+        const grossPnl = priceChange * positionUnits * contractMultiplier;
         
         // Deduct fees already paid (open fees) from unrealized P/L
         const openFees = parseFloat(position.fees || '0');
@@ -595,6 +618,7 @@ class TradingEngine {
           openPrice,
           currentPrice,
           quantity,
+          positionUnits,
           contractMultiplier,
           priceChange,
           grossPnl,
