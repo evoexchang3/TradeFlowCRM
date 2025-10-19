@@ -40,38 +40,38 @@ export const SUPPORTED_LANGUAGES: { code: Language; name: string; nativeName: st
 export const loadTranslations = async (language: Language): Promise<TranslationKeys> => {
   switch (language) {
     case 'en':
-      return (await import('./en')).en;
+      return (await import('./en')).default as TranslationKeys;
     case 'es':
-      return (await import('./es')).es;
+      return (await import('./es')).default as TranslationKeys;
     case 'de':
-      return (await import('./de')).de;
+      return (await import('./de')).default as TranslationKeys;
     case 'fr':
-      return (await import('./fr')).fr;
+      return (await import('./fr')).default as TranslationKeys;
     case 'it':
-      return (await import('./it')).it;
+      return (await import('./it')).default as TranslationKeys;
     case 'pt':
-      return (await import('./pt')).pt;
+      return (await import('./pt')).default as TranslationKeys;
     case 'ru':
-      return (await import('./ru')).ru;
+      return (await import('./ru')).default as TranslationKeys;
     case 'zh':
-      return (await import('./zh')).zh;
+      return (await import('./zh')).default as TranslationKeys;
     case 'ja':
-      return (await import('./ja')).ja;
+      return (await import('./ja')).default as TranslationKeys;
     case 'ko':
-      return (await import('./ko')).ko;
+      return (await import('./ko')).default as TranslationKeys;
     case 'ar':
-      return (await import('./ar')).ar;
+      return (await import('./ar')).default as TranslationKeys;
     case 'tr':
-      return (await import('./tr')).tr;
+      return (await import('./tr')).default as TranslationKeys;
     case 'pl':
-      return (await import('./pl')).pl;
+      return (await import('./pl')).default as TranslationKeys;
     case 'nl':
-      return (await import('./nl')).nl;
+      return (await import('./nl')).default as TranslationKeys;
     case 'hi':
-      return (await import('./hi')).hi;
+      return (await import('./hi')).default as TranslationKeys;
     case 'sv':
-      return (await import('./sv')).sv;
+      return (await import('./sv')).default as TranslationKeys;
     default:
-      return (await import('./en')).en;
+      return (await import('./en')).default as TranslationKeys;
   }
 };

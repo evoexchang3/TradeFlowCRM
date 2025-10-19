@@ -1,4 +1,4 @@
-export const en = {
+export default {
   // Common
   'common.loading': 'Loading...',
   'common.error': 'Error',
