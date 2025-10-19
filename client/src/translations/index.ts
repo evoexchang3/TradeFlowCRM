@@ -14,7 +14,21 @@ export type Language =
   | 'pl' // Polish
   | 'nl' // Dutch
   | 'hi' // Hindi
-  | 'sv'; // Swedish
+  | 'sv' // Swedish
+  | 'bg' // Bulgarian
+  | 'cs' // Czech
+  | 'da' // Danish
+  | 'et' // Estonian
+  | 'fi' // Finnish
+  | 'el' // Greek
+  | 'hu' // Hungarian
+  | 'id' // Indonesian
+  | 'lv' // Latvian
+  | 'lt' // Lithuanian
+  | 'nb' // Norwegian (Bokmål)
+  | 'ro' // Romanian
+  | 'sk' // Slovak
+  | 'sl'; // Slovenian
 
 export type TranslationKeys = Record<string, string>;
 
@@ -35,6 +49,20 @@ export const SUPPORTED_LANGUAGES: { code: Language; name: string; nativeName: st
   { code: 'nl', name: 'Dutch', nativeName: 'Nederlands' },
   { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
   { code: 'sv', name: 'Swedish', nativeName: 'Svenska' },
+  { code: 'bg', name: 'Bulgarian', nativeName: 'Български' },
+  { code: 'cs', name: 'Czech', nativeName: 'Čeština' },
+  { code: 'da', name: 'Danish', nativeName: 'Dansk' },
+  { code: 'et', name: 'Estonian', nativeName: 'Eesti' },
+  { code: 'fi', name: 'Finnish', nativeName: 'Suomi' },
+  { code: 'el', name: 'Greek', nativeName: 'Ελληνικά' },
+  { code: 'hu', name: 'Hungarian', nativeName: 'Magyar' },
+  { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia' },
+  { code: 'lv', name: 'Latvian', nativeName: 'Latviešu' },
+  { code: 'lt', name: 'Lithuanian', nativeName: 'Lietuvių' },
+  { code: 'nb', name: 'Norwegian', nativeName: 'Norsk' },
+  { code: 'ro', name: 'Romanian', nativeName: 'Română' },
+  { code: 'sk', name: 'Slovak', nativeName: 'Slovenčina' },
+  { code: 'sl', name: 'Slovenian', nativeName: 'Slovenščina' },
 ];
 
 export const loadTranslations = async (language: Language): Promise<TranslationKeys> => {
@@ -71,6 +99,34 @@ export const loadTranslations = async (language: Language): Promise<TranslationK
       return (await import('./hi')).default as TranslationKeys;
     case 'sv':
       return (await import('./sv')).default as TranslationKeys;
+    case 'bg':
+      return (await import('./bg')).default as TranslationKeys;
+    case 'cs':
+      return (await import('./cs')).default as TranslationKeys;
+    case 'da':
+      return (await import('./da')).default as TranslationKeys;
+    case 'et':
+      return (await import('./et')).default as TranslationKeys;
+    case 'fi':
+      return (await import('./fi')).default as TranslationKeys;
+    case 'el':
+      return (await import('./el')).default as TranslationKeys;
+    case 'hu':
+      return (await import('./hu')).default as TranslationKeys;
+    case 'id':
+      return (await import('./id')).default as TranslationKeys;
+    case 'lv':
+      return (await import('./lv')).default as TranslationKeys;
+    case 'lt':
+      return (await import('./lt')).default as TranslationKeys;
+    case 'nb':
+      return (await import('./nb')).default as TranslationKeys;
+    case 'ro':
+      return (await import('./ro')).default as TranslationKeys;
+    case 'sk':
+      return (await import('./sk')).default as TranslationKeys;
+    case 'sl':
+      return (await import('./sl')).default as TranslationKeys;
     default:
       return (await import('./en')).default as TranslationKeys;
   }
