@@ -264,12 +264,6 @@ const configurationItems: MenuItem[] = [
     roles: ['administrator'],
   },
   {
-    titleKey: "nav.robot.assignments",
-    url: "/configuration/robot-assignments",
-    icon: Bot,
-    roles: ['administrator'],
-  },
-  {
     titleKey: "nav.kyc.questions",
     url: "/configuration/kyc-questions",
     icon: ClipboardList,
