@@ -24,70 +24,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-const EUROPEAN_LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'de', name: 'German (Deutsch)' },
-  { code: 'fr', name: 'French (Français)' },
-  { code: 'es', name: 'Spanish (Español)' },
-  { code: 'it', name: 'Italian (Italiano)' },
-  { code: 'pt', name: 'Portuguese (Português)' },
-  { code: 'nl', name: 'Dutch (Nederlands)' },
-  { code: 'pl', name: 'Polish (Polski)' },
-  { code: 'ru', name: 'Russian (Русский)' },
-  { code: 'tr', name: 'Turkish (Türkçe)' },
-  { code: 'el', name: 'Greek (Ελληνικά)' },
-  { code: 'cs', name: 'Czech (Čeština)' },
-  { code: 'sv', name: 'Swedish (Svenska)' },
-  { code: 'ro', name: 'Romanian (Română)' },
-  { code: 'hu', name: 'Hungarian (Magyar)' },
-  { code: 'bg', name: 'Bulgarian (Български)' },
-  { code: 'da', name: 'Danish (Dansk)' },
-  { code: 'fi', name: 'Finnish (Suomi)' },
-  { code: 'sk', name: 'Slovak (Slovenčina)' },
-  { code: 'no', name: 'Norwegian (Norsk)' },
-  { code: 'hr', name: 'Croatian (Hrvatski)' },
-  { code: 'sr', name: 'Serbian (Српски)' },
-  { code: 'cnr', name: 'Montenegrin (Crnogorski)' },
-  { code: 'lt', name: 'Lithuanian (Lietuvių)' },
-  { code: 'sl', name: 'Slovenian (Slovenščina)' },
-  { code: 'lv', name: 'Latvian (Latviešu)' },
-  { code: 'et', name: 'Estonian (Eesti)' },
-  { code: 'ga', name: 'Irish (Gaeilge)' },
-  { code: 'mt', name: 'Maltese (Malti)' },
-  { code: 'sq', name: 'Albanian (Shqip)' },
-  { code: 'mk', name: 'Macedonian (Македонски)' },
-  { code: 'bs', name: 'Bosnian (Bosanski)' },
-  { code: 'is', name: 'Icelandic (Íslenska)' },
-  { code: 'lb', name: 'Luxembourgish (Lëtzebuergesch)' },
-  { code: 'ca', name: 'Catalan (Català)' },
-  { code: 'eu', name: 'Basque (Euskara)' },
-  { code: 'gl', name: 'Galician (Galego)' },
-  { code: 'cy', name: 'Welsh (Cymraeg)' },
-  { code: 'be', name: 'Belarusian (Беларуская)' },
-  { code: 'uk', name: 'Ukrainian (Українська)' },
-  { code: 'fo', name: 'Faroese (Føroyskt)' },
-  { code: 'rm', name: 'Romansh (Rumantsch)' },
-  { code: 'gd', name: 'Scottish Gaelic (Gàidhlig)' },
-  { code: 'br', name: 'Breton (Brezhoneg)' },
-  { code: 'kw', name: 'Cornish (Kernewek)' },
-  { code: 'gv', name: 'Manx (Gaelg)' },
-  { code: 'hy', name: 'Armenian (Հայերեն)' },
-  { code: 'ka', name: 'Georgian (ქართული)' },
-  { code: 'az', name: 'Azerbaijani (Azərbaycan)' },
-  { code: 'kk', name: 'Kazakh (Қазақша)' },
-  { code: 'oc', name: 'Occitan (Occitan)' },
-  { code: 'sc', name: 'Sardinian (Sardu)' },
-  { code: 'co', name: 'Corsican (Corsu)' },
-  { code: 'fur', name: 'Friulian (Furlan)' },
-  { code: 'hsb', name: 'Upper Sorbian (Hornjoserbšćina)' },
-  { code: 'dsb', name: 'Lower Sorbian (Dolnoserbski)' },
-  { code: 'fy', name: 'West Frisian (Frysk)' },
-  { code: 'se', name: 'Northern Sámi (Davvisámegiella)' },
-];
+import { getEuropeanLanguages } from "@/constants/languages";
 
 export default function Teams() {
   const { t } = useLanguage();
+  const EUROPEAN_LANGUAGES = getEuropeanLanguages(t);
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({ 
     name: '', 

@@ -19,8 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 
-const PERMISSION_GROUPS = {
-  "Client Management": [
+const getPermissionGroups = (t: any) => ({
+  [t('roles.group.client.management')]: [
     { id: 'client.view', label: 'roles.perm.client.view' },
     { id: 'client.view_all', label: 'roles.perm.client.view_all' },
     { id: 'client.create', label: 'roles.perm.client.create' },
@@ -28,17 +28,17 @@ const PERMISSION_GROUPS = {
     { id: 'client.delete', label: 'roles.perm.client.delete' },
     { id: 'client.view_pii', label: 'roles.perm.client.view_pii' },
   ],
-  "Trading": [
+  [t('roles.group.trading')]: [
     { id: 'trade.view', label: 'roles.perm.trade.view' },
     { id: 'trade.create', label: 'roles.perm.trade.create' },
     { id: 'trade.edit', label: 'roles.perm.trade.edit' },
     { id: 'trade.close', label: 'roles.perm.trade.close' },
   ],
-  "Balance & Transactions": [
+  [t('roles.group.balance.transactions')]: [
     { id: 'balance.view', label: 'roles.perm.balance.view' },
     { id: 'balance.adjust', label: 'roles.perm.balance.adjust' },
   ],
-  "Administration": [
+  [t('roles.group.administration')]: [
     { id: 'role.view', label: 'roles.perm.role.view' },
     { id: 'role.create', label: 'roles.perm.role.create' },
     { id: 'role.edit', label: 'roles.perm.role.edit' },
@@ -46,19 +46,20 @@ const PERMISSION_GROUPS = {
     { id: 'team.view', label: 'roles.perm.team.view' },
     { id: 'team.manage', label: 'roles.perm.team.manage' },
   ],
-  "Data Operations": [
+  [t('roles.group.data.operations')]: [
     { id: 'data.import', label: 'roles.perm.data.import' },
     { id: 'data.export', label: 'roles.perm.data.export' },
     { id: 'audit.view', label: 'roles.perm.audit.view' },
   ],
-  "Special Permissions": [
+  [t('roles.group.special.permissions')]: [
     { id: 'client.impersonate', label: 'roles.perm.client.impersonate' },
     { id: 'client.call', label: 'roles.perm.client.call' },
   ],
-};
+});
 
 export default function Roles() {
   const { t } = useLanguage();
+  const PERMISSION_GROUPS = getPermissionGroups(t);
   const [isOpen, setIsOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
   const [formData, setFormData] = useState({ name: '', description: '', permissions: [] as string[] });
@@ -132,12 +133,7 @@ export default function Roles() {
                   {Object.entries(PERMISSION_GROUPS).map(([groupKey, permissions]) => (
                     <div key={groupKey} className="space-y-3">
                       <h4 className="text-sm font-medium text-muted-foreground">
-                        {groupKey === 'Client Management' && t('roles.client.management')}
-                        {groupKey === 'Trading' && t('roles.trading')}
-                        {groupKey === 'Balance & Transactions' && t('roles.balance.transactions')}
-                        {groupKey === 'Administration' && t('roles.administration')}
-                        {groupKey === 'Data Operations' && t('roles.data.operations')}
-                        {groupKey === 'Special Permissions' && t('roles.special.permissions')}
+                        {groupKey}
                       </h4>
                       <div className="grid gap-3 md:grid-cols-2">
                         {permissions.map((permission) => (
