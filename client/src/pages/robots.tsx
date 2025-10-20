@@ -115,7 +115,7 @@ function RobotFormDialog({
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: RobotFormData) => apiRequest("/api/robots", "POST", data),
+    mutationFn: (data: RobotFormData) => apiRequest("POST", "/api/robots", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/robots"] });
       toast({
@@ -136,7 +136,7 @@ function RobotFormDialog({
 
   const updateMutation = useMutation({
     mutationFn: (data: RobotFormData) =>
-      apiRequest(`/api/robots/${robot?.id}`, "PUT", data),
+      apiRequest("PUT", `/api/robots/${robot?.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/robots"] });
       toast({
@@ -462,7 +462,7 @@ export default function RobotsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/robots/${id}`, "DELETE"),
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/robots/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/robots"] });
       toast({
@@ -480,7 +480,7 @@ export default function RobotsPage() {
   });
 
   const executeMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/robots/${id}/execute`, "POST"),
+    mutationFn: (id: string) => apiRequest("POST", `/api/robots/${id}/execute`),
     onSuccess: () => {
       toast({
         title: "Success",
