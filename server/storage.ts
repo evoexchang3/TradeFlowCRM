@@ -129,6 +129,7 @@ export interface IStorage {
   assignRobotToAccounts(robotId: string, accountIds: string[]): Promise<RobotClientAssignment[]>;
   unassignRobotFromAccount(robotId: string, accountId: string): Promise<void>;
   toggleRobotAssignment(assignmentId: string, isActive: boolean): Promise<RobotClientAssignment>;
+  upsertRobotClientAssignment(assignment: InsertRobotClientAssignment): Promise<RobotClientAssignment>;
   
   // System Settings
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
@@ -627,6 +628,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(robotClientAssignments.id, assignmentId))
       .returning();
     return assignment;
+  }
+
+  async upsertRobotClientAssignment(assignment: InsertRobotClientAssignment): Promise<RobotClientAssignment> {
+    const [result] = await db.insert(robotClientAssignments)
+      .values(assignment)
+      .onConflictDoUpdate({
+        target: [robotClientAssignments.robotId, robotClientAssignments.accountId],
+        set: {
+          isActive: assignment.isActive ?? true,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
   }
 
   // System Settings
