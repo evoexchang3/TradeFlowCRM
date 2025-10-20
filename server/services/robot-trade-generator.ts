@@ -260,7 +260,7 @@ export class RobotTradeGenerator {
 
     // Determine trade side
     const side = Math.random() > 0.5 ? 'buy' : 'sell';
-    const feeRate = 0.001;
+    const feeRate = 0; // ROBOT TRADES ARE FEE-FREE
 
     // CRITICAL FIX #2: Find real exit price from candles that matches our win/loss requirement
     // Try multiple exit candles after entry to find one with suitable price movement
