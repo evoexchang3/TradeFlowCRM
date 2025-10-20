@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { twelveDataService } from './twelve-data';
+import { tradingEngine } from './trading-engine';
 import type { TradingRobot, Account, InsertPosition } from '@shared/schema';
 
 interface GeneratedTrade {
@@ -463,8 +464,10 @@ export class RobotTradeGenerator {
       await storage.updateAccount(accountId, {
         realBalance: newRealBalance.toFixed(8),
         balance: newTotalBalance.toFixed(8),
-        equity: newTotalBalance.toFixed(8), // Equity = balance when no open positions
       });
+
+      // Update equity properly (balance + unrealized P/L from any open positions)
+      await tradingEngine.updateAccountMetrics(accountId);
 
       // Create transaction record
       await storage.createTransaction({
