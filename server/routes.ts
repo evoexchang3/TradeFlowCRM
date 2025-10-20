@@ -7811,7 +7811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate request body
       const validatedData = insertTradingRobotSchema.parse(req.body);
-      const robot = await storage.createTradingRobot(validatedData);
+      const robot = await storage.createRobot(validatedData);
       
       if (req.user?.id) {
         await storage.createAuditLog({
@@ -7846,7 +7846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate request body
       const validatedData = insertTradingRobotSchema.partial().parse(req.body);
-      const robot = await storage.updateTradingRobot(req.params.id, validatedData);
+      const robot = await storage.updateRobot(req.params.id, validatedData);
       
       if (req.user?.id) {
         await storage.createAuditLog({
@@ -7879,7 +7879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
       }
 
-      await storage.deleteTradingRobot(req.params.id);
+      await storage.deleteRobot(req.params.id);
       
       if (req.user?.id) {
         await storage.createAuditLog({
