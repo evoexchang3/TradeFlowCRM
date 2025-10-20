@@ -463,6 +463,7 @@ export class RobotTradeGenerator {
       await storage.updateAccount(accountId, {
         realBalance: newRealBalance.toFixed(8),
         balance: newTotalBalance.toFixed(8),
+        equity: newTotalBalance.toFixed(8), // Equity = balance when no open positions
       });
 
       // Create transaction record
