@@ -1,7 +1,7 @@
 import { storage } from '../storage';
 import { robotTradeGenerator } from './robot-trade-generator';
 import type { TradingRobot } from '@shared/schema';
-import { zonedTimeToUtc, utcToZonedTime } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 
 export class RobotExecutor {
   private executionTimeouts: Map<string, NodeJS.Timeout> = new Map();
@@ -62,7 +62,7 @@ export class RobotExecutor {
     
     // Get current time in the configured timezone
     const nowUtc = new Date();
-    const nowInTimezone = utcToZonedTime(nowUtc, timezone);
+    const nowInTimezone = toZonedTime(nowUtc, timezone);
     
     // Construct datetime string in the configured timezone (YYYY-MM-DD HH:MM:SS format)
     const year = nowInTimezone.getFullYear();
@@ -73,7 +73,7 @@ export class RobotExecutor {
     
     // Create datetime string for today at execution time in configured timezone
     let dateTimeStr = `${year}-${month}-${day} ${hoursStr}:${minutesStr}:00`;
-    let nextRunUtc = zonedTimeToUtc(dateTimeStr, timezone);
+    let nextRunUtc = fromZonedTime(dateTimeStr, timezone);
 
     // If time has already passed, schedule for tomorrow
     if (nextRunUtc.getTime() <= nowUtc.getTime()) {
@@ -86,7 +86,7 @@ export class RobotExecutor {
       const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
       
       dateTimeStr = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay} ${hoursStr}:${minutesStr}:00`;
-      nextRunUtc = zonedTimeToUtc(dateTimeStr, timezone);
+      nextRunUtc = fromZonedTime(dateTimeStr, timezone);
     }
 
     return nextRunUtc;
