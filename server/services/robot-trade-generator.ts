@@ -210,21 +210,22 @@ export class RobotTradeGenerator {
         endTime
       );
 
-      if (candles.length < 10) {
-        console.warn(`[ROBOT] Insufficient candles for ${symbol}, using simulation`);
+      // Generate a single realistic trade from these candles (throws if insufficient data)
+      try {
+        const trade = this.generateSingleTrade(
+          symbol,
+          amount,
+          isWin,
+          candles,
+          startTime,
+          endTime
+        );
+        trades.push(trade);
+      } catch (error) {
+        // Skip this trade if no suitable real candle found
+        console.warn(`[ROBOT] Skipping trade for ${symbol}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        // Continue to next trade instead of failing the entire batch
       }
-
-      // Generate a single realistic trade from these candles
-      const trade = this.generateSingleTrade(
-        symbol,
-        amount,
-        isWin,
-        candles,
-        startTime,
-        endTime
-      );
-
-      trades.push(trade);
     }
 
     return trades;
