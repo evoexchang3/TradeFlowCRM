@@ -232,7 +232,8 @@ export class RobotTradeGenerator {
 
   /**
    * Generate a single trade with realistic entry and exit prices
-   * FIXED: Uses REAL market prices from historical candles and sorts chronologically
+   * FIXED: Uses ONLY REAL market prices from historical candles, NO simulation
+   * FIXED: Robot trades are fee-free
    */
   private generateSingleTrade(
     symbol: string,
@@ -249,106 +250,105 @@ export class RobotTradeGenerator {
     );
 
     if (sortedCandles.length < 10) {
-      console.warn(`[ROBOT] Only ${sortedCandles.length} candles available, using simulation`);
+      throw new Error(`Insufficient candles for ${symbol}: ${sortedCandles.length} available`);
     }
-
-    // Randomly select entry candle (from first 70% of window to leave room for exit)
-    const maxEntryIndex = Math.floor(sortedCandles.length * 0.7);
-    const entryIndex = Math.floor(Math.random() * maxEntryIndex);
-    const entryCandle = sortedCandles[entryIndex];
-    const entryPrice = parseFloat(entryCandle.close);
 
     // Determine trade side
     const side = Math.random() > 0.5 ? 'buy' : 'sell';
     const feeRate = 0; // ROBOT TRADES ARE FEE-FREE
 
-    // CRITICAL FIX #2: Find real exit price from candles that matches our win/loss requirement
-    // Try multiple exit candles after entry to find one with suitable price movement
+    // MULTI-ENTRY RETRY STRATEGY: Try up to 5 different entry candles
+    const maxEntryIndex = Math.floor(sortedCandles.length * 0.7);
+    const maxRetries = 5;
+    
     let bestExitCandle: typeof sortedCandles[0] | null = null;
     let bestExitPrice: number | null = null;
+    let bestEntryCandle: typeof sortedCandles[0] | null = null;
+    let bestEntryPrice: number | null = null;
     let bestScore = Infinity;
 
-    // Try exit candles between 5-40 candles after entry
-    const minOffset = 5;
-    const maxOffset = Math.min(40, sortedCandles.length - entryIndex - 1);
-    
-    for (let offset = minOffset; offset <= maxOffset; offset++) {
-      const exitIndex = entryIndex + offset;
-      if (exitIndex >= sortedCandles.length) break;
+    for (let retry = 0; retry < maxRetries; retry++) {
+      // Try a random entry candle (from first 70% of window to leave room for exit)
+      const entryIndex = Math.floor(Math.random() * maxEntryIndex);
+      const entryCandle = sortedCandles[entryIndex];
+      const entryPrice = parseFloat(entryCandle.close);
 
-      const candidateCandle = sortedCandles[exitIndex];
-      const candidatePrice = parseFloat(candidateCandle.close);
+      // Search ALL exit candles after this entry
+      const minOffset = 5;
+      const maxOffset = sortedCandles.length - entryIndex - 1;
       
-      // Calculate what P/L this real price movement would give us
-      const priceMove = side === 'buy' 
-        ? (candidatePrice - entryPrice) 
-        : (entryPrice - candidatePrice);
+      if (maxOffset < minOffset) {
+        // Not enough candles after this entry, try next retry
+        continue;
+      }
       
-      // Check if this movement matches our win/loss requirement (before fees)
-      const isWinningMove = priceMove > 0;
-      
-      if (isWinningMove === isWin) {
-        // This candle's price movement matches our requirement!
-        // Calculate how close it gets us to target P/L
-        const testQuantity = this.calculateQuantityForTarget(
-          targetPnl,
-          entryPrice,
-          candidatePrice,
-          side,
-          isWin,
-          feeRate
-        );
+      for (let offset = minOffset; offset <= maxOffset; offset++) {
+        const exitIndex = entryIndex + offset;
+        if (exitIndex >= sortedCandles.length) break;
+
+        const candidateCandle = sortedCandles[exitIndex];
+        const candidatePrice = parseFloat(candidateCandle.close);
         
-        // Calculate realized P/L with this combination
-        const positionValue = testQuantity * entryPrice;
-        const fees = positionValue * feeRate;
-        const rawPnl = priceMove * testQuantity;
-        const realizedPnl = rawPnl - fees;
+        // Calculate what P/L this real price movement would give us
+        const priceMove = side === 'buy' 
+          ? (candidatePrice - entryPrice) 
+          : (entryPrice - candidatePrice);
         
-        // CRITICAL: Verify realized P/L sign matches win/loss requirement
-        // Even if raw price move is favorable, fees can flip the result
-        const isActualWin = realizedPnl > 0;
+        // Check if this movement matches our win/loss requirement
+        // With fee-free trades: positive move = win, negative move = loss
+        const isWinningMove = priceMove > 0;
         
-        if (isActualWin === isWin) {
-          // This exit works! Score based on how close we get to target
-          const error = Math.abs(Math.abs(realizedPnl) - targetPnl);
+        if (isWinningMove === isWin) {
+          // This candle's price movement matches our requirement!
+          // Calculate how close it gets us to target P/L
+          const testQuantity = this.calculateQuantityForTarget(
+            targetPnl,
+            entryPrice,
+            candidatePrice,
+            side,
+            isWin,
+            feeRate
+          );
           
-          if (error < bestScore) {
-            bestScore = error;
-            bestExitCandle = candidateCandle;
-            bestExitPrice = candidatePrice;
+          // Calculate realized P/L (fee-free, so rawPnl = realizedPnl)
+          const rawPnl = priceMove * testQuantity;
+          const realizedPnl = rawPnl; // No fees!
+          
+          // Verify P/L sign still matches (should always be true with fee-free trades)
+          const isActualWin = realizedPnl > 0;
+          
+          if (isActualWin === isWin) {
+            // This exit works! Score based on how close we get to target
+            const error = Math.abs(Math.abs(realizedPnl) - targetPnl);
+            
+            if (error < bestScore) {
+              bestScore = error;
+              bestExitCandle = candidateCandle;
+              bestExitPrice = candidatePrice;
+              bestEntryCandle = entryCandle;
+              bestEntryPrice = entryPrice;
+            }
           }
         }
       }
-    }
-
-    // CRITICAL VALIDATION: If no suitable exit candle found, retry with different approach
-    if (bestExitCandle === null || bestExitPrice === null) {
-      // No real candle matches our requirement - use simulated price
-      // This can happen if window is too small or price doesn't move in desired direction
-      console.warn(`[ROBOT] No suitable exit candle found for ${isWin ? 'WIN' : 'LOSS'}, using simulated price`);
       
-      // Generate a realistic simulated exit price that matches requirement
-      const priceChangePercent = Math.random() * 0.02 + 0.005; // 0.5% to 2.5% move
-      
-      if (isWin) {
-        // WIN: Price must move in favorable direction
-        bestExitPrice = side === 'buy'
-          ? entryPrice * (1 + priceChangePercent)  // BUY win: price up
-          : entryPrice * (1 - priceChangePercent); // SELL win: price down
-      } else {
-        // LOSS: Price must move in unfavorable direction
-        bestExitPrice = side === 'buy'
-          ? entryPrice * (1 - priceChangePercent)  // BUY loss: price down
-          : entryPrice * (1 + priceChangePercent); // SELL loss: price up
+      // If we found a match, no need to retry
+      if (bestExitCandle !== null) {
+        break;
       }
-      
-      // Use a candle at least 10 minutes after entry for simulated exit
-      const simulatedExitIndex = Math.min(entryIndex + 10, sortedCandles.length - 1);
-      bestExitCandle = sortedCandles[simulatedExitIndex];
     }
 
-    // Use the best exit price we found (either real or simulated)
+    // CRITICAL: If no suitable exit candle found after all retries, skip this trade
+    if (bestExitCandle === null || bestExitPrice === null || bestEntryCandle === null || bestEntryPrice === null) {
+      throw new Error(
+        `No real exit candle found for ${symbol} ${isWin ? 'WIN' : 'LOSS'} after ${maxRetries} retries. ` +
+        `This is extremely rare with fee-free trades - market may not have moved in desired direction.`
+      );
+    }
+
+    // Use the best entry/exit combination we found (100% REAL PRICES)
+    const entryPrice = bestEntryPrice;
+    const entryCandle = bestEntryCandle;
     const exitPrice = bestExitPrice;
     const exitCandle = bestExitCandle;
 
@@ -362,15 +362,15 @@ export class RobotTradeGenerator {
       feeRate
     );
 
-    // Calculate actual P/L with fees for verification
+    // Calculate actual P/L (fee-free for robot trades)
     const positionValue = quantity * entryPrice;
-    const fees = positionValue * feeRate;
+    const fees = 0; // ROBOT TRADES ARE FEE-FREE
     
     let rawPnl = side === 'buy'
       ? (exitPrice - entryPrice) * quantity
       : (entryPrice - exitPrice) * quantity;
     
-    const realizedPnl = rawPnl - fees;
+    const realizedPnl = rawPnl; // No fees deducted!
 
     // Use REAL timestamps from candles (now in correct chronological order)
     const openedAt = entryCandle.timestamp;
@@ -392,7 +392,7 @@ export class RobotTradeGenerator {
 
   /**
    * Calculate quantity needed to achieve target P/L
-   * FIXED: Separate formulas for wins vs losses since fees affect them differently
+   * SIMPLIFIED: Fee-free trades make this straightforward
    */
   private calculateQuantityForTarget(
     targetPnl: number,
@@ -402,28 +402,17 @@ export class RobotTradeGenerator {
     isWin: boolean,
     feeRate: number
   ): number {
-    // Net P/L = Raw P/L - Fees
-    // Fees = quantity * entryPrice * feeRate (always positive cost)
-    // Raw P/L = quantity * priceMove (signed based on direction)
+    // With fee-free trades: Net P/L = Raw P/L
+    // Raw P/L = quantity * priceMove
+    // quantity = targetPnl / priceMove
     
     const priceMove = Math.abs(exitPrice - entryPrice);
     if (priceMove === 0) {
       return 0.01; // Minimum quantity if no price movement
     }
 
-    let quantity: number;
-
-    if (isWin) {
-      // For WINS: Net P/L = (priceMove * quantity) - (entryPrice * feeRate * quantity)
-      // targetPnl = quantity * (priceMove - entryPrice * feeRate)
-      // quantity = targetPnl / (priceMove - entryPrice * feeRate)
-      quantity = Math.abs(targetPnl / (priceMove - entryPrice * feeRate));
-    } else {
-      // For LOSSES: Net P/L = -(priceMove * quantity) - (entryPrice * feeRate * quantity)
-      // -targetPnl = -quantity * (priceMove + entryPrice * feeRate)
-      // quantity = targetPnl / (priceMove + entryPrice * feeRate)
-      quantity = Math.abs(targetPnl / (priceMove + entryPrice * feeRate));
-    }
+    // Simple formula: quantity = target / price movement
+    const quantity = Math.abs(targetPnl / priceMove);
 
     return Math.max(0.01, quantity); // Minimum 0.01 quantity
   }
