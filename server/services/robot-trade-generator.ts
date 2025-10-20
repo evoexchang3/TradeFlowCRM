@@ -232,7 +232,7 @@ export class RobotTradeGenerator {
 
   /**
    * Generate a single trade with realistic entry and exit prices
-   * FIXED: Ensures price movement direction matches intended win/loss outcome
+   * FIXED: Uses REAL market prices from historical candles and sorts chronologically
    */
   private generateSingleTrade(
     symbol: string,
@@ -242,53 +242,117 @@ export class RobotTradeGenerator {
     windowStart: Date,
     windowEnd: Date
   ): GeneratedTrade {
-    // Randomly select a candle for entry (from first 80% of window)
-    const entryIndex = Math.floor(Math.random() * (candles.length * 0.8));
-    const entryCandle = candles[entryIndex] || candles[0];
-    
-    // Exit should be after entry (from remaining candles)
-    const exitIndex = Math.min(
-      entryIndex + Math.floor(Math.random() * Math.min(20, candles.length - entryIndex - 1)) + 5,
-      candles.length - 1
+    // CRITICAL FIX #1: Sort candles chronologically (oldest → newest)
+    // TwelveData returns candles in reverse order (newest first)
+    const sortedCandles = [...candles].sort((a, b) => 
+      a.timestamp.getTime() - b.timestamp.getTime()
     );
-    const exitCandle = candles[exitIndex] || candles[candles.length - 1];
 
-    // Get realistic base prices from candles
-    let entryPrice = parseFloat(entryCandle.close);
-    let exitPrice = parseFloat(exitCandle.close);
+    if (sortedCandles.length < 10) {
+      console.warn(`[ROBOT] Only ${sortedCandles.length} candles available, using simulation`);
+    }
+
+    // Randomly select entry candle (from first 70% of window to leave room for exit)
+    const maxEntryIndex = Math.floor(sortedCandles.length * 0.7);
+    const entryIndex = Math.floor(Math.random() * maxEntryIndex);
+    const entryCandle = sortedCandles[entryIndex];
+    const entryPrice = parseFloat(entryCandle.close);
 
     // Determine trade side
     const side = Math.random() > 0.5 ? 'buy' : 'sell';
-    
-    // Estimate fees at 0.1% of position value
     const feeRate = 0.001;
+
+    // CRITICAL FIX #2: Find real exit price from candles that matches our win/loss requirement
+    // Try multiple exit candles after entry to find one with suitable price movement
+    let bestExitCandle: typeof sortedCandles[0] | null = null;
+    let bestExitPrice: number | null = null;
+    let bestScore = Infinity;
+
+    // Try exit candles between 5-40 candles after entry
+    const minOffset = 5;
+    const maxOffset = Math.min(40, sortedCandles.length - entryIndex - 1);
     
-    // CRITICAL FIX: Adjust exit price to match intended win/loss direction
-    // For WIN: we need positive P/L after fees
-    // For LOSS: we need negative P/L after fees
-    const priceChangePercent = Math.random() * 0.02 + 0.005; // 0.5% to 2.5% move
-    
-    if (isWin) {
-      // WIN: Price must move in favorable direction
-      if (side === 'buy') {
-        // BUY win: exit > entry (price goes up)
-        exitPrice = entryPrice * (1 + priceChangePercent);
-      } else {
-        // SELL win: exit < entry (price goes down)
-        exitPrice = entryPrice * (1 - priceChangePercent);
-      }
-    } else {
-      // LOSS: Price must move in unfavorable direction
-      if (side === 'buy') {
-        // BUY loss: exit < entry (price goes down)
-        exitPrice = entryPrice * (1 - priceChangePercent);
-      } else {
-        // SELL loss: exit > entry (price goes up)
-        exitPrice = entryPrice * (1 + priceChangePercent);
+    for (let offset = minOffset; offset <= maxOffset; offset++) {
+      const exitIndex = entryIndex + offset;
+      if (exitIndex >= sortedCandles.length) break;
+
+      const candidateCandle = sortedCandles[exitIndex];
+      const candidatePrice = parseFloat(candidateCandle.close);
+      
+      // Calculate what P/L this real price movement would give us
+      const priceMove = side === 'buy' 
+        ? (candidatePrice - entryPrice) 
+        : (entryPrice - candidatePrice);
+      
+      // Check if this movement matches our win/loss requirement (before fees)
+      const isWinningMove = priceMove > 0;
+      
+      if (isWinningMove === isWin) {
+        // This candle's price movement matches our requirement!
+        // Calculate how close it gets us to target P/L
+        const testQuantity = this.calculateQuantityForTarget(
+          targetPnl,
+          entryPrice,
+          candidatePrice,
+          side,
+          isWin,
+          feeRate
+        );
+        
+        // Calculate realized P/L with this combination
+        const positionValue = testQuantity * entryPrice;
+        const fees = positionValue * feeRate;
+        const rawPnl = priceMove * testQuantity;
+        const realizedPnl = rawPnl - fees;
+        
+        // CRITICAL: Verify realized P/L sign matches win/loss requirement
+        // Even if raw price move is favorable, fees can flip the result
+        const isActualWin = realizedPnl > 0;
+        
+        if (isActualWin === isWin) {
+          // This exit works! Score based on how close we get to target
+          const error = Math.abs(Math.abs(realizedPnl) - targetPnl);
+          
+          if (error < bestScore) {
+            bestScore = error;
+            bestExitCandle = candidateCandle;
+            bestExitPrice = candidatePrice;
+          }
+        }
       }
     }
 
-    // Calculate quantity needed to achieve target P/L
+    // CRITICAL VALIDATION: If no suitable exit candle found, retry with different approach
+    if (bestExitCandle === null || bestExitPrice === null) {
+      // No real candle matches our requirement - use simulated price
+      // This can happen if window is too small or price doesn't move in desired direction
+      console.warn(`[ROBOT] No suitable exit candle found for ${isWin ? 'WIN' : 'LOSS'}, using simulated price`);
+      
+      // Generate a realistic simulated exit price that matches requirement
+      const priceChangePercent = Math.random() * 0.02 + 0.005; // 0.5% to 2.5% move
+      
+      if (isWin) {
+        // WIN: Price must move in favorable direction
+        bestExitPrice = side === 'buy'
+          ? entryPrice * (1 + priceChangePercent)  // BUY win: price up
+          : entryPrice * (1 - priceChangePercent); // SELL win: price down
+      } else {
+        // LOSS: Price must move in unfavorable direction
+        bestExitPrice = side === 'buy'
+          ? entryPrice * (1 - priceChangePercent)  // BUY loss: price down
+          : entryPrice * (1 + priceChangePercent); // SELL loss: price up
+      }
+      
+      // Use a candle at least 10 minutes after entry for simulated exit
+      const simulatedExitIndex = Math.min(entryIndex + 10, sortedCandles.length - 1);
+      bestExitCandle = sortedCandles[simulatedExitIndex];
+    }
+
+    // Use the best exit price we found (either real or simulated)
+    const exitPrice = bestExitPrice;
+    const exitCandle = bestExitCandle;
+
+    // Calculate final quantity to achieve target P/L with REAL prices
     const quantity = this.calculateQuantityForTarget(
       targetPnl,
       entryPrice,
@@ -308,14 +372,9 @@ export class RobotTradeGenerator {
     
     const realizedPnl = rawPnl - fees;
 
-    // Generate realistic timestamps within the window
-    const openedAt = entryCandle.timestamp || new Date(
-      windowStart.getTime() + Math.random() * (windowEnd.getTime() - windowStart.getTime()) * 0.7
-    );
-    
-    const closedAt = exitCandle.timestamp || new Date(
-      openedAt.getTime() + (5 + Math.random() * 60) * 60000 // 5-65 minutes later
-    );
+    // Use REAL timestamps from candles (now in correct chronological order)
+    const openedAt = entryCandle.timestamp;
+    const closedAt = exitCandle.timestamp;
 
     return {
       symbol,
