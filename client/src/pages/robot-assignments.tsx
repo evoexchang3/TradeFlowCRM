@@ -47,7 +47,7 @@ export default function RobotAssignmentsPage() {
 
   const assignMutation = useMutation({
     mutationFn: ({ accountId, isActive }: { accountId: string; isActive: boolean }) =>
-      apiRequest(`/api/robots/${robotId}/assignments`, "POST", { accountId, isActive }),
+      apiRequest("POST", `/api/robots/${robotId}/assignments`, { accountId, isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/robots", robotId, "assignments"] });
       toast({
@@ -66,7 +66,7 @@ export default function RobotAssignmentsPage() {
 
   const bulkAssignMutation = useMutation({
     mutationFn: ({ accountIds, isActive }: { accountIds: string[]; isActive: boolean }) =>
-      apiRequest(`/api/robots/${robotId}/assignments/bulk`, "POST", { accountIds, isActive }),
+      apiRequest("POST", `/api/robots/${robotId}/assignments/bulk`, { accountIds, isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/robots", robotId, "assignments"] });
       setSelectedClients([]);
