@@ -232,6 +232,7 @@ export class RobotTradeGenerator {
 
   /**
    * Generate a single trade with realistic entry and exit prices
+   * FIXED: Ensures price movement direction matches intended win/loss outcome
    */
   private generateSingleTrade(
     symbol: string,
@@ -252,19 +253,42 @@ export class RobotTradeGenerator {
     );
     const exitCandle = candles[exitIndex] || candles[candles.length - 1];
 
-    // Get realistic prices from candles (use bid/ask-like prices)
-    const entryPrice = parseFloat(entryCandle.close);
-    const exitPrice = parseFloat(exitCandle.close);
+    // Get realistic base prices from candles
+    let entryPrice = parseFloat(entryCandle.close);
+    let exitPrice = parseFloat(exitCandle.close);
 
-    // Determine trade side and calculate required price movement
+    // Determine trade side
     const side = Math.random() > 0.5 ? 'buy' : 'sell';
-    
-    // Calculate quantity needed to achieve target P/L
-    // For simplicity: P/L = (exit - entry) * quantity (for buy)
-    //                P/L = (entry - exit) * quantity (for sell)
     
     // Estimate fees at 0.1% of position value
     const feeRate = 0.001;
+    
+    // CRITICAL FIX: Adjust exit price to match intended win/loss direction
+    // For WIN: we need positive P/L after fees
+    // For LOSS: we need negative P/L after fees
+    const priceChangePercent = Math.random() * 0.02 + 0.005; // 0.5% to 2.5% move
+    
+    if (isWin) {
+      // WIN: Price must move in favorable direction
+      if (side === 'buy') {
+        // BUY win: exit > entry (price goes up)
+        exitPrice = entryPrice * (1 + priceChangePercent);
+      } else {
+        // SELL win: exit < entry (price goes down)
+        exitPrice = entryPrice * (1 - priceChangePercent);
+      }
+    } else {
+      // LOSS: Price must move in unfavorable direction
+      if (side === 'buy') {
+        // BUY loss: exit < entry (price goes down)
+        exitPrice = entryPrice * (1 - priceChangePercent);
+      } else {
+        // SELL loss: exit > entry (price goes up)
+        exitPrice = entryPrice * (1 + priceChangePercent);
+      }
+    }
+
+    // Calculate quantity needed to achieve target P/L
     const quantity = this.calculateQuantityForTarget(
       targetPnl,
       entryPrice,
@@ -274,7 +298,7 @@ export class RobotTradeGenerator {
       feeRate
     );
 
-    // Calculate actual P/L with fees
+    // Calculate actual P/L with fees for verification
     const positionValue = quantity * entryPrice;
     const fees = positionValue * feeRate;
     
@@ -309,6 +333,7 @@ export class RobotTradeGenerator {
 
   /**
    * Calculate quantity needed to achieve target P/L
+   * FIXED: Separate formulas for wins vs losses since fees affect them differently
    */
   private calculateQuantityForTarget(
     targetPnl: number,
@@ -318,24 +343,28 @@ export class RobotTradeGenerator {
     isWin: boolean,
     feeRate: number
   ): number {
-    // Adjust target to account for fees
     // Net P/L = Raw P/L - Fees
-    // Fees ≈ quantity * entryPrice * feeRate
-    // Raw P/L = quantity * |exitPrice - entryPrice|
+    // Fees = quantity * entryPrice * feeRate (always positive cost)
+    // Raw P/L = quantity * priceMove (signed based on direction)
     
     const priceMove = Math.abs(exitPrice - entryPrice);
     if (priceMove === 0) {
       return 0.01; // Minimum quantity if no price movement
     }
 
-    // For winning trades: need positive P/L
-    // For losing trades: need negative P/L
-    const targetSign = isWin ? 1 : -1;
-    const actualTarget = targetPnl * targetSign;
+    let quantity: number;
 
-    // Solve: actualTarget = (priceMove * quantity) - (quantity * entryPrice * feeRate)
-    // actualTarget = quantity * (priceMove - entryPrice * feeRate)
-    const quantity = Math.abs(actualTarget / (priceMove - entryPrice * feeRate));
+    if (isWin) {
+      // For WINS: Net P/L = (priceMove * quantity) - (entryPrice * feeRate * quantity)
+      // targetPnl = quantity * (priceMove - entryPrice * feeRate)
+      // quantity = targetPnl / (priceMove - entryPrice * feeRate)
+      quantity = Math.abs(targetPnl / (priceMove - entryPrice * feeRate));
+    } else {
+      // For LOSSES: Net P/L = -(priceMove * quantity) - (entryPrice * feeRate * quantity)
+      // -targetPnl = -quantity * (priceMove + entryPrice * feeRate)
+      // quantity = targetPnl / (priceMove + entryPrice * feeRate)
+      quantity = Math.abs(targetPnl / (priceMove + entryPrice * feeRate));
+    }
 
     return Math.max(0.01, quantity); // Minimum 0.01 quantity
   }
@@ -367,6 +396,7 @@ export class RobotTradeGenerator {
         initiatorType: 'robot',
         initiatorId: robotId,
         status: 'closed',
+        openedAt: trade.openedAt,
         closedAt: trade.closedAt,
       };
 
