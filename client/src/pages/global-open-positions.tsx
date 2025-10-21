@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, CheckSquare, Square } from "lucide-react";
+import { TagManagementDialog } from "@/components/tag-management-dialog";
+import { PositionTags } from "@/components/position-tags";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -374,6 +376,7 @@ export default function GlobalOpenPositions() {
             {t('positions.active.across.all.clients')}
           </p>
         </div>
+        <TagManagementDialog />
       </div>
 
       <Card>
@@ -497,13 +500,14 @@ export default function GlobalOpenPositions() {
                 <TableHead>{t('positions.open.price')}</TableHead>
                 <TableHead>{t('positions.current.pnl')}</TableHead>
                 <TableHead>{t('positions.opened')}</TableHead>
+                <TableHead>Tags</TableHead>
                 <TableHead className="text-right">{t('common.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPositions && filteredPositions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     <p className="text-muted-foreground" data-testid="text-no-positions">{t('positions.no.positions')}</p>
                   </TableCell>
                 </TableRow>
@@ -544,6 +548,9 @@ export default function GlobalOpenPositions() {
                       </TableCell>
                       <TableCell data-testid={`text-opened-${position.id}`}>
                         {new Date(position.openedAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <PositionTags positionId={position.id} />
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
