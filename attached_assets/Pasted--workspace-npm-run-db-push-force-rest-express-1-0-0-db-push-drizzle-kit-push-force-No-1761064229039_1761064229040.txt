@@ -1,0 +1,53 @@
+~/workspace$ npm run db:push -- --force
+
+> rest-express@1.0.0 db:push
+> drizzle-kit push --force
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/home/runner/workspace/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+
++ description column will be created
+--- all columns conflicts in trading_symbols table resolved ---
+
+
++ code column will be created
+
++ bank_details column will be created
+--- all columns conflicts in affiliates table resolved ---
+
+
++ category column will be created
+--- all columns conflicts in security_settings table resolved ---
+
+· You're about to add custom_statuses_name_unique unique constraint to the table, which contains 12 items. If this statement fails, you will receive an error from the database. Do you want to truncate custom_statuses table?
+
+· You're about to add system_settings_key_unique unique constraint to the table, which contains 1 items. If this statement fails, you will receive an error from the database. Do you want to truncate system_settings table?
+
+error: column "variables" cannot be cast automatically to type jsonb
+    at /home/runner/workspace/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.query (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:80601:26)
+    at async pgPush (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:84411:13)
+    at async Object.handler (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:93813:9)
+    at async run (/home/runner/workspace/node_modules/drizzle-kit/bin.cjs:93059:7) {
+  length: 185,
+  severity: 'ERROR',
+  code: '42804',
+  detail: undefined,
+  hint: 'You might need to specify "USING variables::jsonb".',
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'tablecmds.c',
+  line: '12561',
+  routine: 'ATPrepAlterColumnType'
+}
+~/workspace$ 
