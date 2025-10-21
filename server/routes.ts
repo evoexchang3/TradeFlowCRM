@@ -6979,6 +6979,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // KYC Responses
+  app.get("/api/clients/:clientId/kyc-responses", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      const responses = await db.select()
+        .from(kycResponses)
+        .where(eq(kycResponses.clientId, req.params.clientId));
+      res.json(responses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/clients/:clientId/kyc-responses", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      
+      // Fetch all active KYC questions for validation
+      const activeQuestions = await db.select()
+        .from(kycQuestions)
+        .where(eq(kycQuestions.isActive, true));
+      
+      const questionMap = new Map(activeQuestions.map(q => [q.id, q]));
+      
+      // Validate responses
+      const responses = req.body.responses || [];
+      const validatedResponses = [];
+      
+      for (const response of responses) {
+        const question = questionMap.get(response.questionId);
+        
+        // Ensure question exists and is active
+        if (!question) {
+          return res.status(400).json({ 
+            error: `Invalid question ID: ${response.questionId}` 
+          });
+        }
+        
+        // Ensure response is not empty
+        if (!response.response || response.response.trim() === '') {
+          return res.status(400).json({ 
+            error: `Empty response for question: ${question.question}` 
+          });
+        }
+        
+        validatedResponses.push({
+          clientId: req.params.clientId,
+          questionId: response.questionId,
+          response: response.response,
+          fileUrls: response.fileUrls || [],
+        });
+      }
+      
+      // Check if all required questions have responses
+      const requiredQuestions = activeQuestions.filter(q => q.isRequired);
+      const answeredQuestionIds = new Set(responses.map((r: any) => r.questionId));
+      const missingRequired = requiredQuestions.filter(q => !answeredQuestionIds.has(q.id));
+      
+      if (missingRequired.length > 0) {
+        return res.status(400).json({ 
+          error: `Missing required questions: ${missingRequired.map(q => q.question).join(', ')}` 
+        });
+      }
+      
+      // Delete existing responses and insert new ones in a transaction for atomicity
+      const result = await db.transaction(async (tx) => {
+        // Delete existing responses
+        await tx.delete(kycResponses)
+          .where(eq(kycResponses.clientId, req.params.clientId));
+        
+        // Insert new responses
+        if (validatedResponses.length > 0) {
+          const insertedResponses = await tx.insert(kycResponses)
+            .values(validatedResponses)
+            .returning();
+          return insertedResponses;
+        }
+        return [];
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Template Variables
   app.get("/api/template-variables", authMiddleware, async (req: AuthRequest, res) => {
     try {

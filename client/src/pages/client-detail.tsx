@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -89,6 +89,7 @@ export default function ClientDetail() {
   const [eventStartTime, setEventStartTime] = useState('');
   const [eventEndTime, setEventEndTime] = useState('');
   const [eventLocation, setEventLocation] = useState('');
+  const [kycFormResponses, setKycFormResponses] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -149,6 +150,15 @@ export default function ClientDetail() {
 
   const { data: closedPositions = [] } = useQuery({
     queryKey: ['/api/clients', clientId, 'closed-positions'],
+    enabled: !!clientId,
+  });
+
+  const { data: kycQuestions = [] } = useQuery({
+    queryKey: ['/api/kyc-questions'],
+  });
+
+  const { data: kycResponses = [] } = useQuery({
+    queryKey: ['/api/clients', clientId, 'kyc-responses'],
     enabled: !!clientId,
   });
 
@@ -305,6 +315,25 @@ export default function ClientDetail() {
       toast({
         title: t('common.error'),
         description: error.message || t('calendar.event.failed.to.create'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveKycResponsesMutation = useMutation({
+    mutationFn: (responses: any[]) => 
+      apiRequest('POST', `/api/clients/${clientId}/kyc-responses`, { responses }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'kyc-responses'] });
+      toast({
+        title: t('toast.success.saved'),
+        description: t('client.kyc.saved.successfully'),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || t('client.kyc.failed.to.save'),
         variant: "destructive",
       });
     },
@@ -572,6 +601,48 @@ export default function ClientDetail() {
       </div>
     );
   }
+
+  // Populate KYC form with existing responses
+  useEffect(() => {
+    if (kycResponses && kycResponses.length > 0) {
+      const responsesMap: Record<string, string> = {};
+      kycResponses.forEach((response: any) => {
+        responsesMap[response.questionId] = response.response;
+      });
+      setKycFormResponses(responsesMap);
+    }
+  }, [kycResponses]);
+
+  const handleKycFormSubmit = () => {
+    // Validate required fields
+    const activeQuestions = kycQuestions.filter((q: any) => q.isActive);
+    const requiredQuestions = activeQuestions.filter((q: any) => q.isRequired);
+    const missingRequired = requiredQuestions.filter(
+      (q: any) => !kycFormResponses[q.id] || kycFormResponses[q.id].trim() === ''
+    );
+
+    if (missingRequired.length > 0) {
+      toast({
+        title: t('common.error'),
+        description: t('client.kyc.required.fields.missing', { 
+          count: missingRequired.length 
+        }),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Build responses array only for questions that have answers
+    const responses = Object.entries(kycFormResponses)
+      .filter(([, response]) => response && response.trim() !== '')
+      .map(([questionId, response]) => ({
+        questionId,
+        response,
+        fileUrls: [],
+      }));
+
+    saveKycResponsesMutation.mutate(responses);
+  };
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
@@ -1182,6 +1253,7 @@ export default function ClientDetail() {
           <TabsTrigger value="trade-history" data-testid="tab-trade-history">{t('client.detail.tab.trade.history')}</TabsTrigger>
           <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">{t('client.detail.tab.subaccounts')}</TabsTrigger>
           <TabsTrigger value="transfers" data-testid="tab-transfers">{t('client.detail.tab.transfers')}</TabsTrigger>
+          <TabsTrigger value="kyc" data-testid="tab-kyc">{t('client.detail.tab.kyc')}</TabsTrigger>
           <TabsTrigger value="comments" data-testid="tab-comments">{t('client.detail.tab.comments')}</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">{t('client.detail.tab.documents')}</TabsTrigger>
         </TabsList>
@@ -1803,6 +1875,135 @@ export default function ClientDetail() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="kyc" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t('client.detail.kyc.title')}</CardTitle>
+              <p className="text-sm text-muted-foreground">{t('client.detail.kyc.subtitle')}</p>
+            </CardHeader>
+            <CardContent>
+              {kycQuestions.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">{t('client.detail.kyc.no.questions')}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {t('client.detail.kyc.admin.setup.required')}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {kycQuestions
+                    .filter((q: any) => q.isActive)
+                    .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+                    .map((question: any) => (
+                      <div key={question.id} className="space-y-2">
+                        <Label className="text-sm font-medium flex items-center gap-1">
+                          {question.question}
+                          {question.isRequired && <span className="text-destructive">*</span>}
+                        </Label>
+                        
+                        {question.questionType === 'text' && (
+                          <Input
+                            value={kycFormResponses[question.id] || ''}
+                            onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
+                            data-testid={`input-kyc-${question.id}`}
+                            placeholder={t('client.detail.kyc.answer.placeholder')}
+                          />
+                        )}
+                        
+                        {question.questionType === 'textarea' && (
+                          <Textarea
+                            value={kycFormResponses[question.id] || ''}
+                            onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
+                            data-testid={`textarea-kyc-${question.id}`}
+                            placeholder={t('client.detail.kyc.answer.placeholder')}
+                            rows={4}
+                          />
+                        )}
+                        
+                        {question.questionType === 'select' && (
+                          <Select
+                            value={kycFormResponses[question.id] || ''}
+                            onValueChange={(value) => setKycFormResponses({ ...kycFormResponses, [question.id]: value })}
+                          >
+                            <SelectTrigger data-testid={`select-kyc-${question.id}`}>
+                              <SelectValue placeholder={t('client.detail.kyc.select.option')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {question.options && Array.isArray(question.options) && question.options.map((option: string) => (
+                                <SelectItem key={option} value={option}>{option}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        
+                        {question.questionType === 'radio' && question.options && Array.isArray(question.options) && (
+                          <div className="space-y-2">
+                            {question.options.map((option: string) => (
+                              <label key={option} className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={question.id}
+                                  value={option}
+                                  checked={kycFormResponses[question.id] === option}
+                                  onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
+                                  data-testid={`radio-kyc-${question.id}-${option}`}
+                                />
+                                <span className="text-sm">{option}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {question.questionType === 'checkbox' && question.options && Array.isArray(question.options) && (
+                          <div className="space-y-2">
+                            {question.options.map((option: string) => (
+                              <label key={option} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  value={option}
+                                  checked={(kycFormResponses[question.id] || '').split(',').includes(option)}
+                                  onChange={(e) => {
+                                    const currentValues = (kycFormResponses[question.id] || '').split(',').filter(Boolean);
+                                    const newValues = e.target.checked
+                                      ? [...currentValues, option]
+                                      : currentValues.filter(v => v !== option);
+                                    setKycFormResponses({ ...kycFormResponses, [question.id]: newValues.join(',') });
+                                  }}
+                                  data-testid={`checkbox-kyc-${question.id}-${option}`}
+                                />
+                                <span className="text-sm">{option}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {question.questionType === 'date' && (
+                          <Input
+                            type="date"
+                            value={kycFormResponses[question.id] || ''}
+                            onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
+                            data-testid={`date-kyc-${question.id}`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  
+                  <div className="flex justify-end pt-4">
+                    <Button
+                      onClick={handleKycFormSubmit}
+                      disabled={saveKycResponsesMutation.isPending}
+                      data-testid="button-save-kyc"
+                      className="hover-elevate active-elevate-2"
+                    >
+                      {saveKycResponsesMutation.isPending ? t('common.saving') : t('client.detail.kyc.save')}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
