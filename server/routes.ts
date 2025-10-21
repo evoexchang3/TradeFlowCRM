@@ -4800,14 +4800,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Role-based filtering
       const roleName = role?.name?.toLowerCase();
-      if (roleName === 'agent') {
+      
+      // Agent: sees only their own events
+      if (isAgentRole(roleName)) {
         query = query.where(eq(calendarEvents.userId, user.id));
-      } else if (isTeamLeaderRole(roleName) && user.teamId) {
-        // Team leaders see their own events and their team's events
+      } 
+      // Team Leader: sees events of all users in their team
+      else if (isTeamLeaderRole(roleName) && user.teamId) {
         const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
         const userIds = teamUsers.map(u => u.id);
         query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
       }
+      // Administrator and CRM Manager: see all events (no filtering)
+      // else: query remains unfiltered for admin and crm manager
 
       const events = await query;
       res.json(events);

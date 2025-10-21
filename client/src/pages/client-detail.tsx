@@ -82,6 +82,13 @@ export default function ClientDetail() {
   const [modifyPnl, setModifyPnl] = useState('');
   const [modifyOpenedAt, setModifyOpenedAt] = useState('');
   const [modifyClosedAt, setModifyClosedAt] = useState('');
+  const [calendarEventDialogOpen, setCalendarEventDialogOpen] = useState(false);
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [eventType, setEventType] = useState<'meeting' | 'call' | 'follow_up' | 'demo' | 'kyc_review'>('call');
+  const [eventStartTime, setEventStartTime] = useState('');
+  const [eventEndTime, setEventEndTime] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -263,6 +270,41 @@ export default function ClientDetail() {
       toast({
         title: t('common.error'),
         description: t('client.toast.comment.delete.failed'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createCalendarEventMutation = useMutation({
+    mutationFn: (data: {
+      title: string;
+      description?: string;
+      eventType: string;
+      clientId: string;
+      startTime: string;
+      endTime: string;
+      location?: string;
+      status: string;
+    }) => apiRequest('POST', '/api/calendar/events', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/calendar/events'] });
+      setCalendarEventDialogOpen(false);
+      // Reset form
+      setEventTitle('');
+      setEventDescription('');
+      setEventType('call');
+      setEventStartTime('');
+      setEventEndTime('');
+      setEventLocation('');
+      toast({
+        title: t('toast.success.created'),
+        description: t('calendar.event.created.successfully'),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || t('calendar.event.failed.to.create'),
         variant: "destructive",
       });
     },
@@ -609,6 +651,16 @@ export default function ClientDetail() {
           >
             <Plus className="h-4 w-4 mr-2" />
             {t('client.detail.add.comment')}
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setCalendarEventDialogOpen(true)}
+            data-testid="button-schedule-event" 
+            className="hover-elevate active-elevate-2"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            {t('client.detail.schedule.event')}
           </Button>
           <Button 
             variant="outline" 
@@ -2061,6 +2113,152 @@ export default function ClientDetail() {
               className="hover-elevate active-elevate-2"
             >
               {addCommentMutation.isPending ? t('client.detail.quick.comment.adding') : t('client.detail.quick.comment.button')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Calendar Event Dialog */}
+      <Dialog open={calendarEventDialogOpen} onOpenChange={setCalendarEventDialogOpen}>
+        <DialogContent data-testid="dialog-calendar-event">
+          <DialogHeader>
+            <DialogTitle>{t('calendar.create.event')}</DialogTitle>
+            <DialogDescription>
+              {t('calendar.create.event.for.client', { name: `${client.firstName} ${client.lastName}` })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="event-title">{t('calendar.event.title')}</Label>
+              <Input
+                id="event-title"
+                placeholder={t('calendar.event.title.placeholder')}
+                value={eventTitle}
+                onChange={(e) => setEventTitle(e.target.value)}
+                data-testid="input-event-title"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="event-type">{t('calendar.event.type')}</Label>
+              <Select value={eventType} onValueChange={(v: any) => setEventType(v)}>
+                <SelectTrigger data-testid="select-event-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="meeting">{t('calendar.event.type.meeting')}</SelectItem>
+                  <SelectItem value="call">{t('calendar.event.type.call')}</SelectItem>
+                  <SelectItem value="follow_up">{t('calendar.follow.up')}</SelectItem>
+                  <SelectItem value="demo">{t('calendar.event.type.demo')}</SelectItem>
+                  <SelectItem value="kyc_review">{t('calendar.event.type.kyc_review')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event-start">{t('calendar.start.time')}</Label>
+                <Input
+                  id="event-start"
+                  type="datetime-local"
+                  value={eventStartTime}
+                  onChange={(e) => setEventStartTime(e.target.value)}
+                  data-testid="input-event-start"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="event-end">{t('calendar.end.time')}</Label>
+                <Input
+                  id="event-end"
+                  type="datetime-local"
+                  value={eventEndTime}
+                  onChange={(e) => setEventEndTime(e.target.value)}
+                  data-testid="input-event-end"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="event-location">{t('calendar.location')}</Label>
+              <Input
+                id="event-location"
+                placeholder={t('calendar.placeholder.location')}
+                value={eventLocation}
+                onChange={(e) => setEventLocation(e.target.value)}
+                data-testid="input-event-location"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="event-description">{t('calendar.event.description')}</Label>
+              <Textarea
+                id="event-description"
+                placeholder={t('calendar.event.description.placeholder')}
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                rows={3}
+                data-testid="textarea-event-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCalendarEventDialogOpen(false);
+                // Reset form
+                setEventTitle('');
+                setEventDescription('');
+                setEventType('call');
+                setEventStartTime('');
+                setEventEndTime('');
+                setEventLocation('');
+              }}
+              data-testid="button-cancel-event"
+              className="hover-elevate active-elevate-2"
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (!eventTitle.trim() || !eventStartTime || !eventEndTime) {
+                  toast({
+                    title: t('common.error'),
+                    description: t('calendar.event.required.fields'),
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                // Validate end time is after start time
+                const startDate = new Date(eventStartTime);
+                const endDate = new Date(eventEndTime);
+                if (endDate <= startDate) {
+                  toast({
+                    title: t('common.error'),
+                    description: t('calendar.event.end.time.must.be.after.start'),
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                // Convert datetime-local to ISO strings for timezone-aware storage
+                createCalendarEventMutation.mutate({
+                  title: eventTitle,
+                  description: eventDescription,
+                  eventType,
+                  clientId,
+                  startTime: startDate.toISOString(),
+                  endTime: endDate.toISOString(),
+                  location: eventLocation,
+                  status: 'scheduled',
+                });
+              }}
+              disabled={createCalendarEventMutation.isPending}
+              data-testid="button-submit-event"
+              className="hover-elevate active-elevate-2"
+            >
+              {createCalendarEventMutation.isPending ? t('calendar.creating') : t('calendar.create.event')}
             </Button>
           </DialogFooter>
         </DialogContent>
