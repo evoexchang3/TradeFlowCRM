@@ -62,6 +62,7 @@ export default function GlobalOpenPositions() {
   const { toast } = useToast();
   
   const editPositionSchema = z.object({
+    side: z.enum(['buy', 'sell']).optional(),
     openPrice: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
       message: t('positions.validation.open.price.positive'),
     }).optional(),
@@ -74,6 +75,9 @@ export default function GlobalOpenPositions() {
     unrealizedPnl: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
       message: t('positions.validation.unrealized.pnl.valid'),
     }).optional(),
+    openedAt: z.string().refine((val) => val === "" || !isNaN(Date.parse(val)), {
+      message: t('positions.validation.opened.date.valid'),
+    }).optional(),
   });
   
   type EditPositionData = z.infer<typeof editPositionSchema>;
@@ -85,10 +89,12 @@ export default function GlobalOpenPositions() {
   const form = useForm<EditPositionData>({
     resolver: zodResolver(editPositionSchema),
     defaultValues: {
+      side: undefined,
       openPrice: "",
       closePrice: "",
       quantity: "",
       unrealizedPnl: "",
+      openedAt: "",
     },
   });
 
@@ -96,6 +102,9 @@ export default function GlobalOpenPositions() {
     mutationFn: async (data: EditPositionData) => {
       const processedData: Record<string, any> = {};
       
+      if (data.side) {
+        processedData.side = data.side;
+      }
       if (data.openPrice && data.openPrice !== "") {
         processedData.openPrice = parseFloat(data.openPrice).toString();
       }
@@ -107,6 +116,10 @@ export default function GlobalOpenPositions() {
       }
       if (data.unrealizedPnl && data.unrealizedPnl !== "") {
         processedData.unrealizedPnl = parseFloat(data.unrealizedPnl).toString();
+      }
+      if (data.openedAt && data.openedAt !== "") {
+        // Convert datetime-local to ISO 8601 with timezone
+        processedData.openedAt = new Date(data.openedAt).toISOString();
       }
       
       return apiRequest('PATCH', `/api/positions/${selectedPosition.id}`, processedData);
@@ -149,13 +162,29 @@ export default function GlobalOpenPositions() {
     },
   });
 
+  // Convert ISO string to datetime-local format (preserving the instant in local time)
+  const toDatetimeLocal = (isoString: string): string => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    // Format as YYYY-MM-DDTHH:MM (local timezone)
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const handleEdit = (position: any) => {
     setSelectedPosition(position);
+    
     form.reset({
+      side: position.side || undefined,
       openPrice: position.openPrice || "",
       closePrice: position.closePrice || "",
       quantity: position.quantity || "",
       unrealizedPnl: position.unrealizedPnl || "",
+      openedAt: toDatetimeLocal(position.openedAt),
     });
     setEditDialogOpen(true);
   };
@@ -394,6 +423,40 @@ export default function GlobalOpenPositions() {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="side"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.side')}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-side">
+                          <SelectValue placeholder={t('positions.select.side')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="buy">{t('positions.buy')}</SelectItem>
+                        <SelectItem value="sell">{t('positions.sell')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="openedAt"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.opened.at')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="datetime-local" data-testid="input-opened-at" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="openPrice"
