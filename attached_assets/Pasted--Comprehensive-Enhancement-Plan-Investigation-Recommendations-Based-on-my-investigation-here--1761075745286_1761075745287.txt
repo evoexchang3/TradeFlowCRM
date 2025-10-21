@@ -1,0 +1,183 @@
+📋 Comprehensive Enhancement Plan - Investigation & Recommendations
+Based on my investigation, here's a detailed plan for each issue with additional suggestions:
+
+1️⃣ CFD Accounts - "No Accounts Found" Issue
+Problem: Page shows "No accounts found" even when accounts exist
+Root Cause: Likely fetching from /api/accounts/all which may not include client join
+Fix Needed:
+* Backend: Ensure /api/accounts/all returns accounts with client info joined
+* Frontend: Add proper loading states and error handling
+
+* Add bulk actions (activate/deactivate multiple accounts)
+* Add export to CSV functionality
+* Add filter by risk level (high risk margin accounts)
+* Add real-time equity/margin updates via WebSocket
+* Add account history timeline showing balance changes
+
+2️⃣ Open Positions - Enhanced Edit Options
+Current: Limited editing capabilities Needed: Edit side (buy/sell) and opening time
+
+* Edit quantity (size of position)
+* Edit entry price (for corrections)
+* Edit stop loss / take profit levels
+* Add position notes/tags (why trade was taken)
+* Add bulk edit (modify multiple positions at once)
+* Add position split/merge functionality
+* Show P/L chart over time for each position
+* Add alerts when position reaches certain P/L thresholds
+
+3️⃣ Closed Positions - Enhanced Edit Options
+Current: Read-only view Needed: Edit side, open time, close time
+
+* Edit realized P/L (for corrections/adjustments)
+* Edit fees (if incorrectly calculated)
+* Add trade tags/categories (scalp, swing, hedging, etc.)
+* Add trade notes (post-mortem analysis)
+* Add performance metrics (win rate, avg win/loss, profit factor)
+* Add filter by strategy/tag
+* Add export selected trades to Excel/CSV
+* Add duplicate trade (create similar trade quickly)
+* Show visual trade timeline (entry→exit on price chart)
+
+4️⃣ Calendar - Event Creation & Role-Based Access
+Problems:
+* Save button doesn't work
+* Can only see own calendar
+* No role-based visibility
+Fix Needed:
+* Fix form submission (likely missing preventDefault or validation issue)
+* Implement role-based calendar views:
+    * Admin: See ALL users' calendars
+    * CRM Manager: See calendars of users in their managed teams
+    * Team Leader: See calendars of their team agents
+    * Agent: See only their own calendar
+
+* Add calendar sharing (share specific events with others)
+* Add recurring events (daily standup, weekly team meeting)
+* Add event templates (quick create common event types)
+* Add drag-and-drop rescheduling
+* Add availability view (see who's free at certain times)
+* Add calendar sync with Google Calendar / Outlook
+* Add automatic reminders (email/notification before event)
+* Add event categories with colors (meetings, calls, demos, etc.)
+* Add time zone support for international teams
+* Add calendar export (iCal format)
+* Add suggested times (AI finds best meeting slots)
+* Add video call links integration (Zoom, Teams, Meet)
+
+5️⃣ Chat Rooms - Creation Issue
+Problem: Shows success message but room doesn't appear
+Root Cause: Backend creates room in database but frontend doesn't fetch/refresh properly
+Fix Needed:
+* Ensure query invalidation after room creation
+* Check if rooms list is properly filtered by user
+* Add proper real-time updates
+
+* Add direct messages (1-on-1 chat between agents)
+* Add group chats (multiple users in one room)
+* Add file sharing in chat
+* Add message search (find old messages)
+* Add typing indicators ("User is typing...")
+* Add read receipts (seen/delivered status)
+* Add message reactions (👍, ❤️, etc.)
+* Add pin important messages
+* Add @mentions (notify specific users)
+* Add chat history export
+* Add voice messages or voice/video calls
+* Add client chat (agents can chat with clients)
+
+6️⃣ Client Detail - Quick Calendar Event Creation
+Needed: Create calendar appointment for client directly from client page
+Implementation:
+* Add "Schedule Appointment" button in client detail view
+* Pre-fill event with:
+    * Client name in title
+    * Client ID linked
+    * Quick date/time picker
+    * Note field
+
+* Show upcoming appointments with this client
+* Show past appointment history with this client
+* Add appointment reminder sent to agent
+* Add client notification (optional SMS/email to client)
+* Add quick actions: "Call Now", "Schedule Follow-up", "Book Demo"
+* Add appointment templates (First Call, Demo, KYC Review, etc.)
+* Show last contact date prominently
+* Add contact frequency tracker (days since last contact)
+* Add automated follow-up scheduling (7 days after last call)
+
+7️⃣ Client Detail - KYC Questions Form
+Needed: Dynamic KYC questions that sales can fill, retention can view/edit
+Implementation:
+* Create KYC questions builder (admin defines questions)
+* Questions to include:
+    * Age
+    * Occupation/Job Title
+    * Monthly Income
+    * Savings/Investment Amount
+    * Trading Experience
+    * Risk Tolerance
+    * Investment Goals
+    * Source of Funds
+Permission Model:
+* Sales Agent: Can fill KYC answers during onboarding
+* Retention Agent: Can view AND edit KYC answers
+* Manager/Admin: Full access to view/edit all KYC data
+💡 Additional Suggestions:
+* Add conditional questions (show Q5 only if Q4 answer is "Yes")
+* Add question types: text, number, dropdown, multi-select, date, file upload
+* Add KYC progress bar (5/10 questions answered)
+* Add KYC status badges (Pending, Partial, Complete, Verified)
+* Add KYC document upload (ID, proof of address, bank statement)
+* Add KYC verification workflow (submit → review → approve/reject)
+* Add automated risk scoring based on answers
+* Add compliance flags (high-risk client, PEP, etc.)
+* Add KYC expiry/renewal (re-verify annually)
+* Add audit trail (who filled what, when)
+* Add bulk KYC export for compliance reporting
+* Add AI-assisted KYC (auto-fill from documents)
+
+8️⃣ Teams - Hierarchical Branch Structure
+Current: Flat team structure Needed: Multi-level hierarchy (Branch → Teams)
+Implementation Structure:
+Organization
+├── German Branch
+│ ├── German Sales Team 1
+│ ├── German Sales Team 2
+│ ├── German Retention Team 1
+│ └── German Retention Team 2
+├── UK Branch
+│ ├── UK Sales Team
+│ └── UK Retention Team
+└── Nordic Branch
+├── Swedish Team
+└── Norwegian Team
+
+
+* Add organizational chart visualization (tree diagram)
+* Add branch managers (role above team leaders)
+* Add branch-level metrics (aggregate team performance)
+* Add branch color coding (visual distinction)
+* Add cross-branch reporting (compare branches)
+* Add branch territories (geographic assignment)
+* Add branch languages (primary languages served)
+* Add branch budgets/quotas
+* Add branch hierarchy drag-and-drop (reorganize visually)
+* Add team member transfer between teams/branches
+* Add team performance leaderboard by branch
+* Add branch head count and capacity planning
+* Add sub-teams (Senior Sales, Junior Sales within one team)
+
+📊 Implementation Priority Recommendation:
+🔴 Critical (Fix Immediately):
+1. CFD Accounts showing no data
+2. Calendar save button not working
+3. Chat room creation not showing
+🟡 High Priority (Next Sprint):
+4. Edit capabilities for open/closed positions
+5. KYC questions in client detail
+6. Quick calendar event from client detail
+🟢 Medium Priority (Future Enhancement):
+7. Hierarchical team structure
+8. Advanced calendar features
+9. Enhanced chat functionality
