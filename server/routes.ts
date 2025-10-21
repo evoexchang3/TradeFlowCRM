@@ -38,7 +38,9 @@ import {
   users,
   savedFilters,
   customStatuses,
-  insertTradingRobotSchema
+  insertTradingRobotSchema,
+  kycQuestions,
+  kycResponses
 } from "@shared/schema";
 import { eq, or, and, isNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
 
