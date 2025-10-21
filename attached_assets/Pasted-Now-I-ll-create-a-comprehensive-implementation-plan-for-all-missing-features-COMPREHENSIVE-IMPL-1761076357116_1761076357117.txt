@@ -1,0 +1,426 @@
+Now I'll create a comprehensive implementation plan for all missing features.
+
+📋 COMPREHENSIVE IMPLEMENTATION PLAN
+🔴 CRITICAL FIXES (Do First)
+Task 1: Fix Chat Room Creation Issue
+Problem: Rooms created successfully in backend but don't appear in frontend list
+Root Cause Investigation Needed:
+
+Backend returns enriched room data correctly
+Frontend shows success but empty object in console
+Likely issue: Response parsing or query refetch timing
+Fix Plan:
+
+Add await to mutation response parsing
+Ensure backend returns complete room object with all fields
+Add manual room addition to local cache if query invalidation is delayed
+Add better error handling and logging
+Task 2: Implement Calendar Role-Based Views
+Current: User can only see their own calendar
+Needed: Different views based on role
+
+Implementation:
+
+Add filter dropdown in calendar header: "My Calendar" | "Team Calendar" | "All Calendars"
+Backend: Modify /api/calendar/events to accept ?view= parameter
+Role-based filtering logic:
+Admin/CRM Manager: Can select "All Calendars" (see everyone)
+Team Leader: Can select "Team Calendar" (see their team members)
+Agent: Only "My Calendar" (default, no other options)
+Add color-coding for different users' events
+Add user filter dropdown when viewing team/all calendars
+🟡 POSITION MANAGEMENT ENHANCEMENTS
+Task 3: Bulk Position Edit
+Location: Open Positions & Closed Positions pages
+
+Features:
+
+Add checkbox column to position tables
+"Select All" checkbox in header
+Bulk actions toolbar appears when items selected:
+Bulk Edit SL/TP (open positions)
+Bulk Edit Commission (closed positions)
+Bulk Add Tags/Notes
+Bulk Delete
+Bulk edit dialog with multi-select validation
+Confirmation dialog for bulk operations
+Progress indicator for bulk updates
+Task 4: Position Tags/Categories System
+Features:
+
+Create position_tags table (id, name, color, category)
+Create position_tag_assignments junction table
+Add tag management UI in settings
+Tag categories: Strategy (scalp, swing, day trade), Risk (high, medium, low), Status (winning, losing)
+Multi-tag assignment in position edit dialog
+Filter positions by tags
+Tag statistics in dashboard (performance by tag)
+Task 5: Position Export to CSV/Excel
+Features:
+
+Add "Export" button to Open & Closed Positions pages
+Export options dialog:
+Export selected (if rows checked)
+Export filtered (current filter results)
+Export all
+Date range selector
+CSV format with all fields including custom notes/tags
+Excel format with formatted columns and auto-width
+Filename: positions_open_2025-10-21.csv
+Task 6: Position Performance Metrics (Closed Positions)
+Features:
+
+Add Statistics Card section above closed positions table:
+Total Trades
+Win Rate (% winning trades)
+Average Win / Average Loss
+Profit Factor (gross profit / gross loss)
+Largest Win / Largest Loss
+Average Hold Time
+Filter by date range
+Filter by symbol/instrument
+Filter by tag (after Task 4)
+Export metrics to PDF report
+Task 7: Position Duplicate/Clone Feature
+Features:
+
+Add "Duplicate" action in position dropdown menu
+Opens new position dialog pre-filled with:
+Same symbol
+Same quantity
+Same direction (buy/sell)
+Current market price (not old price)
+Useful for quickly opening similar positions
+Task 8: Position Alerts & Notifications
+Features:
+
+Create position_alerts table (id, positionId, userId, alertType, threshold, isTriggered)
+Alert types:
+P/L reaches amount ($100 profit)
+P/L reaches percentage (5% gain)
+Price reaches level (EUR/USD hits 1.20)
+Add "Set Alert" button in position detail
+Alert configuration dialog
+Backend job checks alerts every 1 minute
+Notification when alert triggers (toast + database notification)
+Email notification option
+🟢 CALENDAR ENHANCEMENTS
+Task 9: Recurring Events
+Features:
+
+Add "Repeat" field in event form with options:
+Never (default)
+Daily
+Weekly (select days: Mon, Tue, Wed...)
+Monthly (same date each month)
+Custom
+Add "Repeat Until" date field
+Backend: Generate individual event instances in database
+UI: Show recurring event indicator (🔄 icon)
+Edit options: "This event" | "All future events"
+Delete options: "This event" | "All occurrences"
+Task 10: Event Templates
+Features:
+
+Create event_templates table
+Templates page in settings:
+First Call (30 min, type: call)
+Product Demo (60 min, type: demo)
+KYC Review (45 min, type: kyc_review)
+Follow-up Call (15 min, type: follow_up)
+"Use Template" dropdown in event creation dialog
+Pre-fills title, duration, type, default description
+Admin can create/edit templates
+Task 11: Calendar Export (iCal)
+Features:
+
+Add "Export Calendar" button
+Generate .ics file format
+Export options:
+My events only
+Team events
+Date range
+Download file or copy iCal URL for Google Calendar/Outlook sync
+Task 12: Calendar Time Zone Support
+Features:
+
+Add user timezone field in user profile
+Display all times in user's timezone
+Show timezone indicator on events
+Convert times when viewing other users' calendars
+Timezone selector in event creation
+Task 13: Meeting Availability Finder
+Features:
+
+"Find Available Time" button in calendar
+Select participants (multiple users)
+Preferred date range
+Meeting duration
+Algorithm finds common free slots
+Display suggested times
+Click to create event with all participants
+🟣 CHAT SYSTEM ENHANCEMENTS
+Task 14: Direct Messages (1-on-1 Chat)
+Features:
+
+Already partially implemented (type: "direct")
+Improve UI: Add "New Direct Message" button
+User selector autocomplete
+Create/find existing DM room automatically
+Show online status indicators (green dot)
+Recent DMs sorted by last message
+Task 15: File Sharing in Chat
+Features:
+
+Add file upload button in message input
+Upload to server storage (use multer)
+Store file metadata in attachments JSON field
+Display file preview (images) or download link
+File types: images, PDFs, Excel, documents
+Max file size: 10MB
+Virus scanning (optional but recommended)
+Task 16: Message Search
+Features:
+
+Add search input in chat header
+Search across all messages in current room
+Highlight search terms in results
+Jump to message in conversation
+Advanced search: by sender, date range, has attachments
+Task 17: Typing Indicators
+Features:
+
+WebSocket real-time communication
+Emit "typing" event when user types
+Show "User is typing..." indicator in chat
+Auto-hide after 3 seconds of no typing
+Multiple users: "John and 2 others are typing..."
+Task 18: Message Reactions & Pin Messages
+Features:
+
+Add reactions table (messageId, userId, emoji)
+Hover on message → show reaction button
+Emoji picker
+Display reaction counts under message
+"Pin Message" option in message menu
+Pinned messages section at top of chat
+Max 5 pinned messages per room
+🔵 KYC ENHANCEMENTS
+Task 19: Conditional KYC Questions
+Features:
+
+Add showIfQuestionId and showIfAnswer fields to KYC questions
+Question builder UI: "Show this question if..."
+Conditional logic in frontend form
+Example: Show "Annual Income" only if "Employed" === "Yes"
+Support multiple conditions with AND/OR logic
+Task 20: KYC Progress Tracking
+Features:
+
+Add progress bar to KYC form showing completion %
+Calculate based on required fields answered
+KYC status badges in client list:
+🔴 Not Started (0%)
+🟡 Partial (1-99%)
+🟢 Complete (100%)
+Filter clients by KYC status
+Bulk KYC completion report
+Task 21: KYC Verification Workflow
+Features:
+
+Create kyc_verification_status enum: pending, under_review, approved, rejected, requires_update
+Add status field to clients table
+Workflow:
+Agent fills KYC → Status: "Pending"
+Manager clicks "Submit for Review" → Status: "Under Review"
+Compliance reviews → Approve/Reject with notes
+Review page for managers showing pending KYCs
+Email notification on status change
+Audit trail of all status changes
+Task 22: Automated Risk Scoring
+Features:
+
+Risk calculation algorithm based on KYC answers:
+High income + low risk tolerance = Medium Risk
+No trading experience + high investment = High Risk
+Regulated profession = Low Risk
+Risk score: 1-100
+Risk category: Low (1-33), Medium (34-66), High (67-100)
+Display risk score in client profile
+Risk distribution chart in dashboard
+Alerts for high-risk clients
+Task 23: KYC Document Upload & Management
+Features:
+
+Document upload widget in KYC tab
+Document types: ID, Proof of Address, Bank Statement, Other
+Store files with metadata (type, upload date, verified status)
+Document verification workflow
+Download/view documents
+Document expiry tracking (ID expires in 6 months)
+Reminder notifications for expiring documents
+Task 24: KYC Bulk Export & Compliance Reporting
+Features:
+
+Export all KYC data to Excel
+Include all questions and answers
+Filter by: date range, risk level, verification status
+Compliance report template
+Anonymized data option for audits
+Scheduled monthly exports
+🟠 TEAM HIERARCHY ENHANCEMENTS
+Task 25: Visual Organizational Chart (D3.js Tree)
+Features:
+
+Replace current hierarchy view with interactive tree diagram
+Use D3.js or React Flow library
+Collapsible nodes
+Pan and zoom
+Click node to see details
+Drag-and-drop to reorganize (if enabled)
+Task 26: Branch-Level Analytics Dashboard
+Features:
+
+Branch comparison page
+Side-by-side metrics for each branch:
+Total revenue
+Total clients
+FTD count
+Conversion rate
+Average deal size
+Bar charts comparing branches
+Time range selector
+Export comparison report
+Task 27: Team Member Transfer System
+Features:
+
+"Transfer Member" button in team detail
+Select user and destination team
+Reason field (optional)
+Transfer history log
+Client reassignment option (transfer user's clients too)
+Email notification to user and both team leaders
+Task 28: Branch Quota & Budget Management
+Features:
+
+Add monthlyQuota and budget fields to teams table
+Set quotas per branch/team
+Progress bars showing quota achievement
+Budget vs actual spend tracking
+Alerts when approaching quota (80%, 90%, 100%)
+Quarterly quota planning
+🟤 CFD ACCOUNTS ENHANCEMENTS
+Task 29: Real-Time Equity Updates (WebSocket)
+Features:
+
+Subscribe to position P/L updates via WebSocket
+Calculate real-time equity = balance + unrealized P/L
+Update account equity without page refresh
+Flash animation on value change (green up, red down)
+Auto-refresh every 5 seconds as fallback
+Task 30: Account History Timeline
+Features:
+
+Create visual timeline for each account:
+Deposits (💰)
+Withdrawals (💸)
+Trades opened (📈)
+Trades closed (📊)
+Balance adjustments (⚖️)
+Vertical timeline with date and amount
+Filter by activity type
+Export timeline to PDF
+Task 31: Bulk Account Actions
+Features:
+
+Checkbox selection in CFD accounts table
+Bulk actions:
+Activate accounts
+Deactivate accounts
+Change leverage
+Send notification
+Confirmation dialog with preview
+Success/failure summary
+⚙️ ADDITIONAL FEATURES
+Task 32: System Notifications & Activity Feed
+Features:
+
+Notification bell icon in header
+Unread count badge
+Notification types:
+Client status changed
+Large deposit/withdrawal
+Position alert triggered
+KYC pending review
+Calendar event starting soon
+Mark as read functionality
+Notification preferences in user settings
+Task 33: Advanced Client Search & Filters
+Features:
+
+Global search already exists but enhance:
+Add more filter criteria:
+Registration date range
+Last activity date
+Account balance range
+Number of trades
+Risk score range
+Save filter presets
+Share filter links with team
+Task 34: Email Template System Enhancements
+Features:
+
+Current system has templates
+Add template variables: {{clientName}}, {{balance}}, {{agentName}}
+Rich text editor for templates
+Template preview before sending
+Send test email
+Email open tracking
+Link click tracking
+Task 35: Automated Client Journey Automation
+Features:
+
+Workflow builder for automated actions:
+New client → Send welcome email
+No deposit after 7 days → Send reminder
+FTD achieved → Assign to retention team
+No trading for 30 days → Re-engagement campaign
+Visual workflow editor (drag-and-drop nodes)
+Trigger conditions
+Action nodes (email, status change, assignment)
+Delay nodes (wait 3 days)
+📊 IMPLEMENTATION SUMMARY
+Category	Tasks	Estimated Hours
+Critical Fixes	2	4h
+Position Management	6	24h
+Calendar	7	28h
+Chat System	5	20h
+KYC System	6	24h
+Team Hierarchy	4	16h
+CFD Accounts	3	12h
+Additional	4	16h
+TOTAL	37 tasks	~144 hours
+🎯 RECOMMENDED IMPLEMENTATION ORDER
+Phase 1: Critical Fixes (Week 1)
+Task 1: Fix Chat Room Creation
+Task 2: Calendar Role-Based Views
+Phase 2: High-Impact Features (Week 2-3)
+Task 3: Bulk Position Edit
+Task 14-15: Direct Messages & File Sharing
+Task 19: Conditional KYC Questions
+Task 29: Real-Time Equity Updates
+Phase 3: User Experience (Week 4-5)
+Task 4: Position Tags
+Task 9-10: Recurring Events & Templates
+Task 20-21: KYC Progress & Workflow
+Task 32: Notifications System
+Phase 4: Advanced Features (Week 6-8)
+Task 5-8: Position Export, Metrics, Alerts
+Task 16-18: Message Search, Typing, Reactions
+Task 22-24: Risk Scoring, Documents, Reports
+Task 25-28: Hierarchy Visualizations & Management
+Phase 5: Automation & Analytics (Week 9-10)
+Task 6: Performance Metrics
+Task 26: Branch Analytics
+Task 30-31: Account History & Bulk Actions
+Task 33-35: Advanced Search, Email, Automation
