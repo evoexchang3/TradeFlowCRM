@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, CheckSquare, Square, Filter, X } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, CheckSquare, Square, Filter, X, Download } from "lucide-react";
 import { TagManagementDialog } from "@/components/tag-management-dialog";
 import { PositionTags } from "@/components/position-tags";
 import { Button } from "@/components/ui/button";
@@ -75,6 +75,8 @@ export default function GlobalOpenPositions() {
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const [bulkTagsToAdd, setBulkTagsToAdd] = useState<Set<string>>(new Set());
   const [bulkTagsToRemove, setBulkTagsToRemove] = useState<Set<string>>(new Set());
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<'selected' | 'filtered' | 'all'>('filtered');
   const { toast } = useToast();
   
   const editPositionSchema = z.object({
@@ -392,6 +394,108 @@ export default function GlobalOpenPositions() {
     }
   };
 
+  const exportToCSV = () => {
+    // Determine which positions to export
+    let positionsToExport: any[] = [];
+    
+    if (exportMode === 'selected') {
+      if (selectedPositions.size === 0) {
+        toast({
+          title: "No positions selected",
+          description: "Please select positions to export",
+          variant: "destructive",
+        });
+        return;
+      }
+      positionsToExport = positions.filter((p: any) => selectedPositions.has(p.id));
+    } else if (exportMode === 'filtered') {
+      positionsToExport = filteredPositions || [];
+    } else {
+      positionsToExport = positions || [];
+    }
+
+    if (positionsToExport.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no positions to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // CSV Headers
+    const headers = [
+      'Client Name',
+      'Account Number',
+      'Symbol',
+      'Side',
+      'Quantity',
+      'Open Price',
+      'Current Price',
+      'Unrealized P/L',
+      'Stop Loss',
+      'Take Profit',
+      'Commission',
+      'Opened At',
+      'Tags',
+      'Notes'
+    ];
+
+    // CSV Rows
+    const rows = positionsToExport.map((pos: any) => {
+      const tags = pos.tags?.map((tag: any) => tag.name).join('; ') || '';
+      return [
+        pos.clientName || '',
+        pos.accountNumber || '',
+        pos.symbol || '',
+        pos.side || '',
+        pos.quantity || '',
+        pos.openPrice || '',
+        pos.currentPrice || '',
+        pos.unrealizedPnl || '',
+        pos.stopLoss || '',
+        pos.takeProfit || '',
+        pos.commission || '',
+        pos.openedAt ? new Date(pos.openedAt).toLocaleString() : '',
+        tags,
+        pos.notes || ''
+      ].map(field => {
+        // Escape double quotes and wrap in quotes if contains comma or newline
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      });
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `positions_open_${timestamp}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${positionsToExport.length} positions to CSV`,
+    });
+
+    setExportDialogOpen(false);
+  };
+
   // Client-side filtering
   const filteredPositions = positions?.filter((position: any) => {
     if (searchQuery) {
@@ -450,7 +554,17 @@ export default function GlobalOpenPositions() {
             {t('positions.active.across.all.clients')}
           </p>
         </div>
-        <TagManagementDialog />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setExportDialogOpen(true)}
+            data-testid="button-export"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <TagManagementDialog />
+        </div>
       </div>
 
       <Card>
@@ -1184,6 +1298,55 @@ export default function GlobalOpenPositions() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent data-testid="dialog-export">
+          <DialogHeader>
+            <DialogTitle>Export Positions</DialogTitle>
+            <DialogDescription>
+              Choose what data to export and download as CSV file
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Export Mode</label>
+              <Select value={exportMode} onValueChange={(value: any) => setExportMode(value)}>
+                <SelectTrigger data-testid="select-export-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="selected" disabled={selectedPositions.size === 0}>
+                    Export Selected ({selectedPositions.size} positions)
+                  </SelectItem>
+                  <SelectItem value="filtered">
+                    Export Filtered ({filteredPositions?.length || 0} positions)
+                  </SelectItem>
+                  <SelectItem value="all">
+                    Export All ({positions?.length || 0} positions)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-4 bg-muted rounded-md">
+              <p className="text-sm text-muted-foreground">
+                <strong>Export includes:</strong> Client Name, Account Number, Symbol, Side, Quantity, 
+                Open Price, Current Price, Unrealized P/L, Stop Loss, Take Profit, Commission, 
+                Opened At, Tags, and Notes
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExportDialogOpen(false)} data-testid="button-cancel-export">
+              Cancel
+            </Button>
+            <Button type="button" onClick={exportToCSV} data-testid="button-confirm-export">
+              <Download className="h-4 w-4 mr-2" />
+              Download CSV
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

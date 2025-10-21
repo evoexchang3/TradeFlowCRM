@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +60,8 @@ export default function GlobalClosedPositions() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<'filtered' | 'all'>('filtered');
   const { toast } = useToast();
   
   const editClosedPositionSchema = z.object({
@@ -228,6 +230,101 @@ export default function GlobalClosedPositions() {
     }
   };
 
+  const exportToCSV = () => {
+    // Determine which positions to export
+    let positionsToExport: any[] = [];
+    
+    if (exportMode === 'filtered') {
+      positionsToExport = filteredPositions || [];
+    } else {
+      positionsToExport = positions || [];
+    }
+
+    if (positionsToExport.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no positions to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // CSV Headers
+    const headers = [
+      'Client Name',
+      'Account Number',
+      'Symbol',
+      'Side',
+      'Quantity',
+      'Open Price',
+      'Close Price',
+      'Realized P/L',
+      'Commission',
+      'Opened At',
+      'Closed At',
+      'Hold Time (hours)',
+      'Notes'
+    ];
+
+    // CSV Rows
+    const rows = positionsToExport.map((pos: any) => {
+      const openTime = pos.openedAt ? new Date(pos.openedAt) : null;
+      const closeTime = pos.closedAt ? new Date(pos.closedAt) : null;
+      const holdTimeHours = openTime && closeTime 
+        ? ((closeTime.getTime() - openTime.getTime()) / (1000 * 60 * 60)).toFixed(2)
+        : '';
+      
+      return [
+        pos.clientName || '',
+        pos.accountNumber || '',
+        pos.symbol || '',
+        pos.side || '',
+        pos.quantity || '',
+        pos.openPrice || '',
+        pos.closePrice || '',
+        pos.realizedPnl || '',
+        pos.commission || '',
+        openTime ? openTime.toLocaleString() : '',
+        closeTime ? closeTime.toLocaleString() : '',
+        holdTimeHours,
+        pos.notes || ''
+      ].map(field => {
+        // Escape double quotes and wrap in quotes if contains comma or newline
+        const str = String(field);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      });
+    });
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const timestamp = new Date().toISOString().split('T')[0];
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `positions_closed_${timestamp}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export successful",
+      description: `Exported ${positionsToExport.length} positions to CSV`,
+    });
+
+    setExportDialogOpen(false);
+  };
+
   const filteredPositions = positions?.filter((position: any) => {
     if (searchQuery) {
       const search = searchQuery.toLowerCase();
@@ -277,6 +374,14 @@ export default function GlobalClosedPositions() {
             {t('positions.closed.subtitle')}
           </p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => setExportDialogOpen(true)}
+          data-testid="button-export"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       <Card>
@@ -612,6 +717,52 @@ export default function GlobalClosedPositions() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? t('positions.deleting') : t('positions.delete.position')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent data-testid="dialog-export">
+          <DialogHeader>
+            <DialogTitle>Export Closed Positions</DialogTitle>
+            <DialogDescription>
+              Choose what data to export and download as CSV file
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Export Mode</label>
+              <Select value={exportMode} onValueChange={(value: any) => setExportMode(value)}>
+                <SelectTrigger data-testid="select-export-mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="filtered">
+                    Export Filtered ({filteredPositions?.length || 0} positions)
+                  </SelectItem>
+                  <SelectItem value="all">
+                    Export All ({positions?.length || 0} positions)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-4 bg-muted rounded-md">
+              <p className="text-sm text-muted-foreground">
+                <strong>Export includes:</strong> Client Name, Account Number, Symbol, Side, Quantity, 
+                Open Price, Close Price, Realized P/L, Commission, Opened At, Closed At, 
+                Hold Time (hours), and Notes
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setExportDialogOpen(false)} data-testid="button-cancel-export">
+              Cancel
+            </Button>
+            <Button type="button" onClick={exportToCSV} data-testid="button-confirm-export">
+              <Download className="h-4 w-4 mr-2" />
+              Download CSV
             </Button>
           </DialogFooter>
         </DialogContent>
