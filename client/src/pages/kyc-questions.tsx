@@ -18,13 +18,14 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 interface KYCQuestion {
   id: string;
-  questionText: string;
+  question: string;
   questionType: string;
-  category: string;
   isRequired: boolean;
   options: any;
   conditionalLogic: any;
-  displayOrder: number;
+  validation: any;
+  sortOrder: number;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -43,10 +44,10 @@ function QuestionCard({ question, onEdit, onDelete }: {
             <GripVertical className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div className="flex-1">
               <CardTitle className="text-base" data-testid={`text-question-${question.id}`}>
-                {question.questionText}
+                {question.question}
               </CardTitle>
               <CardDescription className="text-xs mt-1">
-                {question.questionType}{t('kycQuestions.separator')}{question.category}
+                {question.questionType}
                 {question.isRequired && t('kycQuestions.required.badge')}
               </CardDescription>
               {question.options && Array.isArray(question.options) && question.options.length > 0 && (
@@ -86,16 +87,18 @@ export default function KYCQuestions() {
   const [editingQuestion, setEditingQuestion] = useState<KYCQuestion | null>(null);
   const [optionsText, setOptionsText] = useState("[]");
   const [conditionalText, setConditionalText] = useState("{}");
+  const [validationText, setValidationText] = useState("{}");
   const { toast } = useToast();
 
   const questionFormSchema = z.object({
-    questionText: z.string().min(1, t('kycQuestions.validation.questionTextRequired')),
+    question: z.string().min(1, t('kycQuestions.validation.questionTextRequired')),
     questionType: z.string(),
-    category: z.string(),
     isRequired: z.boolean().default(false),
     options: z.string().optional(),
     conditionalLogic: z.string().optional(),
-    displayOrder: z.number().default(0),
+    validation: z.string().optional(),
+    sortOrder: z.number().default(0),
+    isActive: z.boolean().default(true),
   });
 
   type QuestionFormData = z.infer<typeof questionFormSchema>;
@@ -107,13 +110,14 @@ export default function KYCQuestions() {
   const form = useForm<QuestionFormData>({
     resolver: zodResolver(questionFormSchema),
     defaultValues: {
-      questionText: "",
+      question: "",
       questionType: "text",
-      category: "personal",
       isRequired: false,
       options: "[]",
       conditionalLogic: "{}",
-      displayOrder: 0,
+      validation: "{}",
+      sortOrder: 0,
+      isActive: true,
     },
   });
 
@@ -124,6 +128,7 @@ export default function KYCQuestions() {
       toast({ title: t('kycQuestions.toast.created.title'), description: t('kycQuestions.toast.created.description') });
       setOptionsText("[]");
       setConditionalText("{}");
+      setValidationText("{}");
       setIsDialogOpen(false);
       form.reset();
     },
@@ -140,6 +145,7 @@ export default function KYCQuestions() {
       setEditingQuestion(null);
       setOptionsText("[]");
       setConditionalText("{}");
+      setValidationText("{}");
       setIsDialogOpen(false);
       form.reset();
     },
@@ -163,11 +169,17 @@ export default function KYCQuestions() {
     try {
       const options = JSON.parse(optionsText);
       const conditional = JSON.parse(conditionalText);
+      const validation = JSON.parse(validationText);
       
       const finalData = {
-        ...data,
+        question: data.question,
+        questionType: data.questionType,
+        isRequired: data.isRequired,
+        sortOrder: data.sortOrder,
+        isActive: data.isActive,
         options,
         conditionalLogic: conditional,
+        validation,
       };
       
       if (editingQuestion) {
@@ -188,12 +200,13 @@ export default function KYCQuestions() {
     setEditingQuestion(question);
     setOptionsText(JSON.stringify(question.options || [], null, 2));
     setConditionalText(JSON.stringify(question.conditionalLogic || {}, null, 2));
+    setValidationText(JSON.stringify(question.validation || {}, null, 2));
     form.reset({
-      questionText: question.questionText,
+      question: question.question,
       questionType: question.questionType,
-      category: question.category,
       isRequired: question.isRequired,
-      displayOrder: question.displayOrder,
+      sortOrder: question.sortOrder,
+      isActive: question.isActive,
     });
     setIsDialogOpen(true);
   };
@@ -204,6 +217,7 @@ export default function KYCQuestions() {
       setEditingQuestion(null);
       setOptionsText("[]");
       setConditionalText("{}");
+      setValidationText("{}");
       form.reset();
     }
   };
@@ -244,7 +258,7 @@ export default function KYCQuestions() {
               <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="questionText"
+                  name="question"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('kycQuestions.questionText')}</FormLabel>
@@ -261,59 +275,32 @@ export default function KYCQuestions() {
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="questionType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('kycQuestions.questionType')}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-question-type">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="text">{t('kycQuestions.type.text')}</SelectItem>
-                            <SelectItem value="textarea">{t('kycQuestions.type.textarea')}</SelectItem>
-                            <SelectItem value="select">{t('kycQuestions.type.select')}</SelectItem>
-                            <SelectItem value="radio">{t('kycQuestions.type.radio')}</SelectItem>
-                            <SelectItem value="checkbox">{t('kycQuestions.type.checkbox')}</SelectItem>
-                            <SelectItem value="date">{t('kycQuestions.type.date')}</SelectItem>
-                            <SelectItem value="file">{t('kycQuestions.type.file')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('kycQuestions.category')}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-category">
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="personal">{t('kycQuestions.category.personal')}</SelectItem>
-                            <SelectItem value="financial">{t('kycQuestions.category.financial')}</SelectItem>
-                            <SelectItem value="employment">{t('kycQuestions.category.employment')}</SelectItem>
-                            <SelectItem value="trading">{t('kycQuestions.category.trading')}</SelectItem>
-                            <SelectItem value="identification">{t('kycQuestions.category.identification')}</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="questionType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('kycQuestions.questionType')}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-question-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="text">{t('kycQuestions.type.text')}</SelectItem>
+                          <SelectItem value="textarea">{t('kycQuestions.type.textarea')}</SelectItem>
+                          <SelectItem value="select">{t('kycQuestions.type.select')}</SelectItem>
+                          <SelectItem value="radio">{t('kycQuestions.type.radio')}</SelectItem>
+                          <SelectItem value="checkbox">{t('kycQuestions.type.checkbox')}</SelectItem>
+                          <SelectItem value="date">{t('kycQuestions.type.date')}</SelectItem>
+                          <SelectItem value="file">{t('kycQuestions.type.file')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
@@ -339,7 +326,7 @@ export default function KYCQuestions() {
 
                 <FormField
                   control={form.control}
-                  name="displayOrder"
+                  name="sortOrder"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('kycQuestions.displayOrder')}</FormLabel>
@@ -439,7 +426,7 @@ export default function KYCQuestions() {
           </Card>
         ) : (
           questions
-            .sort((a, b) => a.displayOrder - b.displayOrder)
+            .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((question) => (
               <QuestionCard
                 key={question.id}
