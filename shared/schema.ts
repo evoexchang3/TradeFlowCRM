@@ -1049,7 +1049,18 @@ export const insertCalendarEventTemplateSchema = createInsertSchema(calendarEven
   id: true,
   createdAt: true,
   updatedAt: true,
-});
+}).refine(
+  (data) => {
+    if (data.isRecurring && !data.recurrenceFrequency) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Recurrence frequency is required for recurring templates",
+    path: ["recurrenceFrequency"],
+  }
+);
 
 export type CalendarEventTemplate = typeof calendarEventTemplates.$inferSelect;
 export type InsertCalendarEventTemplate = z.infer<typeof insertCalendarEventTemplateSchema>;

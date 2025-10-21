@@ -5370,8 +5370,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
+      // Validate request body with Zod
+      const { insertCalendarEventTemplateSchema } = await import("@shared/schema");
+      const validated = insertCalendarEventTemplateSchema.parse(req.body);
+
       const [template] = await db.insert(calendarEventTemplates).values({
-        ...req.body,
+        ...validated,
         createdBy: user.id,
       }).returning();
 
@@ -5384,6 +5388,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(template);
     } catch (error: any) {
       console.error('[Calendar Templates POST Error]:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
@@ -5406,9 +5413,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
+      // Validate request body with Zod (partial for PATCH)
+      const { insertCalendarEventTemplateSchema } = await import("@shared/schema");
+      const validated = insertCalendarEventTemplateSchema.partial().parse(req.body);
+
       const [updatedTemplate] = await db.update(calendarEventTemplates)
         .set({
-          ...req.body,
+          ...validated,
           updatedAt: new Date(),
         })
         .where(eq(calendarEventTemplates.id, req.params.id))
@@ -5423,6 +5434,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedTemplate);
     } catch (error: any) {
       console.error('[Calendar Templates PATCH Error]:', error);
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation failed', details: error.errors });
+      }
       res.status(500).json({ error: error.message });
     }
   });
