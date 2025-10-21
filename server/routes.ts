@@ -2800,6 +2800,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk tag operations
+  app.post("/api/positions/bulk/tags", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { positionIds, tagsToAdd, tagsToRemove } = req.body;
+
+      if (!positionIds || !Array.isArray(positionIds) || positionIds.length === 0) {
+        return res.status(400).json({ error: "positionIds array is required" });
+      }
+
+      if ((!tagsToAdd || tagsToAdd.length === 0) && (!tagsToRemove || tagsToRemove.length === 0)) {
+        return res.status(400).json({ error: "At least one tag operation (add or remove) is required" });
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: any[] = [];
+
+      // Process each position
+      for (const positionId of positionIds) {
+        try {
+          // Add tags
+          if (tagsToAdd && tagsToAdd.length > 0) {
+            for (const tagId of tagsToAdd) {
+              try {
+                await storage.assignTagToPosition(positionId, tagId);
+                successCount++;
+              } catch (error: any) {
+                // Ignore duplicate errors (already assigned)
+                if (error.code !== '23505' && !error.message?.includes('duplicate')) {
+                  errorCount++;
+                  errors.push({ positionId, tagId, operation: 'add', error: error.message });
+                }
+              }
+            }
+          }
+
+          // Remove tags
+          if (tagsToRemove && tagsToRemove.length > 0) {
+            for (const tagId of tagsToRemove) {
+              try {
+                await storage.removeTagFromPosition(positionId, tagId);
+                successCount++;
+              } catch (error: any) {
+                errorCount++;
+                errors.push({ positionId, tagId, operation: 'remove', error: error.message });
+              }
+            }
+          }
+        } catch (error: any) {
+          errorCount++;
+          errors.push({ positionId, error: error.message });
+        }
+      }
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        action: 'trade_edit',
+        targetType: 'position',
+        details: {
+          action: 'bulk_tag_operation',
+          positionCount: positionIds.length,
+          tagsToAdd: tagsToAdd || [],
+          tagsToRemove: tagsToRemove || [],
+          successCount,
+          errorCount,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: `Bulk tag operation completed`,
+        successCount,
+        errorCount,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== GLOBAL POSITIONS VIEW =====
   app.get("/api/positions/all/open", authMiddleware, async (req: AuthRequest, res) => {
     try {

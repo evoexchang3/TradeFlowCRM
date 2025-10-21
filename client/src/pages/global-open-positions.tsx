@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, CheckSquare, Square } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, CheckSquare, Square, Filter, X } from "lucide-react";
 import { TagManagementDialog } from "@/components/tag-management-dialog";
 import { PositionTags } from "@/components/position-tags";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -60,11 +66,15 @@ export default function GlobalOpenPositions() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSymbol, setFilterSymbol] = useState<string>('all');
   const [filterSide, setFilterSide] = useState<string>('all');
+  const [filterTags, setFilterTags] = useState<Set<string>>(new Set());
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
+  const [bulkTagsToAdd, setBulkTagsToAdd] = useState<Set<string>>(new Set());
+  const [bulkTagsToRemove, setBulkTagsToRemove] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   
   const editPositionSchema = z.object({
@@ -99,6 +109,10 @@ export default function GlobalOpenPositions() {
     queryKey: ['/api/positions/all/open'],
   });
 
+  const { data: allTags = [] } = useQuery<any[]>({
+    queryKey: ['/api/position-tags'],
+  });
+
   const form = useForm<EditPositionData>({
     resolver: zodResolver(editPositionSchema),
     defaultValues: {
@@ -125,11 +139,6 @@ export default function GlobalOpenPositions() {
       message: t('positions.validation.commission.valid'),
     }).optional(),
     notes: z.string().optional(),
-  }).refine((data) => {
-    // At least one field must be provided
-    return data.stopLoss !== "" || data.takeProfit !== "" || data.commission !== "" || data.notes !== "";
-  }, {
-    message: t('positions.validation.at.least.one.field'),
   });
 
   type BulkEditData = z.infer<typeof bulkEditSchema>;
@@ -218,7 +227,7 @@ export default function GlobalOpenPositions() {
   });
 
   const bulkEditMutation = useMutation({
-    mutationFn: async (data: BulkEditData) => {
+    mutationFn: async ({ data, positionIds }: { data: BulkEditData, positionIds: string[] }) => {
       const processedData: Record<string, any> = {};
       
       if (data.stopLoss && data.stopLoss !== "") {
@@ -235,19 +244,12 @@ export default function GlobalOpenPositions() {
       }
       
       return apiRequest('PATCH', '/api/positions/bulk-update', {
-        positionIds: Array.from(selectedPositions),
+        positionIds,
         updates: processedData,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });
-      setBulkEditDialogOpen(false);
-      setSelectedPositions(new Set());
-      bulkForm.reset();
-      toast({
-        title: t('positions.toast.bulk.updated.title'),
-        description: t('positions.toast.bulk.updated.description', { count: selectedPositions.size }),
-      });
     },
     onError: (error: any) => {
       toast({
@@ -276,8 +278,73 @@ export default function GlobalOpenPositions() {
     }
   };
 
-  const onBulkEditSubmit = (data: BulkEditData) => {
-    bulkEditMutation.mutate(data);
+  const bulkTagMutation = useMutation({
+    mutationFn: async ({ positionIds, tagsToAdd, tagsToRemove }: { positionIds: string[], tagsToAdd: string[], tagsToRemove: string[] }) => {
+      return apiRequest('POST', '/api/positions/bulk/tags', {
+        positionIds,
+        tagsToAdd,
+        tagsToRemove,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/positions'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || "Failed to update tags",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onBulkEditSubmit = async (data: BulkEditData) => {
+    // Cache the selected position IDs and count before mutations
+    const positionIds = Array.from(selectedPositions);
+    const positionCount = positionIds.length;
+    const tagsToAdd = Array.from(bulkTagsToAdd);
+    const tagsToRemove = Array.from(bulkTagsToRemove);
+    
+    // Check if there are any updates to perform
+    const hasFieldUpdates = data.stopLoss !== "" || data.takeProfit !== "" || data.commission !== "" || data.notes !== "";
+    const hasTagUpdates = tagsToAdd.length > 0 || tagsToRemove.length > 0;
+    
+    if (!hasFieldUpdates && !hasTagUpdates) {
+      toast({
+        title: t('common.error'),
+        description: t('positions.validation.at.least.one.field'),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Perform bulk edit if there are field updates
+      if (hasFieldUpdates) {
+        await bulkEditMutation.mutateAsync({ data, positionIds });
+      }
+      
+      // Perform bulk tag operations if any tags are selected
+      if (hasTagUpdates) {
+        await bulkTagMutation.mutateAsync({ positionIds, tagsToAdd, tagsToRemove });
+      }
+      
+      // Show success toast with cached count
+      toast({
+        title: t('positions.toast.bulk.updated.title'),
+        description: t('positions.toast.bulk.updated.description', { count: positionCount }),
+      });
+      
+      // Reset states after both operations complete
+      setBulkEditDialogOpen(false);
+      setSelectedPositions(new Set());
+      setBulkTagsToAdd(new Set());
+      setBulkTagsToRemove(new Set());
+      bulkForm.reset();
+    } catch (error) {
+      // Error handling is done in individual mutation error handlers
+    }
   };
 
   // Convert ISO string to datetime-local format (preserving the instant in local time)
@@ -342,6 +409,13 @@ export default function GlobalOpenPositions() {
 
     if (filterSide && filterSide !== 'all') {
       if (position.side !== filterSide) return false;
+    }
+
+    // Tag filtering - show positions that have ANY of the selected tags (OR logic)
+    if (filterTags.size > 0) {
+      const positionTagIds = position.tags?.map((tag: any) => tag.id) || [];
+      const hasMatchingTag = Array.from(filterTags).some(tagId => positionTagIds.includes(tagId));
+      if (!hasMatchingTag) return false;
     }
 
     return true;
@@ -445,7 +519,105 @@ export default function GlobalOpenPositions() {
                 <SelectItem value="sell">{t('positions.sell')}</SelectItem>
               </SelectContent>
             </Select>
+            
+            <Popover open={tagFilterOpen} onOpenChange={setTagFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full md:w-[200px] justify-start"
+                  data-testid="button-tag-filter"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  {filterTags.size > 0 ? `${filterTags.size} Tags` : 'Filter by Tags'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search tags..." data-testid="input-search-tag-filter" />
+                  <CommandList>
+                    <CommandEmpty>No tags found.</CommandEmpty>
+                    <CommandGroup>
+                      {allTags.map((tag: any) => (
+                        <CommandItem
+                          key={tag.id}
+                          onSelect={() => {
+                            const newFilterTags = new Set(filterTags);
+                            if (newFilterTags.has(tag.id)) {
+                              newFilterTags.delete(tag.id);
+                            } else {
+                              newFilterTags.add(tag.id);
+                            }
+                            setFilterTags(newFilterTags);
+                          }}
+                          data-testid={`command-item-tag-${tag.id}`}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            <Checkbox
+                              checked={filterTags.has(tag.id)}
+                              onCheckedChange={() => {}}
+                              data-testid={`checkbox-tag-filter-${tag.id}`}
+                            />
+                            <div
+                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            <span className="flex-1">{tag.name}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                {filterTags.size > 0 && (
+                  <div className="p-2 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFilterTags(new Set())}
+                      className="w-full"
+                      data-testid="button-clear-tag-filter"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear Selection
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
+          
+          {filterTags.size > 0 && (
+            <div className="flex flex-wrap gap-2 pt-4">
+              <span className="text-sm text-muted-foreground">Active tag filters:</span>
+              {Array.from(filterTags).map(tagId => {
+                const tag = allTags.find((t: any) => t.id === tagId);
+                if (!tag) return null;
+                return (
+                  <Badge
+                    key={tag.id}
+                    variant="outline"
+                    className="gap-1"
+                    data-testid={`badge-active-filter-${tag.id}`}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name}
+                    <X
+                      className="h-3 w-3 cursor-pointer hover:bg-muted rounded-sm"
+                      onClick={() => {
+                        const newFilterTags = new Set(filterTags);
+                        newFilterTags.delete(tag.id);
+                        setFilterTags(newFilterTags);
+                      }}
+                      data-testid={`button-remove-filter-${tag.id}`}
+                    />
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -811,6 +983,197 @@ export default function GlobalOpenPositions() {
                   </FormItem>
                 )}
               />
+              
+              <div className="space-y-3 pt-2 border-t">
+                <h4 className="font-medium text-sm">Tag Operations</h4>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Add Tags</label>
+                  <div className="flex flex-wrap gap-2 min-h-[2rem] p-2 border rounded-md">
+                    {bulkTagsToAdd.size === 0 ? (
+                      <span className="text-sm text-muted-foreground">No tags selected</span>
+                    ) : (
+                      Array.from(bulkTagsToAdd).map(tagId => {
+                        const tag = allTags.find((t: any) => t.id === tagId);
+                        if (!tag) return null;
+                        return (
+                          <Badge
+                            key={tag.id}
+                            variant="outline"
+                            className="gap-1"
+                            data-testid={`badge-bulk-add-${tag.id}`}
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            {tag.name}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={() => {
+                                const newTags = new Set(bulkTagsToAdd);
+                                newTags.delete(tag.id);
+                                setBulkTagsToAdd(newTags);
+                              }}
+                              data-testid={`button-remove-bulk-add-${tag.id}`}
+                            />
+                          </Badge>
+                        );
+                      })
+                    )}
+                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        data-testid="button-select-tags-to-add"
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Select Tags to Add
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[250px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search tags..." data-testid="input-search-bulk-add-tags" />
+                        <CommandList>
+                          <CommandEmpty>No tags found.</CommandEmpty>
+                          <CommandGroup>
+                            {allTags.map((tag: any) => (
+                              <CommandItem
+                                key={tag.id}
+                                onSelect={() => {
+                                  const newTags = new Set(bulkTagsToAdd);
+                                  if (newTags.has(tag.id)) {
+                                    newTags.delete(tag.id);
+                                  } else {
+                                    newTags.add(tag.id);
+                                    // Remove from "remove" list if present
+                                    const newRemoveTags = new Set(bulkTagsToRemove);
+                                    newRemoveTags.delete(tag.id);
+                                    setBulkTagsToRemove(newRemoveTags);
+                                  }
+                                  setBulkTagsToAdd(newTags);
+                                }}
+                                data-testid={`command-item-bulk-add-${tag.id}`}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <Checkbox
+                                    checked={bulkTagsToAdd.has(tag.id)}
+                                    onCheckedChange={() => {}}
+                                    data-testid={`checkbox-bulk-add-${tag.id}`}
+                                  />
+                                  <div
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                  <span className="flex-1">{tag.name}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Remove Tags</label>
+                  <div className="flex flex-wrap gap-2 min-h-[2rem] p-2 border rounded-md">
+                    {bulkTagsToRemove.size === 0 ? (
+                      <span className="text-sm text-muted-foreground">No tags selected</span>
+                    ) : (
+                      Array.from(bulkTagsToRemove).map(tagId => {
+                        const tag = allTags.find((t: any) => t.id === tagId);
+                        if (!tag) return null;
+                        return (
+                          <Badge
+                            key={tag.id}
+                            variant="outline"
+                            className="gap-1"
+                            data-testid={`badge-bulk-remove-${tag.id}`}
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            {tag.name}
+                            <X
+                              className="h-3 w-3 cursor-pointer"
+                              onClick={() => {
+                                const newTags = new Set(bulkTagsToRemove);
+                                newTags.delete(tag.id);
+                                setBulkTagsToRemove(newTags);
+                              }}
+                              data-testid={`button-remove-bulk-remove-${tag.id}`}
+                            />
+                          </Badge>
+                        );
+                      })
+                    )}
+                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        data-testid="button-select-tags-to-remove"
+                      >
+                        <Filter className="h-4 w-4 mr-2" />
+                        Select Tags to Remove
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[250px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search tags..." data-testid="input-search-bulk-remove-tags" />
+                        <CommandList>
+                          <CommandEmpty>No tags found.</CommandEmpty>
+                          <CommandGroup>
+                            {allTags.map((tag: any) => (
+                              <CommandItem
+                                key={tag.id}
+                                onSelect={() => {
+                                  const newTags = new Set(bulkTagsToRemove);
+                                  if (newTags.has(tag.id)) {
+                                    newTags.delete(tag.id);
+                                  } else {
+                                    newTags.add(tag.id);
+                                    // Remove from "add" list if present
+                                    const newAddTags = new Set(bulkTagsToAdd);
+                                    newAddTags.delete(tag.id);
+                                    setBulkTagsToAdd(newAddTags);
+                                  }
+                                  setBulkTagsToRemove(newTags);
+                                }}
+                                data-testid={`command-item-bulk-remove-${tag.id}`}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <Checkbox
+                                    checked={bulkTagsToRemove.has(tag.id)}
+                                    onCheckedChange={() => {}}
+                                    data-testid={`checkbox-bulk-remove-${tag.id}`}
+                                  />
+                                  <div
+                                    className="w-3 h-3 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: tag.color }}
+                                  />
+                                  <span className="flex-1">{tag.name}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setBulkEditDialogOpen(false)} data-testid="button-cancel-bulk-edit">
                   {t('common.cancel')}
