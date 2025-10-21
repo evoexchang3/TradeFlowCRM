@@ -2287,6 +2287,9 @@ export default {
   'search.filter.deleted': 'Filter deleted successfully',
   'search.filter.updated': 'Default filter updated',
   'search.filter.name.required': 'Please enter a filter name',
+  'search.export.csv': 'Export to CSV',
+  'search.exported': 'Exported {{count}} clients successfully',
+  'search.registration.date': 'Registration Date',
 
   // Notifications
   'notifications.title': 'Notifications',

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Search, Filter, Save, Star, MoreVertical, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, Save, Star, MoreVertical, X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -149,6 +149,80 @@ export default function GlobalSearch() {
       toast({ title: t('search.filter.updated') });
     },
   });
+
+  const handleExportCSV = async () => {
+    if (!clients || clients.length === 0) {
+      toast({ title: t('search.no.results'), variant: "destructive" });
+      return;
+    }
+
+    try {
+      // Fetch ALL filtered results (not just current page)
+      const res = await apiRequest('POST', '/api/clients/search', { ...filters, page: 1, limit: 999999 });
+      const allResults = await res.json();
+      const allClients = allResults?.clients || [];
+
+      if (allClients.length === 0) {
+        toast({ title: t('search.no.results'), variant: "destructive" });
+        return;
+      }
+
+      // Prepare CSV data
+      const headers = [
+        t('common.name'),
+        t('common.email'),
+        t('common.phone'),
+        t('search.team'),
+        t('search.agent'),
+        t('search.custom.status'),
+        t('search.kyc.status'),
+        t('search.ftd.status'),
+        t('search.registration.date'),
+      ];
+
+      const rows = allClients.map((client: any) => [
+        client.name || '',
+        client.email || '',
+        client.phone || '',
+        client.team?.name || '',
+        client.assignedAgent?.name || '',
+        client.customStatus?.name || '',
+        client.kycStatus || '',
+        client.hasFTD ? t('common.yes') : t('common.no'),
+        client.createdAt ? new Date(client.createdAt).toLocaleString() : '',
+      ]);
+
+      // Escape CSV values (handle commas, quotes, newlines)
+      const escapeCSV = (value: string) => {
+        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      // Build CSV content
+      const csvContent = [
+        headers.map(escapeCSV).join(','),
+        ...rows.map((row: string[]) => row.map(escapeCSV).join(','))
+      ].join('\n');
+
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `clients_search_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({ title: t('search.exported', { count: allClients.length }) });
+    } catch (error: any) {
+      console.error('[Export CSV Error]:', error);
+      toast({ title: t('toast.error.failed'), variant: "destructive" });
+    }
+  };
 
   const handleSearch = () => {
     setPage(1);
@@ -394,6 +468,12 @@ export default function GlobalSearch() {
                   <Save className="h-4 w-4 mr-2" />
                   {t('search.save.filter')}
                 </Button>
+                {clients.length > 0 && (
+                  <Button variant="outline" onClick={handleExportCSV} data-testid="button-export-csv">
+                    <Download className="h-4 w-4 mr-2" />
+                    {t('search.export.csv')}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
