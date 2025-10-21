@@ -183,8 +183,12 @@ export default function Chat() {
   });
 
   const createRoomMutation = useMutation({
-    mutationFn: (data: RoomFormData) => apiRequest('POST', '/api/chat/rooms', data),
+    mutationFn: (data: RoomFormData) => {
+      console.log('Creating chat room with data:', data);
+      return apiRequest('POST', '/api/chat/rooms', data);
+    },
     onSuccess: (newRoom: any) => {
+      console.log('Chat room created successfully:', newRoom);
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms'] });
       toast({ title: t('common.success'), description: t('chat.room.created') });
       if (newRoom?.id) {
@@ -193,8 +197,9 @@ export default function Chat() {
       setIsDialogOpen(false);
       form.reset();
     },
-    onError: (error) => {
-      toast({ title: t('common.error'), description: error.message, variant: "destructive" });
+    onError: (error: any) => {
+      console.error('Chat room creation error:', error);
+      toast({ title: t('common.error'), description: error.message || 'Failed to create room', variant: "destructive" });
     },
   });
 

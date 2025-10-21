@@ -52,7 +52,7 @@ export default function CFDAccountsPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch all accounts (admin view)
-  const { data: accounts = [], isLoading } = useQuery<CFDAccountWithClient[]>({
+  const { data: accounts = [], isLoading, error } = useQuery<CFDAccountWithClient[]>({
     queryKey: ["/api/accounts/all"],
   });
 
@@ -172,10 +172,16 @@ export default function CFDAccountsPage() {
                   {t('cfdAccounts.loading')}
                 </TableCell>
               </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8 text-destructive">
+                  Error loading accounts: {(error as any)?.message || 'Unknown error'}
+                </TableCell>
+              </TableRow>
             ) : filteredAccounts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={10} className="text-center py-8">
-                  {t('cfdAccounts.noAccounts')}
+                  {searchQuery ? t('cfdAccounts.noMatchingAccounts') : t('cfdAccounts.noAccounts')}
                 </TableCell>
               </TableRow>
             ) : (

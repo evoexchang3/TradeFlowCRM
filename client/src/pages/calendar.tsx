@@ -298,12 +298,21 @@ export default function Calendar() {
 
   const createMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
+      console.log('Submitting event data:', data);
       return await apiRequest("POST", "/api/calendar/events", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       setIsCreateOpen(false);
       toast({ title: t('toast.success.created') });
+    },
+    onError: (error: any) => {
+      console.error('Calendar event creation error:', error);
+      toast({ 
+        title: t('common.error'), 
+        description: error.message || 'Failed to create event',
+        variant: 'destructive' 
+      });
     },
   });
 
@@ -711,9 +720,12 @@ END:VEVENT
           <EventForm
             defaultValues={selectedDate ? {
               startTime: format(selectedDate, "yyyy-MM-dd'T'HH:mm"),
-              endTime: format(addDays(selectedDate, 0).setHours(selectedDate.getHours() + 1), "yyyy-MM-dd'T'HH:mm"),
+              endTime: format(addDays(selectedDate, 0).setHours(selectedDate.getHours() + 1, 0, 0, 0), "yyyy-MM-dd'T'HH:mm"),
             } : undefined}
-            onSubmit={(data) => createMutation.mutate(data)}
+            onSubmit={(data) => {
+              console.log('Creating event with data:', data);
+              createMutation.mutate(data);
+            }}
             isPending={createMutation.isPending}
           />
         </DialogContent>

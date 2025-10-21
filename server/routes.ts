@@ -5127,8 +5127,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: req.body.name || null,
       }).returning();
 
-      res.json(newRoom);
+      // Enrich the room data to match the GET endpoint format
+      let enrichedRoom: any = { ...newRoom, client: null, participant: null };
+
+      if (newRoom.clientId) {
+        const client = await storage.getClient(newRoom.clientId);
+        if (client) {
+          enrichedRoom.client = {
+            id: client.id,
+            firstName: client.firstName,
+            lastName: client.lastName,
+          };
+        }
+      }
+
+      if (newRoom.participantId) {
+        const participant = await storage.getUser(newRoom.participantId);
+        if (participant) {
+          enrichedRoom.participant = {
+            id: participant.id,
+            name: participant.name,
+          };
+        }
+      }
+
+      res.json(enrichedRoom);
     } catch (error: any) {
+      console.error('Chat room creation error:', error);
       res.status(500).json({ error: error.message });
     }
   });
