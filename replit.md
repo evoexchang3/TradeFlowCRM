@@ -5,6 +5,35 @@ This enterprise-grade CRM system for a trading platform manages clients, account
 
 ## Recent Changes
 
+### Performance Metrics Dashboard & CSV Export (October 21, 2025)
+Enhanced closed positions page with comprehensive trading analytics and export capabilities.
+
+**Performance Metrics Dashboard:**
+- **Overview Card**: Total Positions, Total Realized P/L, Net P/L (after commission), Total Commission
+- **Win/Loss Analysis**: Win Rate (%), Profit Factor, Average Win, Average Loss with supporting details
+- **Extremes & Stats**: Largest Win/Loss, Average Hold Time (hours/days), Risk/Reward Ratio
+- **Smart Calculations**: Proper edge case handling (∞ for unbounded metrics, N/A for no data, correct timestamp counting)
+- **Responsive Design**: 3-column grid layout (collapses to 1 column on mobile) with color-coded metrics
+
+**CSV Export Feature:**
+- **Export Modes**: 
+  - Open Positions: Selected, Filtered, All
+  - Closed Positions: Filtered, All
+- **Comprehensive Data**: Includes all position details, tags (semicolon-separated), hold time calculations
+- **CSV Standards**: Proper escaping of commas, quotes, and newlines
+- **File Naming**: Timestamped filenames (positions_open_2025-10-21.csv)
+- **User Feedback**: Success toasts with export counts, validation for empty data
+- **Pure Client-Side**: No backend required, instant download using Blob API
+
+**Technical Implementation:**
+- Frontend metrics calculated from filtered positions with proper zero guards
+- Hold time tracking with separate counter for positions with valid timestamps
+- Risk/reward ratio displays ∞ when no losses, N/A when no trades
+- All UI elements have data-testid attributes for testing
+- Export dialog with mode selection and data preview
+
+**Impact:** Traders can now analyze trading performance with professional-grade metrics and export position data for external analysis, compliance, or reporting.
+
 ### Position Tags & Categories System (October 21, 2025)
 Implemented comprehensive position tagging system for organizing and categorizing trading positions with visual labels and color coding.
 

@@ -355,6 +355,43 @@ export default function GlobalClosedPositions() {
   
   const profitableCount = filteredPositions?.filter((p: any) => parseFloat(p.realizedPnl || '0') > 0).length || 0;
 
+  // Enhanced performance metrics
+  const winningTrades = filteredPositions?.filter((p: any) => parseFloat(p.realizedPnl || '0') > 0) || [];
+  const losingTrades = filteredPositions?.filter((p: any) => parseFloat(p.realizedPnl || '0') < 0) || [];
+  
+  const totalWins = winningTrades.reduce((sum: number, p: any) => sum + parseFloat(p.realizedPnl || '0'), 0);
+  const totalLosses = Math.abs(losingTrades.reduce((sum: number, p: any) => sum + parseFloat(p.realizedPnl || '0'), 0));
+  
+  const profitFactor = totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? 999 : 0;
+  const averageWin = winningTrades.length > 0 ? totalWins / winningTrades.length : 0;
+  const averageLoss = losingTrades.length > 0 ? totalLosses / losingTrades.length : 0;
+  
+  const largestWin = winningTrades.length > 0 
+    ? Math.max(...winningTrades.map((p: any) => parseFloat(p.realizedPnl || '0')))
+    : 0;
+  const largestLoss = losingTrades.length > 0 
+    ? Math.abs(Math.min(...losingTrades.map((p: any) => parseFloat(p.realizedPnl || '0'))))
+    : 0;
+
+  const totalCommission = filteredPositions?.reduce((sum: number, p: any) => 
+    sum + parseFloat(p.commission || '0'), 0) || 0;
+  const netPnL = totalPnL - totalCommission;
+
+  // Calculate average hold time
+  let totalHoldTime = 0;
+  let holdTimeCount = 0;
+  filteredPositions?.forEach((p: any) => {
+    if (p.openedAt && p.closedAt) {
+      const openTime = new Date(p.openedAt).getTime();
+      const closeTime = new Date(p.closedAt).getTime();
+      totalHoldTime += (closeTime - openTime);
+      holdTimeCount++;
+    }
+  });
+  const averageHoldTimeHours = holdTimeCount > 0
+    ? totalHoldTime / holdTimeCount / (1000 * 60 * 60)
+    : 0;
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-6">
@@ -384,12 +421,12 @@ export default function GlobalClosedPositions() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle data-testid="text-stats-title">{t('positions.performance.overview')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle data-testid="text-overview-title">Overview</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">{t('positions.total.positions')}</p>
               <p className="text-2xl font-bold" data-testid="text-total-positions">{filteredPositions?.length || 0}</p>
@@ -401,11 +438,25 @@ export default function GlobalClosedPositions() {
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{t('positions.profitable.trades')}</p>
-              <p className="text-2xl font-bold" data-testid="text-profitable-trades">
-                {profitableCount}
+              <p className="text-sm text-muted-foreground">Net P/L (After Commission)</p>
+              <p className={`text-2xl font-bold ${netPnL >= 0 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-net-pnl">
+                ${netPnL.toFixed(2)}
               </p>
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Commission</p>
+              <p className="text-xl font-semibold text-muted-foreground" data-testid="text-total-commission">
+                ${totalCommission.toFixed(2)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle data-testid="text-win-loss-title">Win/Loss Analysis</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">{t('positions.win.rate')}</p>
               <p className="text-2xl font-bold" data-testid="text-win-rate">
@@ -413,10 +464,74 @@ export default function GlobalClosedPositions() {
                   ? ((profitableCount / filteredPositions.length) * 100).toFixed(1) 
                   : 0}%
               </p>
+              <p className="text-xs text-muted-foreground">
+                {profitableCount} wins / {losingTrades.length} losses
+              </p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <div>
+              <p className="text-sm text-muted-foreground">Profit Factor</p>
+              <p className={`text-2xl font-bold ${profitFactor >= 1 ? 'text-green-600' : 'text-red-600'}`} data-testid="text-profit-factor">
+                {profitFactor >= 999 ? '∞' : profitFactor.toFixed(2)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                ${totalWins.toFixed(2)} wins / ${totalLosses.toFixed(2)} losses
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Average Win</p>
+              <p className="text-xl font-semibold text-green-600" data-testid="text-average-win">
+                ${averageWin.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Average Loss</p>
+              <p className="text-xl font-semibold text-red-600" data-testid="text-average-loss">
+                ${averageLoss.toFixed(2)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle data-testid="text-extremes-title">Extremes & Stats</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Largest Win</p>
+              <p className="text-2xl font-bold text-green-600" data-testid="text-largest-win">
+                ${largestWin.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Largest Loss</p>
+              <p className="text-2xl font-bold text-red-600" data-testid="text-largest-loss">
+                ${largestLoss.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Average Hold Time</p>
+              <p className="text-xl font-semibold" data-testid="text-average-hold-time">
+                {averageHoldTimeHours < 24 
+                  ? `${averageHoldTimeHours.toFixed(1)} hours`
+                  : `${(averageHoldTimeHours / 24).toFixed(1)} days`
+                }
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Risk/Reward Ratio</p>
+              <p className="text-xl font-semibold" data-testid="text-risk-reward">
+                {averageLoss > 0 
+                  ? `1:${(averageWin / averageLoss).toFixed(2)}`
+                  : averageWin > 0 
+                    ? '1:∞'
+                    : 'N/A'
+                }
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardContent className="pt-6">
