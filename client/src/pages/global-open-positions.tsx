@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2 } from "lucide-react";
+import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +60,9 @@ export default function GlobalOpenPositions() {
   const [filterSide, setFilterSide] = useState<string>('all');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkEditDialogOpen, setBulkEditDialogOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
+  const [selectedPositions, setSelectedPositions] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   
   const editPositionSchema = z.object({
@@ -105,6 +108,36 @@ export default function GlobalOpenPositions() {
       openedAt: "",
       stopLoss: "",
       takeProfit: "",
+      notes: "",
+    },
+  });
+
+  const bulkEditSchema = z.object({
+    stopLoss: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.stop.loss.valid'),
+    }).optional(),
+    takeProfit: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.take.profit.valid'),
+    }).optional(),
+    commission: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
+      message: t('positions.validation.commission.valid'),
+    }).optional(),
+    notes: z.string().optional(),
+  }).refine((data) => {
+    // At least one field must be provided
+    return data.stopLoss !== "" || data.takeProfit !== "" || data.commission !== "" || data.notes !== "";
+  }, {
+    message: t('positions.validation.at.least.one.field'),
+  });
+
+  type BulkEditData = z.infer<typeof bulkEditSchema>;
+
+  const bulkForm = useForm<BulkEditData>({
+    resolver: zodResolver(bulkEditSchema),
+    defaultValues: {
+      stopLoss: "",
+      takeProfit: "",
+      commission: "",
       notes: "",
     },
   });
@@ -181,6 +214,69 @@ export default function GlobalOpenPositions() {
       });
     },
   });
+
+  const bulkEditMutation = useMutation({
+    mutationFn: async (data: BulkEditData) => {
+      const processedData: Record<string, any> = {};
+      
+      if (data.stopLoss && data.stopLoss !== "") {
+        processedData.stopLoss = parseFloat(data.stopLoss).toString();
+      }
+      if (data.takeProfit && data.takeProfit !== "") {
+        processedData.takeProfit = parseFloat(data.takeProfit).toString();
+      }
+      if (data.commission && data.commission !== "") {
+        processedData.commission = parseFloat(data.commission).toString();
+      }
+      if (data.notes !== undefined && data.notes !== "") {
+        processedData.notes = data.notes;
+      }
+      
+      return apiRequest('PATCH', '/api/positions/bulk-update', {
+        positionIds: Array.from(selectedPositions),
+        updates: processedData,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/positions/all/open'] });
+      setBulkEditDialogOpen(false);
+      setSelectedPositions(new Set());
+      bulkForm.reset();
+      toast({
+        title: t('positions.toast.bulk.updated.title'),
+        description: t('positions.toast.bulk.updated.description', { count: selectedPositions.size }),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || t('positions.toast.bulk.update.failed'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const togglePosition = (positionId: string) => {
+    const newSelected = new Set(selectedPositions);
+    if (newSelected.has(positionId)) {
+      newSelected.delete(positionId);
+    } else {
+      newSelected.add(positionId);
+    }
+    setSelectedPositions(newSelected);
+  };
+
+  const toggleAll = () => {
+    if (selectedPositions.size === filteredPositions?.length) {
+      setSelectedPositions(new Set());
+    } else {
+      setSelectedPositions(new Set(filteredPositions?.map((p: any) => p.id)));
+    }
+  };
+
+  const onBulkEditSubmit = (data: BulkEditData) => {
+    bulkEditMutation.mutate(data);
+  };
 
   // Convert ISO string to datetime-local format (preserving the instant in local time)
   const toDatetimeLocal = (isoString: string): string => {
@@ -350,11 +446,50 @@ export default function GlobalOpenPositions() {
         </CardContent>
       </Card>
 
+      {selectedPositions.size > 0 && (
+        <Card className="bg-primary/10 border-primary/20">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-5 w-5 text-primary" />
+                <span className="font-medium" data-testid="text-selected-count">
+                  {selectedPositions.size} {t('positions.selected')}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setBulkEditDialogOpen(true)}
+                  data-testid="button-bulk-edit"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  {t('positions.bulk.edit')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setSelectedPositions(new Set())}
+                  data-testid="button-clear-selection"
+                >
+                  {t('common.clear')}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="pt-6">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedPositions.size > 0 && selectedPositions.size === filteredPositions?.length}
+                    onCheckedChange={toggleAll}
+                    data-testid="checkbox-select-all"
+                  />
+                </TableHead>
                 <TableHead>{t('positions.client')}</TableHead>
                 <TableHead>{t('positions.symbol')}</TableHead>
                 <TableHead>{t('positions.side')}</TableHead>
@@ -368,7 +503,7 @@ export default function GlobalOpenPositions() {
             <TableBody>
               {filteredPositions && filteredPositions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     <p className="text-muted-foreground" data-testid="text-no-positions">{t('positions.no.positions')}</p>
                   </TableCell>
                 </TableRow>
@@ -377,6 +512,13 @@ export default function GlobalOpenPositions() {
                   const pnl = parseFloat(position.unrealizedPnl || '0');
                   return (
                     <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedPositions.has(position.id)}
+                          onCheckedChange={() => togglePosition(position.id)}
+                          data-testid={`checkbox-position-${position.id}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Link href={`/clients/${position.clientId}`} className="hover:underline" data-testid={`link-client-${position.id}`}>
                           <div className="font-medium">{position.clientName}</div>
@@ -597,6 +739,81 @@ export default function GlobalOpenPositions() {
               {deleteMutation.isPending ? t('positions.deleting') : t('positions.delete.position')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkEditDialogOpen} onOpenChange={setBulkEditDialogOpen}>
+        <DialogContent data-testid="dialog-bulk-edit">
+          <DialogHeader>
+            <DialogTitle>{t('positions.bulk.edit')}</DialogTitle>
+            <DialogDescription>
+              {t('positions.bulk.edit.description', { count: selectedPositions.size })}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...bulkForm}>
+            <form onSubmit={bulkForm.handleSubmit(onBulkEditSubmit)} className="space-y-4">
+              <FormField
+                control={bulkForm.control}
+                name="stopLoss"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.stop.loss')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder={t('positions.optional.leave.blank')} data-testid="input-bulk-stop-loss" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bulkForm.control}
+                name="takeProfit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.take.profit')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder={t('positions.optional.leave.blank')} data-testid="input-bulk-take-profit" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bulkForm.control}
+                name="commission"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.commission')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder={t('positions.optional.leave.blank')} data-testid="input-bulk-commission" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={bulkForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.notes')}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder={t('positions.bulk.notes.placeholder')} rows={3} data-testid="input-bulk-notes" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setBulkEditDialogOpen(false)} data-testid="button-cancel-bulk-edit">
+                  {t('common.cancel')}
+                </Button>
+                <Button type="submit" disabled={bulkEditMutation.isPending} data-testid="button-submit-bulk-edit">
+                  {bulkEditMutation.isPending ? t('positions.updating') : t('positions.bulk.update', { count: selectedPositions.size })}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

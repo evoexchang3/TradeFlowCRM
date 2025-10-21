@@ -2543,6 +2543,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/positions/bulk-update", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { positionIds, updates } = req.body;
+
+      if (!positionIds || !Array.isArray(positionIds) || positionIds.length === 0) {
+        return res.status(400).json({ error: "Position IDs are required" });
+      }
+
+      if (!updates || typeof updates !== 'object') {
+        return res.status(400).json({ error: "Updates object is required" });
+      }
+
+      // Validate updates object using modifyPositionSchema
+      const bulkUpdateSchema = modifyPositionSchema.pick({
+        stopLoss: true,
+        takeProfit: true,
+        commission: true,
+        notes: true,
+      }).partial();
+
+      const validatedUpdates = bulkUpdateSchema.parse(updates);
+
+      // Ensure at least one field is provided
+      if (!validatedUpdates.stopLoss && !validatedUpdates.takeProfit && 
+          !validatedUpdates.commission && !validatedUpdates.notes) {
+        return res.status(400).json({ error: "At least one field must be provided for update" });
+      }
+
+      // Verify all positions exist and user has access
+      const positions = await Promise.all(
+        positionIds.map((id: string) => storage.getPosition(id))
+      );
+
+      const notFound = positions.filter(p => !p);
+      if (notFound.length > 0) {
+        return res.status(404).json({ error: "One or more positions not found" });
+      }
+
+      // For clients, verify they own all positions
+      if (req.user?.type === 'client') {
+        const client = await storage.getClientByEmail(req.user.email);
+        const account = await storage.getAccountByClientId(client!.id);
+        
+        const unauthorized = positions.some(p => p?.accountId !== account?.id);
+        if (unauthorized) {
+          return res.status(403).json({ error: "Unauthorized to modify one or more positions" });
+        }
+      }
+
+      // Update each position
+      const updatedPositions = await Promise.all(
+        positionIds.map(async (id: string) => {
+          return await tradingEngine.modifyPosition(id, validatedUpdates);
+        })
+      );
+
+      // Create audit log for bulk update
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        clientId: req.user?.type === 'client' ? req.user.id : undefined,
+        action: 'trade_edit',
+        targetType: 'position',
+        targetId: 'bulk',
+        details: {
+          positionIds,
+          updates: validatedUpdates,
+          count: positionIds.length,
+        },
+      });
+
+      res.json({ 
+        success: true, 
+        count: updatedPositions.length,
+        positions: updatedPositions 
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/positions/:id", authMiddleware, async (req: AuthRequest, res) => {
     try {
       // Verify position ownership
