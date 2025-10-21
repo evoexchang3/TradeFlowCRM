@@ -12,6 +12,7 @@ import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
 import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenMiddleware, type AuthRequest } from "./middleware/auth";
 import * as performanceMetrics from "./services/performance-metrics";
+import { expandEventsList } from "./services/calendar-expansion";
 import { previewImport, executeImport } from "./import";
 import { 
   modifyPositionSchema, 
@@ -5170,7 +5171,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const events = await query;
-      res.json(events);
+      
+      // Parse date range for recurring event expansion
+      // Default to current month if not provided
+      const now = new Date();
+      const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const defaultEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0); // End of next month
+      
+      const rangeStart = req.query.startDate 
+        ? new Date(req.query.startDate as string) 
+        : defaultStart;
+      const rangeEnd = req.query.endDate 
+        ? new Date(req.query.endDate as string) 
+        : defaultEnd;
+      
+      // Expand recurring events into instances
+      const expandedEvents = expandEventsList(events, rangeStart, rangeEnd);
+      
+      res.json(expandedEvents);
     } catch (error: any) {
       console.error('[Calendar Events GET Error]:', error);
       res.status(500).json({ error: error.message });
