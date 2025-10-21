@@ -78,6 +78,12 @@ export default function GlobalOpenPositions() {
     openedAt: z.string().refine((val) => val === "" || !isNaN(Date.parse(val)), {
       message: t('positions.validation.opened.date.valid'),
     }).optional(),
+    stopLoss: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.stop.loss.valid'),
+    }).optional(),
+    takeProfit: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
+      message: t('positions.validation.take.profit.valid'),
+    }).optional(),
   });
   
   type EditPositionData = z.infer<typeof editPositionSchema>;
@@ -95,6 +101,8 @@ export default function GlobalOpenPositions() {
       quantity: "",
       unrealizedPnl: "",
       openedAt: "",
+      stopLoss: "",
+      takeProfit: "",
     },
   });
 
@@ -120,6 +128,12 @@ export default function GlobalOpenPositions() {
       if (data.openedAt && data.openedAt !== "") {
         // Convert datetime-local to ISO 8601 with timezone
         processedData.openedAt = new Date(data.openedAt).toISOString();
+      }
+      if (data.stopLoss && data.stopLoss !== "") {
+        processedData.stopLoss = parseFloat(data.stopLoss).toString();
+      }
+      if (data.takeProfit && data.takeProfit !== "") {
+        processedData.takeProfit = parseFloat(data.takeProfit).toString();
       }
       
       return apiRequest('PATCH', `/api/positions/${selectedPosition.id}`, processedData);
@@ -185,6 +199,8 @@ export default function GlobalOpenPositions() {
       quantity: position.quantity || "",
       unrealizedPnl: position.unrealizedPnl || "",
       openedAt: toDatetimeLocal(position.openedAt),
+      stopLoss: position.stopLoss || "",
+      takeProfit: position.takeProfit || "",
     });
     setEditDialogOpen(true);
   };
@@ -491,6 +507,32 @@ export default function GlobalOpenPositions() {
                     <FormLabel>{t('positions.unrealized.pnl')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-unrealized-pnl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="stopLoss"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.stop.loss')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-stop-loss" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="takeProfit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.take.profit')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-take-profit" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -81,6 +81,9 @@ export default function GlobalClosedPositions() {
     closedAt: z.string().refine((val) => val === "" || !isNaN(Date.parse(val)), {
       message: t('positions.validation.closed.date.valid'),
     }).optional(),
+    commission: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
+      message: t('positions.validation.commission.valid'),
+    }).optional(),
   });
 
   type EditClosedPositionData = z.infer<typeof editClosedPositionSchema>;
@@ -99,6 +102,7 @@ export default function GlobalClosedPositions() {
       realizedPnl: "",
       openedAt: "",
       closedAt: "",
+      commission: "",
     },
   });
 
@@ -128,6 +132,9 @@ export default function GlobalClosedPositions() {
       if (data.closedAt && data.closedAt !== "") {
         // Convert datetime-local to ISO 8601 with timezone
         processedData.closedAt = new Date(data.closedAt).toISOString();
+      }
+      if (data.commission && data.commission !== "") {
+        processedData.commission = parseFloat(data.commission).toString();
       }
       
       return apiRequest('PATCH', `/api/positions/${selectedPosition.id}`, processedData);
@@ -194,6 +201,7 @@ export default function GlobalClosedPositions() {
       realizedPnl: position.realizedPnl || "",
       openedAt: toDatetimeLocal(position.openedAt),
       closedAt: toDatetimeLocal(position.closedAt),
+      commission: position.commission || "",
     });
     setEditDialogOpen(true);
   };
@@ -528,6 +536,19 @@ export default function GlobalClosedPositions() {
                     <FormLabel>{t('positions.realized.pnl')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-realized-pnl" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="commission"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.commission')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="text" placeholder="0.00" data-testid="input-commission" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
