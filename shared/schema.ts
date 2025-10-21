@@ -280,6 +280,25 @@ export const positions = pgTable("positions", {
   closedAt: timestamp("closed_at"),
 });
 
+// Position Tags
+export const positionTags = pgTable("position_tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: varchar("color", { length: 7 }).notNull().default('#3b82f6'), // Hex color code
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Position Tag Assignments (Many-to-Many)
+export const positionTagAssignments = pgTable("position_tag_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  positionId: varchar("position_id").notNull().references(() => positions.id, { onDelete: 'cascade' }),
+  tagId: varchar("tag_id").notNull().references(() => positionTags.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  positionTagIdx: uniqueIndex("position_tag_idx").on(table.positionId, table.tagId),
+}));
+
 // Market Data Cache
 export const marketData = pgTable("market_data", {
   symbol: text("symbol").primaryKey(),
@@ -731,10 +750,20 @@ export const ordersRelations = relations(orders, ({ one }) => ({
   subaccount: one(subaccounts, { fields: [orders.subaccountId], references: [subaccounts.id] }),
 }));
 
-export const positionsRelations = relations(positions, ({ one }) => ({
+export const positionsRelations = relations(positions, ({ one, many }) => ({
   account: one(accounts, { fields: [positions.accountId], references: [accounts.id] }),
   subaccount: one(subaccounts, { fields: [positions.subaccountId], references: [subaccounts.id] }),
   order: one(orders, { fields: [positions.orderId], references: [orders.id] }),
+  tagAssignments: many(positionTagAssignments),
+}));
+
+export const positionTagsRelations = relations(positionTags, ({ many }) => ({
+  assignments: many(positionTagAssignments),
+}));
+
+export const positionTagAssignmentsRelations = relations(positionTagAssignments, ({ one }) => ({
+  position: one(positions, { fields: [positionTagAssignments.positionId], references: [positions.id] }),
+  tag: one(positionTags, { fields: [positionTagAssignments.tagId], references: [positionTags.id] }),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
@@ -816,6 +845,16 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
 export const insertPositionSchema = createInsertSchema(positions).omit({
   id: true,
   openedAt: true,
+});
+
+export const insertPositionTagSchema = createInsertSchema(positionTags).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPositionTagAssignmentSchema = createInsertSchema(positionTagAssignments).omit({
+  id: true,
+  createdAt: true,
 });
 
 export const modifyPositionSchema = z.object({
@@ -918,6 +957,12 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 
 export type Position = typeof positions.$inferSelect;
 export type InsertPosition = z.infer<typeof insertPositionSchema>;
+
+export type PositionTag = typeof positionTags.$inferSelect;
+export type InsertPositionTag = z.infer<typeof insertPositionTagSchema>;
+
+export type PositionTagAssignment = typeof positionTagAssignments.$inferSelect;
+export type InsertPositionTagAssignment = z.infer<typeof insertPositionTagAssignmentSchema>;
 
 export type MarketData = typeof marketData.$inferSelect;
 
