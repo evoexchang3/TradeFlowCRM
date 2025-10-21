@@ -21,7 +21,8 @@ import {
   accounts, 
   symbolGroups, 
   tradingSymbols, 
-  calendarEvents, 
+  calendarEvents,
+  calendarEventTemplates,
   emailTemplates,
   chatRooms,
   chatMessages,
@@ -5302,6 +5303,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error: any) {
       console.error('[Calendar Events DELETE Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== CALENDAR EVENT TEMPLATES =====
+  app.get("/api/calendar/templates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const templates = await db.select().from(calendarEventTemplates).orderBy(calendarEventTemplates.name);
+      res.json(templates);
+    } catch (error: any) {
+      console.error('[Calendar Templates GET Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/calendar/templates", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const [template] = await db.insert(calendarEventTemplates).values({
+        ...req.body,
+        createdBy: user.id,
+      }).returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'calendar_event_create',
+        details: { templateId: template.id, templateName: template.name },
+      });
+
+      res.json(template);
+    } catch (error: any) {
+      console.error('[Calendar Templates POST Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/calendar/templates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const [updatedTemplate] = await db.update(calendarEventTemplates)
+        .set({
+          ...req.body,
+          updatedAt: new Date(),
+        })
+        .where(eq(calendarEventTemplates.id, req.params.id))
+        .returning();
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'calendar_event_edit',
+        details: { templateId: req.params.id, changes: req.body },
+      });
+
+      res.json(updatedTemplate);
+    } catch (error: any) {
+      console.error('[Calendar Templates PATCH Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/calendar/templates/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      await db.delete(calendarEventTemplates).where(eq(calendarEventTemplates.id, req.params.id));
+
+      await storage.createAuditLog({
+        userId: user.id,
+        action: 'calendar_event_delete',
+        details: { templateId: req.params.id },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Calendar Templates DELETE Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });

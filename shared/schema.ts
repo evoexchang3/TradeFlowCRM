@@ -424,6 +424,23 @@ export const calendarEvents = pgTable("calendar_events", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Calendar Event Templates
+export const calendarEventTemplates = pgTable("calendar_event_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // Template name: "Weekly Team Sync", "Client Onboarding Call"
+  description: text("description"), // What this template is for
+  titleTemplate: text("title_template").notNull(), // Title with optional {{variables}}
+  descriptionTemplate: text("description_template"), // Description with optional {{variables}}
+  eventType: text("event_type").notNull(), // meeting, call, follow_up, demo, kyc_review
+  defaultDuration: integer("default_duration").notNull().default(30), // in minutes
+  defaultLocation: text("default_location"), // Default meeting location/URL
+  isRecurring: boolean("is_recurring").default(false),
+  recurrencePattern: jsonb("recurrence_pattern"), // Default recurrence settings
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Email Templates
 export const emailTemplates = pgTable("email_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1027,6 +1044,15 @@ export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit
 
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+
+export const insertCalendarEventTemplateSchema = createInsertSchema(calendarEventTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type CalendarEventTemplate = typeof calendarEventTemplates.$inferSelect;
+export type InsertCalendarEventTemplate = z.infer<typeof insertCalendarEventTemplateSchema>;
 
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
   id: true,

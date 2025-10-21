@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -38,6 +38,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { TemplateManagementDialog } from "@/components/template-management-dialog";
 import { 
   Plus, 
   Pencil, 
@@ -157,7 +158,7 @@ function EventForm({
   isPending: boolean;
 }) {
   const { t } = useLanguage();
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<EventFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: defaultValues || {
       eventType: "meeting",
@@ -178,8 +179,101 @@ function EventForm({
     queryKey: ["/api/users"],
   });
 
+  const { data: templates = [] } = useQuery<any[]>({
+    queryKey: ["/api/calendar/templates"],
+  });
+
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const startTime = watch("startTime");
+
+  // Auto-calculate end time when start time changes and a template is selected
+  useEffect(() => {
+    if (selectedTemplate && startTime) {
+      const start = new Date(startTime);
+      const end = new Date(start.getTime() + selectedTemplate.defaultDuration * 60000);
+      setValue("endTime", format(end, "yyyy-MM-dd'T'HH:mm"));
+    }
+  }, [startTime, selectedTemplate]);
+
+  const handleTemplateChange = (templateId: string) => {
+    if (!templateId) {
+      setSelectedTemplate(null);
+      return;
+    }
+    
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+
+    setSelectedTemplate(template);
+
+    // Auto-fill form fields from template
+    setValue("title", template.titleTemplate);
+    if (template.descriptionTemplate) {
+      setValue("description", template.descriptionTemplate);
+    }
+    setValue("eventType", template.eventType);
+    if (template.defaultLocation) {
+      setValue("location", template.defaultLocation);
+    }
+    
+    // Handle recurring template settings - coerce isRecurring to false if no pattern
+    const hasValidPattern = template.recurrencePattern && template.recurrencePattern.frequency;
+    setValue("isRecurring", hasValidPattern ? true : false);
+    if (hasValidPattern) {
+      const pattern = template.recurrencePattern;
+      setValue("recurrenceFrequency", pattern.frequency);
+      setValue("recurrenceInterval", pattern.interval || 1);
+      if (pattern.daysOfWeek) {
+        setValue("recurrenceDaysOfWeek", pattern.daysOfWeek);
+      }
+      if (pattern.endDate) {
+        setValue("recurrenceEndDate", pattern.endDate);
+      }
+      if (pattern.count) {
+        setValue("recurrenceCount", pattern.count);
+      }
+    } else {
+      // Reset recurrence fields for non-recurring templates
+      setValue("recurrenceFrequency", undefined);
+      setValue("recurrenceInterval", 1);
+      setValue("recurrenceDaysOfWeek", undefined);
+      setValue("recurrenceEndDate", undefined);
+      setValue("recurrenceCount", undefined);
+    }
+    
+    // Auto-calculate end time based on default duration if start time already exists
+    const currentStartTime = watch("startTime");
+    if (currentStartTime) {
+      const start = new Date(currentStartTime);
+      const end = new Date(start.getTime() + template.defaultDuration * 60000);
+      setValue("endTime", format(end, "yyyy-MM-dd'T'HH:mm"));
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {templates.length > 0 && (
+        <div>
+          <Label htmlFor="template">Use Template (Optional)</Label>
+          <select
+            id="template"
+            onChange={(e) => handleTemplateChange(e.target.value)}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            data-testid="select-event-template"
+          >
+            <option value="">-- Select a template --</option>
+            {templates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Select a template to auto-fill event details
+          </p>
+        </div>
+      )}
+
       <div>
         <Label htmlFor="title">{t('calendar.title.label')}</Label>
         <Input
@@ -775,6 +869,7 @@ END:VEVENT
           >
             <Download className="h-4 w-4" />
           </Button>
+          <TemplateManagementDialog />
           <Button onClick={() => {
             setSelectedDate(null);
             setIsCreateOpen(true);
