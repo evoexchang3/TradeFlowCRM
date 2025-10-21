@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -84,6 +85,7 @@ export default function GlobalClosedPositions() {
     commission: z.string().refine((val) => val === "" || !isNaN(parseFloat(val)), {
       message: t('positions.validation.commission.valid'),
     }).optional(),
+    notes: z.string().optional(),
   });
 
   type EditClosedPositionData = z.infer<typeof editClosedPositionSchema>;
@@ -103,6 +105,7 @@ export default function GlobalClosedPositions() {
       openedAt: "",
       closedAt: "",
       commission: "",
+      notes: "",
     },
   });
 
@@ -135,6 +138,9 @@ export default function GlobalClosedPositions() {
       }
       if (data.commission && data.commission !== "") {
         processedData.commission = parseFloat(data.commission).toString();
+      }
+      if (data.notes !== undefined) {
+        processedData.notes = data.notes;
       }
       
       return apiRequest('PATCH', `/api/positions/${selectedPosition.id}`, processedData);
@@ -202,6 +208,7 @@ export default function GlobalClosedPositions() {
       openedAt: toDatetimeLocal(position.openedAt),
       closedAt: toDatetimeLocal(position.closedAt),
       commission: position.commission || "",
+      notes: position.notes || "",
     });
     setEditDialogOpen(true);
   };
@@ -549,6 +556,19 @@ export default function GlobalClosedPositions() {
                     <FormLabel>{t('positions.commission')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-commission" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.notes')}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder={t('positions.notes.placeholder')} rows={3} data-testid="input-notes" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

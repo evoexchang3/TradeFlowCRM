@@ -275,6 +275,7 @@ export const positions = pgTable("positions", {
   contractMultiplier: decimal("contract_multiplier", { precision: 10, scale: 2 }).default('1'), // Multiplier for indices/CFDs (e.g., S&P500 = 50)
   marginMode: text("margin_mode").default('isolated'), // 'isolated' | 'cross'
   marginUsed: decimal("margin_used", { precision: 18, scale: 2 }).default('0'), // Actual margin used for this position
+  notes: text("notes"), // Notes/comments for this position
   openedAt: timestamp("opened_at").notNull().defaultNow(),
   closedAt: timestamp("closed_at"),
 });
@@ -840,6 +841,16 @@ export const modifyPositionSchema = z.object({
   closedAt: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Closed date must be a valid date",
   }).optional(),
+  stopLoss: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: "Stop loss must be a positive number",
+  }).optional(),
+  takeProfit: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+    message: "Take profit must be a positive number",
+  }).optional(),
+  commission: z.string().refine((val) => !isNaN(parseFloat(val)), {
+    message: "Commission must be a valid number",
+  }).optional(),
+  notes: z.string().optional(),
 });
 
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({

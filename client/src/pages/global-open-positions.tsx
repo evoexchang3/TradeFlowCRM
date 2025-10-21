@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { Search, TrendingUp, TrendingDown, MoreVertical, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -84,6 +85,7 @@ export default function GlobalOpenPositions() {
     takeProfit: z.string().refine((val) => val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) > 0), {
       message: t('positions.validation.take.profit.valid'),
     }).optional(),
+    notes: z.string().optional(),
   });
   
   type EditPositionData = z.infer<typeof editPositionSchema>;
@@ -103,6 +105,7 @@ export default function GlobalOpenPositions() {
       openedAt: "",
       stopLoss: "",
       takeProfit: "",
+      notes: "",
     },
   });
 
@@ -134,6 +137,9 @@ export default function GlobalOpenPositions() {
       }
       if (data.takeProfit && data.takeProfit !== "") {
         processedData.takeProfit = parseFloat(data.takeProfit).toString();
+      }
+      if (data.notes !== undefined) {
+        processedData.notes = data.notes;
       }
       
       return apiRequest('PATCH', `/api/positions/${selectedPosition.id}`, processedData);
@@ -201,6 +207,7 @@ export default function GlobalOpenPositions() {
       openedAt: toDatetimeLocal(position.openedAt),
       stopLoss: position.stopLoss || "",
       takeProfit: position.takeProfit || "",
+      notes: position.notes || "",
     });
     setEditDialogOpen(true);
   };
@@ -533,6 +540,19 @@ export default function GlobalOpenPositions() {
                     <FormLabel>{t('positions.take.profit')}</FormLabel>
                     <FormControl>
                       <Input {...field} type="text" placeholder="0.00" data-testid="input-take-profit" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('positions.notes')}</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder={t('positions.notes.placeholder')} rows={3} data-testid="input-notes" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
