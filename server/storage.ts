@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -10,6 +10,8 @@ import {
   type Transaction, type InsertTransaction,
   type Order, type InsertOrder,
   type Position, type InsertPosition,
+  type PositionTag, type InsertPositionTag,
+  type PositionTagAssignment, type InsertPositionTagAssignment,
   type Role, type InsertRole,
   type Team, type InsertTeam,
   type AuditLog, type InsertAuditLog,
@@ -74,6 +76,16 @@ export interface IStorage {
   getPosition(id: string): Promise<Position | undefined>;
   createPosition(position: InsertPosition): Promise<Position>;
   updatePosition(id: string, updates: Partial<InsertPosition>): Promise<Position>;
+  
+  // Position Tags
+  getPositionTags(): Promise<PositionTag[]>;
+  getPositionTag(id: string): Promise<PositionTag | undefined>;
+  createPositionTag(tag: InsertPositionTag): Promise<PositionTag>;
+  updatePositionTag(id: string, updates: Partial<InsertPositionTag>): Promise<PositionTag>;
+  deletePositionTag(id: string): Promise<void>;
+  getPositionTagAssignments(positionId: string): Promise<PositionTagAssignment[]>;
+  assignTagToPosition(positionId: string, tagId: string): Promise<PositionTagAssignment>;
+  removeTagFromPosition(positionId: string, tagId: string): Promise<void>;
   
   // Roles
   getRoles(): Promise<Role[]>;
@@ -399,6 +411,48 @@ export class DatabaseStorage implements IStorage {
 
   async deletePosition(id: string): Promise<void> {
     await db.delete(positions).where(eq(positions.id, id));
+  }
+
+  // Position Tags
+  async getPositionTags(): Promise<PositionTag[]> {
+    return await db.select().from(positionTags).orderBy(desc(positionTags.createdAt));
+  }
+
+  async getPositionTag(id: string): Promise<PositionTag | undefined> {
+    const [tag] = await db.select().from(positionTags).where(eq(positionTags.id, id));
+    return tag || undefined;
+  }
+
+  async createPositionTag(insertTag: InsertPositionTag): Promise<PositionTag> {
+    const [tag] = await db.insert(positionTags).values(insertTag).returning();
+    return tag;
+  }
+
+  async updatePositionTag(id: string, updates: Partial<InsertPositionTag>): Promise<PositionTag> {
+    const [tag] = await db.update(positionTags).set(updates).where(eq(positionTags.id, id)).returning();
+    return tag;
+  }
+
+  async deletePositionTag(id: string): Promise<void> {
+    await db.delete(positionTags).where(eq(positionTags.id, id));
+  }
+
+  async getPositionTagAssignments(positionId: string): Promise<PositionTagAssignment[]> {
+    return await db.select().from(positionTagAssignments).where(eq(positionTagAssignments.positionId, positionId));
+  }
+
+  async assignTagToPosition(positionId: string, tagId: string): Promise<PositionTagAssignment> {
+    const [assignment] = await db.insert(positionTagAssignments).values({ positionId, tagId }).returning();
+    return assignment;
+  }
+
+  async removeTagFromPosition(positionId: string, tagId: string): Promise<void> {
+    await db.delete(positionTagAssignments).where(
+      and(
+        eq(positionTagAssignments.positionId, positionId),
+        eq(positionTagAssignments.tagId, tagId)
+      )
+    );
   }
 
   // Roles

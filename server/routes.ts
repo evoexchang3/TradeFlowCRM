@@ -15,6 +15,7 @@ import * as performanceMetrics from "./services/performance-metrics";
 import { previewImport, executeImport } from "./import";
 import { 
   modifyPositionSchema, 
+  insertPositionTagSchema,
   markFTDSchema, 
   clients, 
   accounts, 
@@ -2656,6 +2657,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ success: true, message: "Position deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== POSITION TAGS =====
+  app.get("/api/position-tags", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const tags = await storage.getPositionTags();
+      res.json(tags);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/position-tags", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const validatedData = insertPositionTagSchema.parse(req.body);
+      const tag = await storage.createPositionTag(validatedData);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        action: 'trade_create', // Reusing trade_create for tag creation
+        targetType: 'position_tag',
+        targetId: tag.id,
+        details: { tag },
+      });
+
+      res.json(tag);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/position-tags/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const validatedData = insertPositionTagSchema.partial().parse(req.body);
+      
+      // Check if tag exists
+      const existingTag = await storage.getPositionTag(req.params.id);
+      if (!existingTag) {
+        return res.status(404).json({ error: "Tag not found" });
+      }
+
+      const tag = await storage.updatePositionTag(req.params.id, validatedData);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        action: 'trade_edit', // Reusing trade_edit for tag updates
+        targetType: 'position_tag',
+        targetId: tag.id,
+        details: { updates: validatedData },
+      });
+
+      res.json(tag);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: error.errors[0].message });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/position-tags/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      await storage.deletePositionTag(req.params.id);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        action: 'trade_delete', // Reusing trade_delete for tag deletion
+        targetType: 'position_tag',
+        targetId: req.params.id,
+        details: {},
+      });
+
+      res.json({ success: true, message: "Tag deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/positions/:id/tags", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const assignments = await storage.getPositionTagAssignments(req.params.id);
+      const tags = await Promise.all(
+        assignments.map(async (assignment) => {
+          return await storage.getPositionTag(assignment.tagId);
+        })
+      );
+      res.json(tags.filter(tag => tag !== undefined));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/positions/:id/tags", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { tagId } = req.body;
+      if (!tagId) {
+        return res.status(400).json({ error: "tagId is required" });
+      }
+
+      const assignment = await storage.assignTagToPosition(req.params.id, tagId);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        action: 'trade_edit',
+        targetType: 'position',
+        targetId: req.params.id,
+        details: { action: 'tag_assigned', tagId },
+      });
+
+      res.json(assignment);
+    } catch (error: any) {
+      // Handle duplicate tag assignment (unique constraint violation)
+      if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+        return res.status(409).json({ error: "This tag is already assigned to this position" });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/positions/:id/tags/:tagId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      await storage.removeTagFromPosition(req.params.id, req.params.tagId);
+
+      await storage.createAuditLog({
+        userId: req.user?.type === 'user' ? req.user.id : undefined,
+        action: 'trade_edit',
+        targetType: 'position',
+        targetId: req.params.id,
+        details: { action: 'tag_removed', tagId: req.params.tagId },
+      });
+
+      res.json({ success: true, message: "Tag removed successfully" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
