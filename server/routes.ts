@@ -4807,23 +4807,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      let query = db.select().from(calendarEvents);
-
-      // Role-based filtering
+      const viewMode = req.query.view as string || 'default';
       const roleName = role?.name?.toLowerCase();
       
-      // Agent: sees only their own events
-      if (isAgentRole(roleName)) {
+      let query = db.select({
+        id: calendarEvents.id,
+        title: calendarEvents.title,
+        description: calendarEvents.description,
+        eventType: calendarEvents.eventType,
+        userId: calendarEvents.userId,
+        clientId: calendarEvents.clientId,
+        startTime: calendarEvents.startTime,
+        endTime: calendarEvents.endTime,
+        status: calendarEvents.status,
+        location: calendarEvents.location,
+        reminders: calendarEvents.reminders,
+        notes: calendarEvents.notes,
+        createdAt: calendarEvents.createdAt,
+        updatedAt: calendarEvents.updatedAt,
+        userName: users.name,
+        userFirstName: users.firstName,
+        userLastName: users.lastName,
+      }).from(calendarEvents).leftJoin(users, eq(calendarEvents.userId, users.id));
+
+      // Apply filtering based on view mode and role
+      if (viewMode === 'my') {
+        // Show only current user's events
         query = query.where(eq(calendarEvents.userId, user.id));
-      } 
-      // Team Leader: sees events of all users in their team
-      else if (isTeamLeaderRole(roleName) && user.teamId) {
-        const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
-        const userIds = teamUsers.map(u => u.id);
-        query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
+      } else if (viewMode === 'team') {
+        // Show team events (Team Leaders and Admins can use this)
+        if ((isTeamLeaderRole(roleName) || isAdminRole(roleName) || isCRMManagerRole(roleName)) && user.teamId) {
+          const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
+          const userIds = teamUsers.map(u => u.id);
+          query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
+        } else {
+          query = query.where(eq(calendarEvents.userId, user.id));
+        }
+      } else if (viewMode === 'all') {
+        // Show all events (only Admins and CRM Managers)
+        if (!isAdminRole(roleName) && !isCRMManagerRole(roleName)) {
+          return res.status(403).json({ error: 'Unauthorized: Insufficient permissions for all calendars view' });
+        }
+        // No filtering - query remains unfiltered
+      } else {
+        // Default view: role-based filtering
+        if (isAgentRole(roleName)) {
+          query = query.where(eq(calendarEvents.userId, user.id));
+        } else if (isTeamLeaderRole(roleName) && user.teamId) {
+          const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
+          const userIds = teamUsers.map(u => u.id);
+          query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
+        }
+        // Admin/CRM Manager: no filtering
       }
-      // Administrator and CRM Manager: see all events (no filtering)
-      // else: query remains unfiltered for admin and crm manager
 
       const events = await query;
       res.json(events);

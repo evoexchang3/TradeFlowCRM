@@ -183,9 +183,10 @@ export default function Chat() {
   });
 
   const createRoomMutation = useMutation({
-    mutationFn: (data: RoomFormData) => {
+    mutationFn: async (data: RoomFormData) => {
       console.log('Creating chat room with data:', data);
-      return apiRequest('POST', '/api/chat/rooms', data);
+      const response = await apiRequest('POST', '/api/chat/rooms', data);
+      return await response.json();
     },
     onSuccess: (newRoom: any) => {
       console.log('Chat room created successfully:', newRoom);

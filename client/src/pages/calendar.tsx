@@ -280,20 +280,27 @@ function EventForm({
 }
 
 export default function Calendar() {
-  const { user } = useAuth();
+  const { user, hasAnyPermission } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"month" | "week" | "day">("month");
+  const [calendarView, setCalendarView] = useState<"default" | "my" | "team" | "all">("default");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterUser, setFilterUser] = useState<string>("all");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  const { data: events = [], isLoading } = useQuery<CalendarEvent[]>({
-    queryKey: ["/api/calendar/events"],
+  const { data: events = [], isLoading } = useQuery<any[]>({
+    queryKey: [`/api/calendar/events${calendarView !== "default" ? `?view=${calendarView}` : ""}`],
+  });
+  
+  const { data: allUsers = [] } = useQuery<any[]>({
+    queryKey: ['/api/users'],
+    enabled: calendarView === "team" || calendarView === "all",
   });
 
   const createMutation = useMutation({
@@ -302,7 +309,9 @@ export default function Calendar() {
       return await apiRequest("POST", "/api/calendar/events", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/calendar/events') 
+      });
       setIsCreateOpen(false);
       toast({ title: t('toast.success.created') });
     },
@@ -321,7 +330,9 @@ export default function Calendar() {
       return await apiRequest("PATCH", `/api/calendar/events/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/calendar/events') 
+      });
       setEditEvent(null);
       toast({ title: t('toast.success.updated') });
     },
@@ -332,7 +343,9 @@ export default function Calendar() {
       return await apiRequest("DELETE", `/api/calendar/events/${id}`, undefined);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        query.queryKey[0]?.toString().startsWith('/api/calendar/events') 
+      });
       setDeleteEvent(null);
       toast({ title: t('toast.success.deleted') });
     },
@@ -341,8 +354,25 @@ export default function Calendar() {
   const filteredEvents = events.filter((event) => {
     if (filterType !== "all" && event.eventType !== filterType) return false;
     if (filterStatus !== "all" && event.status !== filterStatus) return false;
+    if (filterUser !== "all" && event.userId !== filterUser) return false;
     return true;
   });
+
+  const getUserColor = (userId: string | null | undefined) => {
+    if (!userId || userId === user?.id) return 'bg-primary/10 text-primary hover:bg-primary/20';
+    const colors = [
+      'bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20',
+      'bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20',
+      'bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20',
+      'bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-500/20',
+      'bg-pink-500/10 text-pink-600 dark:text-pink-400 hover:bg-pink-500/20',
+    ];
+    const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+  };
+
+  const canViewAllCalendars = () => hasAnyPermission(['calendar.manage', '*']);
+  const canViewTeamCalendar = () => hasAnyPermission(['team.view', 'team.manage', 'calendar.manage', '*']);
 
   const navigateDate = (direction: "prev" | "next") => {
     if (view === "month") {
@@ -445,7 +475,7 @@ END:VEVENT
                 {dayEvents.slice(0, 3).map((event) => (
                   <div
                     key={event.id}
-                    className="text-xs truncate p-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
+                    className={`text-xs truncate p-1 rounded ${getUserColor(event.userId)}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditEvent(event);
@@ -453,6 +483,11 @@ END:VEVENT
                     data-testid={`event-${event.id}`}
                   >
                     {format(parseISO(event.startTime), "HH:mm")} {event.title}
+                    {(calendarView === "team" || calendarView === "all") && event.userFirstName && (
+                      <span className="text-xs opacity-75 ml-1">
+                        ({event.userFirstName})
+                      </span>
+                    )}
                   </div>
                 ))}
                 {dayEvents.length > 3 && (
@@ -509,7 +544,7 @@ END:VEVENT
                     {dayEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="text-xs p-1 mb-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
+                        className={`text-xs p-1 mb-1 rounded ${getUserColor(event.userId)}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditEvent(event);
@@ -517,8 +552,11 @@ END:VEVENT
                         data-testid={`event-${event.id}`}
                       >
                         <div className="font-medium truncate">{event.title}</div>
-                        <div className="text-muted-foreground">
+                        <div className="opacity-75">
                           {format(parseISO(event.startTime), "HH:mm")}
+                          {(calendarView === "team" || calendarView === "all") && event.userFirstName && (
+                            <span> • {event.userFirstName}</span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -658,7 +696,42 @@ END:VEVENT
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {(canViewTeamCalendar() || canViewAllCalendars()) && (
+                <Select value={calendarView} onValueChange={(v: any) => setCalendarView(v)}>
+                  <SelectTrigger className="w-48" data-testid="select-calendar-view">
+                    <User className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{t('calendar.view.default')}</SelectItem>
+                    <SelectItem value="my">{t('calendar.view.my')}</SelectItem>
+                    {canViewTeamCalendar() && (
+                      <SelectItem value="team">{t('calendar.view.team')}</SelectItem>
+                    )}
+                    {canViewAllCalendars() && (
+                      <SelectItem value="all">{t('calendar.view.all')}</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+              
+              {(calendarView === "team" || calendarView === "all") && (
+                <Select value={filterUser} onValueChange={setFilterUser}>
+                  <SelectTrigger className="w-48" data-testid="select-filter-user">
+                    <SelectValue placeholder={t('calendar.filter.by.user')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('calendar.all.users')}</SelectItem>
+                    {allUsers.map((u: any) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.firstName} {u.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-40" data-testid="select-filter-type">
                   <SelectValue placeholder={t('calendar.placeholder.event.type')} />
