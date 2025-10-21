@@ -5,6 +5,26 @@ This enterprise-grade CRM system for a trading platform manages clients, account
 
 ## Recent Changes
 
+### Position Tags & Categories System (October 21, 2025)
+Implemented comprehensive position tagging system for organizing and categorizing trading positions with visual labels and color coding.
+
+**Features:**
+- **Tag Management UI**: Create, edit, and delete position tags with custom names, colors, and descriptions
+- **Color Customization**: Choose from 12 preset colors or use custom hex colors with visual picker
+- **Inline Tag Assignment**: Add/remove tags directly from position rows using command palette search
+- **Visual Badges**: Tags display as colored badges in position tables for quick identification
+- **Duplicate Prevention**: Backend validates and prevents duplicate tag assignments with 409 responses
+- **Real-time Updates**: All tag operations trigger immediate cache invalidation and UI refresh
+
+**Technical Implementation:**
+- Database: `positionTags` table (id, name, color, description) and `positionTagAssignments` junction table
+- Backend: RESTful API with CRUD endpoints (`/api/position-tags`, `/api/positions/:id/tags`)
+- Frontend: `TagManagementDialog` component for tag CRUD, `PositionTags` component for assignment
+- Validation: Zod schemas enforce data integrity on both frontend and backend
+- Audit: All tag operations logged to audit system
+
+**Impact:** Traders can now organize positions by strategy, risk level, client type, or any custom categories, improving portfolio management and analysis.
+
 ### P/L Calculation Fix (October 19, 2025)
 Fixed critical P/L calculation errors affecting all trading positions. The system now correctly handles instrument-aware position sizing with lot-to-units conversion for forex instruments.
 
@@ -80,7 +100,7 @@ Preferred communication style: Simple, everyday language.
 -   **Communication & Payment Integration**: Implements a full chat system, SMTP settings for email delivery, and multi-provider payment integration management.
 
 ### Data Schema
-Core entities include Users, Clients, Accounts, Orders, Positions, Roles & Permissions, Teams (hierarchical), Audit Logs, Market Data, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Affiliates, Custom Statuses, KYC Questions, Template Variables, Security Settings, SMTP Settings, Payment Providers, Saved Filters, Performance Targets, and Achievements. Key relationships exist between these entities to support the CRM's functionality.
+Core entities include Users, Clients, Accounts, Orders, Positions, Position Tags (with many-to-many assignments), Roles & Permissions, Teams (hierarchical), Audit Logs, Market Data, Trading Symbols, Calendar Events, Email Templates, Chat Rooms, Affiliates, Custom Statuses, KYC Questions, Template Variables, Security Settings, SMTP Settings, Payment Providers, Saved Filters, Performance Targets, and Achievements. Key relationships exist between these entities to support the CRM's functionality.
 
 ### Navigation Structure
 The application sidebar is organized into Main Menu (Dashboard, Client views, Trading views, etc.), Management (User, Role, Team management, Audit Logs), and Configuration (Admin-only advanced settings like Organizational Hierarchy, Custom Statuses, KYC Questions, Security, SMTP, Payment Providers). All navigation items are role-based.
