@@ -22,7 +22,8 @@ Established database and type infrastructure for recurring calendar event functi
 **Implementation Status:**
 - ✅ Database schema complete
 - ✅ TypeScript types and interfaces defined
-- ⏳ Pending: UI for setting recurrence options
+- ✅ UI controls for setting recurrence options (frequency, interval, end conditions)
+- ✅ Backend recurrence pattern transformation (form data → JSON B storage)
 - ⏳ Pending: Backend expansion logic to generate instances from patterns
 - ⏳ Pending: Calendar view updates to display recurring event instances
 

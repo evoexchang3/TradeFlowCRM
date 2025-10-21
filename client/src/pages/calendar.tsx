@@ -78,11 +78,29 @@ const eventFormSchema = z.object({
   status: z.enum(["scheduled", "completed", "cancelled", "rescheduled"]).default("scheduled"),
   isRecurring: z.boolean().default(false),
   recurrenceFrequency: z.enum(["daily", "weekly", "monthly"]).optional(),
-  recurrenceInterval: z.number().min(1).default(1).optional(),
+  recurrenceInterval: z.preprocess(
+    (val) => val === "" || val === null || val === undefined ? 1 : parseInt(String(val), 10),
+    z.number().int().min(1, "Interval must be at least 1").default(1)
+  ),
   recurrenceDaysOfWeek: z.array(z.number()).optional(),
   recurrenceEndDate: z.string().optional(),
-  recurrenceCount: z.number().optional(),
-});
+  recurrenceCount: z.preprocess(
+    (val) => val === "" || val === null || val === undefined ? undefined : parseInt(String(val), 10),
+    z.number().int().min(1, "Count must be at least 1").optional()
+  ),
+}).refine(
+  (data) => {
+    // If recurring is checked, frequency is required
+    if (data.isRecurring && !data.recurrenceFrequency) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Recurrence frequency is required for recurring events",
+    path: ["recurrenceFrequency"],
+  }
+);
 
 type EventFormData = z.infer<typeof eventFormSchema>;
 
@@ -139,13 +157,18 @@ function EventForm({
   isPending: boolean;
 }) {
   const { t } = useLanguage();
-  const { register, handleSubmit, formState: { errors } } = useForm<EventFormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<EventFormData>({
     resolver: zodResolver(eventFormSchema),
     defaultValues: defaultValues || {
       eventType: "meeting",
       status: "scheduled",
+      isRecurring: false,
+      recurrenceInterval: 1,
     },
   });
+
+  const isRecurring = watch("isRecurring");
+  const recurrenceFrequency = watch("recurrenceFrequency");
 
   const { data: clients = [] } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -288,6 +311,88 @@ function EventForm({
           placeholder={t('calendar.placeholder.location')}
           data-testid="input-location"
         />
+      </div>
+
+      <div className="border-t pt-4">
+        <div className="flex items-center space-x-2 mb-4">
+          <input
+            type="checkbox"
+            id="isRecurring"
+            {...register("isRecurring")}
+            className="h-4 w-4 rounded border-gray-300"
+            data-testid="checkbox-recurring"
+          />
+          <Label htmlFor="isRecurring" className="font-medium">Recurring Event</Label>
+        </div>
+
+        {isRecurring && (
+          <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="recurrenceFrequency">Repeat Every</Label>
+                <select
+                  id="recurrenceFrequency"
+                  {...register("recurrenceFrequency")}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  data-testid="select-frequency"
+                >
+                  <option value="">Select frequency</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+                {errors.recurrenceFrequency && (
+                  <p className="text-sm text-destructive mt-1">{errors.recurrenceFrequency.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="recurrenceInterval">Interval</Label>
+                <Input
+                  id="recurrenceInterval"
+                  type="number"
+                  min="1"
+                  {...register("recurrenceInterval")}
+                  placeholder="1"
+                  data-testid="input-interval"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {recurrenceFrequency === 'daily' && 'Repeat every N days'}
+                  {recurrenceFrequency === 'weekly' && 'Repeat every N weeks'}
+                  {recurrenceFrequency === 'monthly' && 'Repeat every N months'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="recurrenceEndDate">End Date (Optional)</Label>
+                <Input
+                  id="recurrenceEndDate"
+                  type="date"
+                  {...register("recurrenceEndDate")}
+                  data-testid="input-end-date"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="recurrenceCount">Or End After (Occurrences)</Label>
+                <Input
+                  id="recurrenceCount"
+                  type="number"
+                  min="1"
+                  {...register("recurrenceCount")}
+                  placeholder="10"
+                  data-testid="input-count"
+                />
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              Note: The event will repeat according to the pattern above. You can specify either an end date or a number of occurrences.
+            </p>
+          </div>
+        )}
       </div>
 
       <Button type="submit" disabled={isPending} data-testid="button-submit-event">

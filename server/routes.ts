@@ -5126,6 +5126,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         location: calendarEvents.location,
         reminders: calendarEvents.reminders,
         notes: calendarEvents.notes,
+        isRecurring: calendarEvents.isRecurring,
+        recurrencePattern: calendarEvents.recurrencePattern,
+        recurrenceExceptions: calendarEvents.recurrenceExceptions,
+        parentEventId: calendarEvents.parentEventId,
         createdAt: calendarEvents.createdAt,
         updatedAt: calendarEvents.updatedAt,
         userName: users.name,
@@ -5190,6 +5194,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
+      // Transform recurrence data if event is recurring
+      let recurrencePattern = null;
+      if (req.body.isRecurring && req.body.recurrenceFrequency) {
+        recurrencePattern = {
+          frequency: req.body.recurrenceFrequency,
+          interval: req.body.recurrenceInterval || 1,
+          ...(req.body.recurrenceDaysOfWeek && { daysOfWeek: req.body.recurrenceDaysOfWeek }),
+          ...(req.body.recurrenceEndDate && { endDate: req.body.recurrenceEndDate }),
+          ...(req.body.recurrenceCount && { count: req.body.recurrenceCount }),
+        };
+      }
+
       const [newEvent] = await db.insert(calendarEvents).values({
         title: req.body.title,
         description: req.body.description,
@@ -5200,6 +5216,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         eventType: req.body.eventType,
         status: req.body.status || 'scheduled',
         location: req.body.location || null,
+        isRecurring: req.body.isRecurring || false,
+        recurrencePattern: recurrencePattern,
       }).returning();
 
       await storage.createAuditLog({
