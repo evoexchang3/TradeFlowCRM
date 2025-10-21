@@ -339,6 +339,17 @@ export default function ClientDetail() {
     },
   });
 
+  // Populate KYC form with existing responses
+  useEffect(() => {
+    if (kycResponses && kycResponses.length > 0) {
+      const responsesMap: Record<string, string> = {};
+      kycResponses.forEach((response: any) => {
+        responsesMap[response.questionId] = response.response;
+      });
+      setKycFormResponses(responsesMap);
+    }
+  }, [kycResponses]);
+
   const createSubaccountMutation = useMutation({
     mutationFn: (data: { accountId: string; name: string; currency: string }) =>
       apiRequest('POST', '/api/subaccounts', data),
@@ -601,17 +612,6 @@ export default function ClientDetail() {
       </div>
     );
   }
-
-  // Populate KYC form with existing responses
-  useEffect(() => {
-    if (kycResponses && kycResponses.length > 0) {
-      const responsesMap: Record<string, string> = {};
-      kycResponses.forEach((response: any) => {
-        responsesMap[response.questionId] = response.response;
-      });
-      setKycFormResponses(responsesMap);
-    }
-  }, [kycResponses]);
 
   const handleKycFormSubmit = () => {
     // Validate required fields
