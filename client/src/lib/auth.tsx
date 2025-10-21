@@ -6,6 +6,11 @@ interface AuthUser {
   type: 'user' | 'client';
   roleId?: string;
   teamId?: string;
+  role?: {
+    id: string;
+    name: string;
+    permissions: string[];
+  };
 }
 
 interface AuthContextType {
@@ -14,6 +19,8 @@ interface AuthContextType {
   login: (token: string, userData: any) => void;
   logout: () => void;
   isAuthenticated: boolean;
+  hasPermission: (permission: string) => boolean;
+  hasAnyPermission: (permissions: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +62,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('auth_user');
   };
 
+  const hasPermission = (permission: string): boolean => {
+    if (!user || user.type === 'client') return false;
+    if (!user.role || !user.role.permissions) return false;
+    return user.role.permissions.includes(permission) || user.role.permissions.includes('*');
+  };
+
+  const hasAnyPermission = (permissions: string[]): boolean => {
+    if (!user || user.type === 'client') return false;
+    if (!user.role || !user.role.permissions) return false;
+    if (user.role.permissions.includes('*')) return true;
+    return permissions.some(p => user.role.permissions.includes(p));
+  };
+
   return (
     <AuthContext.Provider 
       value={{ 
@@ -62,7 +82,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token, 
         login, 
         logout, 
-        isAuthenticated: !!token 
+        isAuthenticated: !!token,
+        hasPermission,
+        hasAnyPermission
       }}
     >
       {children}

@@ -37,6 +37,7 @@ import { useState, useEffect } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/lib/auth";
 
 interface CustomStatus {
   id: string;
@@ -92,6 +93,7 @@ export default function ClientDetail() {
   const [kycFormResponses, setKycFormResponses] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { user, hasAnyPermission } = useAuth();
 
   const CLIENT_STATUSES = [
     { value: 'new', label: t('client.status.new') },
@@ -613,7 +615,33 @@ export default function ClientDetail() {
     );
   }
 
+  // KYC Permission Helpers
+  const canFillKyc = () => {
+    // Sales agents can fill KYC forms
+    return hasAnyPermission(['kyc.fill', 'kyc.manage', '*']);
+  };
+
+  const canEditKyc = () => {
+    // Retention agents and managers can edit KYC responses
+    return hasAnyPermission(['kyc.edit', 'kyc.manage', '*']);
+  };
+
+  const canViewKyc = () => {
+    // Everyone with KYC permissions can view
+    return hasAnyPermission(['kyc.view', 'kyc.fill', 'kyc.edit', 'kyc.manage', '*']);
+  };
+
   const handleKycFormSubmit = () => {
+    // Check permissions before submitting
+    if (!canFillKyc() && !canEditKyc()) {
+      toast({
+        title: t('common.error'),
+        description: t('client.kyc.permission.denied'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate required fields
     const activeQuestions = kycQuestions.filter((q: any) => q.isActive);
     const requiredQuestions = activeQuestions.filter((q: any) => q.isRequired);
@@ -1884,9 +1912,23 @@ export default function ClientDetail() {
             <CardHeader>
               <CardTitle className="text-lg">{t('client.detail.kyc.title')}</CardTitle>
               <p className="text-sm text-muted-foreground">{t('client.detail.kyc.subtitle')}</p>
+              {!canViewKyc() && (
+                <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                  <p className="text-sm text-destructive">{t('client.kyc.permission.view.denied')}</p>
+                </div>
+              )}
+              {canViewKyc() && !canFillKyc() && !canEditKyc() && (
+                <div className="mt-4 p-3 bg-muted rounded-md">
+                  <p className="text-sm text-muted-foreground">{t('client.kyc.view.only.mode')}</p>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              {kycQuestions.length === 0 ? (
+              {!canViewKyc() ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">{t('client.kyc.access.denied')}</p>
+                </div>
+              ) : kycQuestions.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">{t('client.detail.kyc.no.questions')}</p>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -1911,6 +1953,7 @@ export default function ClientDetail() {
                             onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
                             data-testid={`input-kyc-${question.id}`}
                             placeholder={t('client.detail.kyc.answer.placeholder')}
+                            disabled={!canFillKyc() && !canEditKyc()}
                           />
                         )}
                         
@@ -1921,6 +1964,7 @@ export default function ClientDetail() {
                             data-testid={`textarea-kyc-${question.id}`}
                             placeholder={t('client.detail.kyc.answer.placeholder')}
                             rows={4}
+                            disabled={!canFillKyc() && !canEditKyc()}
                           />
                         )}
                         
@@ -1928,6 +1972,7 @@ export default function ClientDetail() {
                           <Select
                             value={kycFormResponses[question.id] || ''}
                             onValueChange={(value) => setKycFormResponses({ ...kycFormResponses, [question.id]: value })}
+                            disabled={!canFillKyc() && !canEditKyc()}
                           >
                             <SelectTrigger data-testid={`select-kyc-${question.id}`}>
                               <SelectValue placeholder={t('client.detail.kyc.select.option')} />
@@ -1951,6 +1996,7 @@ export default function ClientDetail() {
                                   checked={kycFormResponses[question.id] === option}
                                   onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
                                   data-testid={`radio-kyc-${question.id}-${option}`}
+                                  disabled={!canFillKyc() && !canEditKyc()}
                                 />
                                 <span className="text-sm">{option}</span>
                               </label>
@@ -1974,6 +2020,7 @@ export default function ClientDetail() {
                                     setKycFormResponses({ ...kycFormResponses, [question.id]: newValues.join(',') });
                                   }}
                                   data-testid={`checkbox-kyc-${question.id}-${option}`}
+                                  disabled={!canFillKyc() && !canEditKyc()}
                                 />
                                 <span className="text-sm">{option}</span>
                               </label>
@@ -1987,21 +2034,24 @@ export default function ClientDetail() {
                             value={kycFormResponses[question.id] || ''}
                             onChange={(e) => setKycFormResponses({ ...kycFormResponses, [question.id]: e.target.value })}
                             data-testid={`date-kyc-${question.id}`}
+                            disabled={!canFillKyc() && !canEditKyc()}
                           />
                         )}
                       </div>
                     ))}
                   
-                  <div className="flex justify-end pt-4">
-                    <Button
-                      onClick={handleKycFormSubmit}
-                      disabled={saveKycResponsesMutation.isPending}
-                      data-testid="button-save-kyc"
-                      className="hover-elevate active-elevate-2"
-                    >
-                      {saveKycResponsesMutation.isPending ? t('common.saving') : t('client.detail.kyc.save')}
-                    </Button>
-                  </div>
+                  {(canFillKyc() || canEditKyc()) && (
+                    <div className="flex justify-end pt-4">
+                      <Button
+                        onClick={handleKycFormSubmit}
+                        disabled={saveKycResponsesMutation.isPending}
+                        data-testid="button-save-kyc"
+                        className="hover-elevate active-elevate-2"
+                      >
+                        {saveKycResponsesMutation.isPending ? t('common.saving') : t('client.detail.kyc.save')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

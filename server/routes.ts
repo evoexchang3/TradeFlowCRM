@@ -481,10 +481,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             details: { userType: 'admin' },
           });
           
+          // Fetch role information
+          let userWithRole = { ...user, password: undefined };
+          if (user.roleId) {
+            const role = await storage.getRole(user.roleId);
+            if (role) {
+              userWithRole = { ...userWithRole, role };
+            }
+          }
+          
           return res.json({ 
             success: true, 
             token,
-            user: { ...user, password: undefined }
+            user: userWithRole
           });
         }
       }
