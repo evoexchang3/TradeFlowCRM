@@ -416,6 +416,10 @@ export const calendarEvents = pgTable("calendar_events", {
   location: text("location"), // Physical location or meeting URL
   reminders: jsonb("reminders").default('[]'), // Array of reminder objects {minutes: 30, type: 'email'}
   notes: text("notes"),
+  isRecurring: boolean("is_recurring").default(false),
+  recurrencePattern: jsonb("recurrence_pattern"), // {frequency: 'daily'|'weekly'|'monthly', interval: 1, daysOfWeek: [0,1,2], endDate: '2025-12-31', count: 10}
+  recurrenceExceptions: jsonb("recurrence_exceptions").default('[]'), // Array of date strings to exclude
+  parentEventId: varchar("parent_event_id").references((): any => calendarEvents.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

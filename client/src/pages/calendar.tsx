@@ -76,9 +76,23 @@ const eventFormSchema = z.object({
   endTime: z.string().min(1, "End time is required"),
   location: z.string().optional(),
   status: z.enum(["scheduled", "completed", "cancelled", "rescheduled"]).default("scheduled"),
+  isRecurring: z.boolean().default(false),
+  recurrenceFrequency: z.enum(["daily", "weekly", "monthly"]).optional(),
+  recurrenceInterval: z.number().min(1).default(1).optional(),
+  recurrenceDaysOfWeek: z.array(z.number()).optional(),
+  recurrenceEndDate: z.string().optional(),
+  recurrenceCount: z.number().optional(),
 });
 
 type EventFormData = z.infer<typeof eventFormSchema>;
+
+interface RecurrencePattern {
+  frequency: "daily" | "weekly" | "monthly";
+  interval: number;
+  daysOfWeek?: number[];
+  endDate?: string;
+  count?: number;
+}
 
 interface CalendarEvent {
   id: string;
@@ -93,6 +107,10 @@ interface CalendarEvent {
   location?: string;
   reminders?: any[];
   notes?: string;
+  isRecurring?: boolean;
+  recurrencePattern?: RecurrencePattern;
+  recurrenceExceptions?: string[];
+  parentEventId?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -5,6 +5,38 @@ This enterprise-grade CRM system for a trading platform manages clients, account
 
 ## Recent Changes
 
+### Recurring Calendar Events - Schema Foundation (October 21, 2025)
+Established database and type infrastructure for recurring calendar event functionality.
+
+**Database Schema Updates:**
+- Added `is_recurring` boolean column (default false)
+- Added `recurrence_pattern` JSONB column (stores frequency, interval, daysOfWeek, endDate, count)
+- Added `recurrence_exceptions` JSONB column (array of excluded date strings)
+- Added `parent_event_id` self-reference column for modified instances
+
+**Frontend Type System:**
+- Extended EventFormSchema with recurring fields (isRecurring, recurrenceFrequency, recurrenceInterval, etc.)
+- Created RecurrencePattern interface for type safety
+- Updated CalendarEvent interface with recurring metadata fields
+
+**Implementation Status:**
+- ✅ Database schema complete
+- ✅ TypeScript types and interfaces defined
+- ⏳ Pending: UI for setting recurrence options
+- ⏳ Pending: Backend expansion logic to generate instances from patterns
+- ⏳ Pending: Calendar view updates to display recurring event instances
+
+**Technical Foundation:**
+- Supports daily, weekly, and monthly recurrence patterns
+- Configurable interval (every N days/weeks/months)
+- Flexible end conditions (end date or occurrence count)
+- Exception tracking for deleted/modified instances
+- Parent-child relationships for instance overrides
+
+**Next Steps:** Complete MVP with basic recurrence UI, pattern storage, and simple instance expansion for calendar display.
+
+**Impact:** Provides essential infrastructure for recurring calendar events, enabling scheduled meetings, regular client follow-ups, and automated event scheduling.
+
 ### Performance Metrics Dashboard & CSV Export (October 21, 2025)
 Enhanced closed positions page with comprehensive trading analytics and export capabilities.
 
