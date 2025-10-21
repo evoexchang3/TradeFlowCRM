@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -24,6 +24,8 @@ import {
   type TradingRobot, type InsertTradingRobot,
   type RobotClientAssignment, type InsertRobotClientAssignment,
   type SystemSetting, type InsertSystemSetting,
+  type SmtpSetting,
+  type EmailTemplate,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -148,6 +150,12 @@ export interface IStorage {
   getSystemSetting(key: string): Promise<SystemSetting | undefined>;
   getAllSystemSettings(): Promise<SystemSetting[]>;
   updateSystemSetting(key: string, value: string, updatedBy?: string): Promise<SystemSetting>;
+  
+  // SMTP Settings
+  getSmtpSettings(): Promise<SmtpSetting[]>;
+  
+  // Email Templates
+  getEmailTemplates(): Promise<EmailTemplate[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -723,6 +731,16 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return setting;
+  }
+  
+  // SMTP Settings
+  async getSmtpSettings(): Promise<SmtpSetting[]> {
+    return await db.select().from(smtpSettings).orderBy(desc(smtpSettings.createdAt));
+  }
+  
+  // Email Templates
+  async getEmailTemplates(): Promise<EmailTemplate[]> {
+    return await db.select().from(emailTemplates).orderBy(emailTemplates.name);
   }
 }
 

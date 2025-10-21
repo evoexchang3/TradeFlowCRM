@@ -7815,6 +7815,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Email (send test email to verify SMTP configuration)
+  app.post("/api/smtp-settings/test", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Check if user is admin (has role management permissions)
+      const hasPermission = await storage.hasPermission(req.user!.id, 'role.edit');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Admin only' });
+      }
+
+      const { to } = req.body;
+      if (!to) {
+        return res.status(400).json({ error: 'Recipient email (to) is required' });
+      }
+
+      // Import email service
+      const { emailService } = await import('./services/email');
+      
+      // Send test email
+      const success = await emailService.sendEmail({
+        to,
+        subject: 'Test Email from CRM Trading Platform',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">SMTP Configuration Test</h2>
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 10px 0;">This is a test email from your CRM Trading Platform.</p>
+              <p style="margin: 10px 0;">If you're receiving this, your SMTP configuration is working correctly!</p>
+              <p style="margin: 10px 0;"><strong>Sent at:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            <p style="color: #666; font-size: 14px;">This email was sent as a test from the SMTP Settings page.</p>
+          </div>
+        `,
+      });
+
+      if (success) {
+        res.json({ success: true, message: 'Test email sent successfully' });
+      } else {
+        res.status(500).json({ success: false, error: 'Failed to send test email. Check SMTP configuration and server logs.' });
+      }
+    } catch (error: any) {
+      console.error('[Test Email Error]:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // Payment Providers
   app.get("/api/payment-providers", authMiddleware, async (req: AuthRequest, res) => {
     try {
