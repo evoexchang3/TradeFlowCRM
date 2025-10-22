@@ -7956,6 +7956,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== DOCUMENT MANAGEMENT ====================
+
+  // Configure multer for file uploads
+  const uploadStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, './uploads');
+    },
+    filename: (req, file, cb) => {
+      // Generate unique filename: timestamp-random-originalname
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      cb(null, uniqueSuffix + '-' + sanitizedName);
+    }
+  });
+
+  const documentUpload = multer({
+    storage: uploadStorage,
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      // Allow common document types
+      const allowedTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/jpg',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ];
+      
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only PDF, images, Word, and Excel files are allowed.'));
+      }
+    }
+  });
+
+  // Upload document
+  app.post("/api/documents/upload", authMiddleware, documentUpload.single('file'), async (req: AuthRequest, res) => {
+    try {
+      // Check permission
+      const hasPermission = await storage.hasPermission(req.user!.id, 'document.upload');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Missing document.upload permission' });
+      }
+
+      const { clientId, category, description } = req.body;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      if (!clientId || !category) {
+        return res.status(400).json({ error: 'clientId and category are required' });
+      }
+
+      // Verify client exists
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Verify user has access to this specific client
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      let hasClientAccess = false;
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          hasClientAccess = true;
+        } else if (isTeamLeaderRole(roleName)) {
+          hasClientAccess = client.teamId === user.teamId;
+        } else if (isAgentRole(roleName)) {
+          hasClientAccess = client.assignedAgentId === user.id;
+        } else {
+          hasClientAccess = client.assignedAgentId === user.id;
+        }
+      } else {
+        hasClientAccess = client.assignedAgentId === user.id;
+      }
+
+      if (!hasClientAccess) {
+        return res.status(403).json({ error: 'Unauthorized: No access to this client' });
+      }
+
+      // Create document record
+      const document = await storage.createDocument({
+        clientId,
+        fileName: file.filename,
+        originalFileName: file.originalname,
+        fileType: file.mimetype,
+        fileSize: file.size,
+        category,
+        description: description || null,
+        filePath: file.path,
+        uploadedBy: req.user!.id,
+        isVerified: false,
+        verifiedBy: null,
+        verifiedAt: null,
+        expiryDate: null,
+        metadata: {},
+      });
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'document_upload',
+        targetType: 'client',
+        targetId: clientId,
+        metadata: { documentId: document.id, fileName: file.originalname, category },
+      });
+
+      res.json(document);
+    } catch (error: any) {
+      console.error('[Document Upload Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get documents for a client
+  app.get("/api/documents/client/:clientId", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Check permission
+      const hasPermission = await storage.hasPermission(req.user!.id, 'document.view');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Missing document.view permission' });
+      }
+
+      const { clientId } = req.params;
+
+      // Verify client exists and user has access
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      const documents = await storage.getDocuments(clientId);
+      res.json(documents);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Download document
+  app.get("/api/documents/:id/download", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Check permission
+      const hasPermission = await storage.hasPermission(req.user!.id, 'document.download');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Missing document.download permission' });
+      }
+
+      const { id } = req.params;
+      const document = await storage.getDocument(id);
+
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      // Verify client access
+      const client = await storage.getClient(document.clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'document_download',
+        targetType: 'client',
+        targetId: document.clientId,
+        metadata: { documentId: document.id, fileName: document.originalFileName },
+      });
+
+      // Send file
+      res.download(document.filePath, document.originalFileName);
+    } catch (error: any) {
+      console.error('[Document Download Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete document
+  app.delete("/api/documents/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getDocument(id);
+
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      // Check permission
+      const hasPermission = await storage.hasPermission(req.user!.id, 'document.delete');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Missing document.delete permission' });
+      }
+
+      // Delete file from disk
+      const fs = await import('fs/promises');
+      try {
+        await fs.unlink(document.filePath);
+      } catch (err) {
+        console.error('[File Delete Error]:', err);
+      }
+
+      // Delete database record
+      await storage.deleteDocument(id);
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'document_delete',
+        targetType: 'client',
+        targetId: document.clientId,
+        metadata: { documentId: id, fileName: document.originalFileName },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Verify document
+  app.patch("/api/documents/:id/verify", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const document = await storage.getDocument(id);
+
+      if (!document) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      // Check permission
+      const hasPermission = await storage.hasPermission(req.user!.id, 'document.verify');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Missing document.verify permission' });
+      }
+
+      const verified = await storage.verifyDocument(id, req.user!.id);
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: 'document_verify',
+        targetType: 'client',
+        targetId: document.clientId,
+        metadata: { documentId: id, fileName: document.originalFileName },
+      });
+
+      res.json(verified);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ==================== PHASE 6: PERFORMANCE TARGETS & GAMIFICATION ====================
 
   // Performance Targets CRUD

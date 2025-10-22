@@ -38,6 +38,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/lib/auth";
+import { DocumentManagement } from "@/components/document-management";
 
 interface CustomStatus {
   id: string;
@@ -2204,21 +2205,7 @@ export default function ClientDetail() {
               <CardTitle className="text-lg">{t('client.detail.kyc.documents')}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {client.kycDocuments?.length > 0 ? (
-                  client.kycDocuments.map((doc: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-md hover-elevate">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{doc.name || t('client.detail.document.default', { number: index + 1 })}</span>
-                      </div>
-                      <Button variant="ghost" size="sm">{t('common.view')}</Button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">{t('client.detail.no.documents')}</p>
-                )}
-              </div>
+              {clientId && <DocumentManagement clientId={clientId} />}
             </CardContent>
           </Card>
         </TabsContent>

@@ -40,7 +40,8 @@ export const auditActionEnum = pgEnum('audit_action', [
   'email_template_create', 'email_template_edit', 'email_template_delete', 'webhook_received',
   'workload_adjusted', 'routing_rule_create', 'routing_rule_edit', 'routing_rule_delete',
   'smart_assignment_toggle', 'smart_assignment_config',
-  'robot_create', 'robot_edit', 'robot_delete', 'robot_executed', 'robot_execution_failed', 'robot_paused', 'robot_resumed'
+  'robot_create', 'robot_edit', 'robot_delete', 'robot_executed', 'robot_execution_failed', 'robot_paused', 'robot_resumed',
+  'document_upload', 'document_view', 'document_download', 'document_delete', 'document_verify'
 ]);
 export const apiKeyStatusEnum = pgEnum('api_key_status', ['active', 'revoked', 'expired']);
 export const apiKeyScopeEnum = pgEnum('api_key_scope', ['read', 'write', 'admin']);
@@ -50,6 +51,7 @@ export const fundTypeEnum = pgEnum('fund_type', ['real', 'demo', 'bonus']);
 export const departmentEnum = pgEnum('department', ['sales', 'retention', 'support']);
 export const targetPeriodEnum = pgEnum('target_period', ['daily', 'weekly', 'monthly', 'quarterly']);
 export const achievementTypeEnum = pgEnum('achievement_type', ['badge', 'streak', 'milestone', 'level']);
+export const documentCategoryEnum = pgEnum('document_category', ['kyc', 'contract', 'compliance', 'statement', 'proof_of_address', 'proof_of_id', 'other']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -715,6 +717,27 @@ export const achievements = pgTable("achievements", {
   earnedAt: timestamp("earned_at").notNull().defaultNow(),
 });
 
+// Documents
+export const documents = pgTable("documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  fileName: text("file_name").notNull(),
+  originalFileName: text("original_file_name").notNull(),
+  fileType: text("file_type").notNull(), // MIME type
+  fileSize: integer("file_size").notNull(), // bytes
+  category: documentCategoryEnum("category").notNull(),
+  description: text("description"),
+  filePath: text("file_path").notNull(), // Storage path
+  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  isVerified: boolean("is_verified").notNull().default(false),
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  verifiedAt: timestamp("verified_at"),
+  expiryDate: timestamp("expiry_date"), // For documents with expiration
+  metadata: jsonb("metadata").default('{}'), // Additional document info
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, { fields: [users.roleId], references: [roles.id] }),
@@ -739,6 +762,13 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   accounts: many(accounts),
   callLogs: many(callLogs),
   comments: many(clientComments),
+  documents: many(documents),
+}));
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  client: one(clients, { fields: [documents.clientId], references: [clients.id] }),
+  uploadedByUser: one(users, { fields: [documents.uploadedBy], references: [users.id] }),
+  verifiedByUser: one(users, { fields: [documents.verifiedBy], references: [users.id] }),
 }));
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
@@ -1185,6 +1215,16 @@ export const insertAchievementSchema = createInsertSchema(achievements).omit({
 export type Achievement = typeof achievements.$inferSelect;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 
+// Document schemas
+export const insertDocumentSchema = createInsertSchema(documents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+
 // Team Routing Rules schemas
 export const insertTeamRoutingRuleSchema = createInsertSchema(teamRoutingRules).omit({
   id: true,
@@ -1287,4 +1327,11 @@ export const PERMISSIONS = {
   API_KEY_VIEW: 'api_key.view',
   API_KEY_CREATE: 'api_key.create',
   API_KEY_REVOKE: 'api_key.revoke',
+  
+  // Document Management
+  DOCUMENT_VIEW: 'document.view',
+  DOCUMENT_UPLOAD: 'document.upload',
+  DOCUMENT_DOWNLOAD: 'document.download',
+  DOCUMENT_DELETE: 'document.delete',
+  DOCUMENT_VERIFY: 'document.verify',
 } as const;

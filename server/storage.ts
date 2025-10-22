@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -26,6 +26,7 @@ import {
   type SystemSetting, type InsertSystemSetting,
   type SmtpSetting,
   type EmailTemplate,
+  type Document, type InsertDocument,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -156,6 +157,14 @@ export interface IStorage {
   
   // Email Templates
   getEmailTemplates(): Promise<EmailTemplate[]>;
+  
+  // Documents
+  getDocuments(clientId: string): Promise<Document[]>;
+  getDocument(id: string): Promise<Document | undefined>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document>;
+  deleteDocument(id: string): Promise<void>;
+  verifyDocument(id: string, verifiedBy: string): Promise<Document>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -741,6 +750,48 @@ export class DatabaseStorage implements IStorage {
   // Email Templates
   async getEmailTemplates(): Promise<EmailTemplate[]> {
     return await db.select().from(emailTemplates).orderBy(emailTemplates.name);
+  }
+  
+  // Documents
+  async getDocuments(clientId: string): Promise<Document[]> {
+    return await db.select().from(documents)
+      .where(eq(documents.clientId, clientId))
+      .orderBy(desc(documents.createdAt));
+  }
+
+  async getDocument(id: string): Promise<Document | undefined> {
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document || undefined;
+  }
+
+  async createDocument(insertDocument: InsertDocument): Promise<Document> {
+    const [document] = await db.insert(documents).values(insertDocument).returning();
+    return document;
+  }
+
+  async updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document> {
+    const [document] = await db.update(documents)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documents.id, id))
+      .returning();
+    return document;
+  }
+
+  async deleteDocument(id: string): Promise<void> {
+    await db.delete(documents).where(eq(documents.id, id));
+  }
+
+  async verifyDocument(id: string, verifiedBy: string): Promise<Document> {
+    const [document] = await db.update(documents)
+      .set({ 
+        isVerified: true, 
+        verifiedBy, 
+        verifiedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(documents.id, id))
+      .returning();
+    return document;
   }
 }
 
