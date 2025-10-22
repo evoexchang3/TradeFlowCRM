@@ -5797,6 +5797,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send test email with template
+  app.post("/api/email-templates/:id/test", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const permissions = (role?.permissions as string[]) || [];
+      
+      if (!permissions.includes('email_template.manage') && role?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      }
+
+      const { testEmail } = req.body;
+      if (!testEmail || !testEmail.includes('@')) {
+        return res.status(400).json({ error: 'Valid test email address required' });
+      }
+
+      // Get template
+      const db = storage.db;
+      const [template] = await db.select().from(emailTemplates).where(eq(emailTemplates.id, req.params.id));
+      
+      if (!template) {
+        return res.status(404).json({ error: 'Template not found' });
+      }
+
+      // Substitute variables with sample data
+      const sampleData: Record<string, string> = {
+        "{{client_name}}": "John Doe",
+        "{{first_name}}": "John",
+        "{{last_name}}": "Doe",
+        "{{email}}": testEmail,
+        "{{balance}}": "$10,000.00",
+        "{{equity}}": "$10,500.00",
+        "{{account_number}}": "MT5-123456",
+        "{{agent_name}}": user.name || "Agent Name",
+        "{{company_name}}": "Trading Platform CRM",
+        "{{support_email}}": "support@tradingcrm.com",
+        "{{platform_url}}": "https://platform.tradingcrm.com",
+      };
+
+      let subject = template.subject;
+      let body = template.body;
+
+      Object.entries(sampleData).forEach(([key, value]) => {
+        subject = subject.replace(new RegExp(key, 'g'), value);
+        body = body.replace(new RegExp(key, 'g'), value);
+      });
+
+      // Send test email
+      const { emailService } = await import('./services/email');
+      const success = await emailService.sendEmail({
+        to: testEmail,
+        subject,
+        html: body,
+      });
+
+      if (success) {
+        await storage.createAuditLog({
+          userId: user.id,
+          action: 'email_template_test',
+          details: { templateId: req.params.id, testEmail },
+        });
+
+        res.json({ 
+          success: true, 
+          message: `Test email sent successfully to ${testEmail}` 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to send test email. Check SMTP configuration and server logs.' 
+        });
+      }
+    } catch (error: any) {
+      console.error('[Template Test Email Error]:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   // ===== CHAT ROOMS & MESSAGES =====
   app.get("/api/chat/rooms", authMiddleware, async (req: AuthRequest, res) => {
     try {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -28,7 +28,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -43,10 +42,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Eye, Mail, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, Mail, Copy, Send, Bold, Italic, Underline as UnderlineIcon, Link as LinkIcon, List } from "lucide-react";
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import TiptapUnderline from '@tiptap/extension-underline';
+import TiptapLink from '@tiptap/extension-link';
+import { Color } from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
 
 interface EmailTemplate {
   id: string;
@@ -59,6 +64,124 @@ interface EmailTemplate {
   createdBy?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface RichTextEditorProps {
+  content: string;
+  onChange: (content: string) => void;
+  onInsertVariable?: (variable: string) => void;
+}
+
+function RichTextEditor({ content, onChange }: RichTextEditorProps) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TiptapUnderline,
+      TiptapLink.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primary underline',
+        },
+      }),
+      TextStyle,
+      Color,
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+  });
+
+  // Sync external content changes to editor (e.g., from variable insertion)
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content);
+    }
+  }, [content, editor]);
+
+  if (!editor) {
+    return null;
+  }
+
+  const toggleBold = () => editor.chain().focus().toggleBold().run();
+  const toggleItalic = () => editor.chain().focus().toggleItalic().run();
+  const toggleUnderline = () => editor.chain().focus().toggleUnderline().run();
+  const toggleBulletList = () => editor.chain().focus().toggleBulletList().run();
+  const toggleOrderedList = () => editor.chain().focus().toggleOrderedList().run();
+
+  const setLink = () => {
+    const url = window.prompt('Enter URL:');
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+  };
+
+  return (
+    <div className="border rounded-md">
+      <div className="border-b bg-muted/50 p-2 flex flex-wrap gap-1">
+        <Button
+          type="button"
+          variant={editor.isActive('bold') ? 'default' : 'ghost'}
+          size="sm"
+          onClick={toggleBold}
+          data-testid="button-bold"
+        >
+          <Bold className="w-4 h-4" />
+        </Button>
+        <Button
+          type="button"
+          variant={editor.isActive('italic') ? 'default' : 'ghost'}
+          size="sm"
+          onClick={toggleItalic}
+          data-testid="button-italic"
+        >
+          <Italic className="w-4 h-4" />
+        </Button>
+        <Button
+          type="button"
+          variant={editor.isActive('underline') ? 'default' : 'ghost'}
+          size="sm"
+          onClick={toggleUnderline}
+          data-testid="button-underline"
+        >
+          <UnderlineIcon className="w-4 h-4" />
+        </Button>
+        <div className="w-px h-8 bg-border mx-1" />
+        <Button
+          type="button"
+          variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+          size="sm"
+          onClick={toggleBulletList}
+          data-testid="button-bullet-list"
+        >
+          <List className="w-4 h-4" />
+        </Button>
+        <Button
+          type="button"
+          variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+          size="sm"
+          onClick={toggleOrderedList}
+          data-testid="button-ordered-list"
+        >
+          <List className="w-4 h-4" />
+        </Button>
+        <Button
+          type="button"
+          variant={editor.isActive('link') ? 'default' : 'ghost'}
+          size="sm"
+          onClick={setLink}
+          data-testid="button-link"
+        >
+          <LinkIcon className="w-4 h-4" />
+        </Button>
+      </div>
+      <EditorContent 
+        editor={editor} 
+        className="prose prose-sm max-w-none p-4 min-h-[200px] focus:outline-none"
+        data-testid="rich-text-editor"
+      />
+    </div>
+  );
 }
 
 function TemplateForm({
@@ -94,11 +217,12 @@ function TemplateForm({
     isActive: z.boolean().default(true),
   });
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<ReturnType<typeof getTemplateFormSchema>>>({
+  const { register, handleSubmit, watch, setValue, control, formState: { errors } } = useForm<z.infer<ReturnType<typeof getTemplateFormSchema>>>({
     resolver: zodResolver(getTemplateFormSchema()),
     defaultValues: defaultValues || {
       isActive: true,
       category: "other",
+      body: "<p>Enter your email content here...</p>",
     },
   });
 
@@ -106,7 +230,12 @@ function TemplateForm({
 
   const insertVariable = (variable: string) => {
     const currentBody = bodyValue;
-    setValue("body", currentBody + " " + variable);
+    // If the body ends with a tag, insert inside it; otherwise append
+    if (currentBody.endsWith('</p>')) {
+      setValue("body", currentBody.replace(/<\/p>$/, ` ${variable}</p>`), { shouldValidate: true });
+    } else {
+      setValue("body", currentBody + " " + variable, { shouldValidate: true });
+    }
   };
 
   return (
@@ -158,14 +287,17 @@ function TemplateForm({
       <div>
         <div className="flex items-center justify-between mb-2">
           <Label htmlFor="body">{t("emailTemplates.emailBody")}</Label>
-          <div className="text-sm text-muted-foreground">{t("emailTemplates.htmlSupported")}</div>
+          <div className="text-sm text-muted-foreground">WYSIWYG Editor</div>
         </div>
-        <Textarea
-          id="body"
-          {...register("body")}
-          placeholder={t("emailTemplates.emailBodyPlaceholder")}
-          className="min-h-[200px] font-mono text-sm"
-          data-testid="input-template-body"
+        <Controller
+          name="body"
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              content={field.value}
+              onChange={(html) => field.onChange(html)}
+            />
+          )}
         />
         {errors.body && (
           <p className="text-sm text-destructive mt-1">{errors.body.message}</p>
@@ -247,6 +379,8 @@ export default function EmailTemplatesPage() {
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<EmailTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  const [testEmailTemplate, setTestEmailTemplate] = useState<EmailTemplate | null>(null);
+  const [testEmailAddress, setTestEmailAddress] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
 
@@ -317,6 +451,27 @@ export default function EmailTemplatesPage() {
     },
   });
 
+  const sendTestEmailMutation = useMutation({
+    mutationFn: async ({ templateId, testEmail }: { templateId: string; testEmail: string }) => {
+      return await apiRequest("POST", `/api/email-templates/${templateId}/test`, { testEmail });
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: t("common.success"),
+        description: data.message || "Test email sent successfully",
+      });
+      setTestEmailTemplate(null);
+      setTestEmailAddress("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message || "Failed to send test email",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredTemplates = templates.filter((template) => {
     if (categoryFilter !== "all" && template.category !== categoryFilter) return false;
     if (searchQuery && !template.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -358,6 +513,15 @@ export default function EmailTemplatesPage() {
     });
 
     return previewBody;
+  };
+
+  const handleSendTestEmail = () => {
+    if (!testEmailTemplate || !testEmailAddress) return;
+    
+    sendTestEmailMutation.mutate({
+      templateId: testEmailTemplate.id,
+      testEmail: testEmailAddress,
+    });
   };
 
   return (
@@ -463,6 +627,18 @@ export default function EmailTemplatesPage() {
                         <Button
                           size="icon"
                           variant="ghost"
+                          onClick={() => {
+                            setTestEmailTemplate(template);
+                            setTestEmailAddress("");
+                          }}
+                          data-testid={`button-test-email-${template.id}`}
+                          title="Send test email"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
                           onClick={() => setPreviewTemplate(template)}
                           data-testid={`button-preview-template-${template.id}`}
                         >
@@ -495,7 +671,7 @@ export default function EmailTemplatesPage() {
       </Card>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("emailTemplates.createTemplate")}</DialogTitle>
             <DialogDescription>
@@ -511,7 +687,7 @@ export default function EmailTemplatesPage() {
 
       {editingTemplate && (
         <Dialog open={!!editingTemplate} onOpenChange={() => setEditingTemplate(null)}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t("emailTemplates.editTemplate")}</DialogTitle>
               <DialogDescription>
@@ -552,6 +728,57 @@ export default function EmailTemplatesPage() {
                   dangerouslySetInnerHTML={{ __html: getPreviewContent(previewTemplate) }}
                   data-testid="preview-template-body"
                 />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {testEmailTemplate && (
+        <Dialog open={!!testEmailTemplate} onOpenChange={() => {
+          setTestEmailTemplate(null);
+          setTestEmailAddress("");
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Test Email</DialogTitle>
+              <DialogDescription>
+                Send a test email using the "{testEmailTemplate.name}" template with sample data.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="testEmail">Email Address</Label>
+                <Input
+                  id="testEmail"
+                  type="email"
+                  placeholder="test@example.com"
+                  value={testEmailAddress}
+                  onChange={(e) => setTestEmailAddress(e.target.value)}
+                  data-testid="input-test-email-address"
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Template variables will be replaced with sample data
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setTestEmailTemplate(null);
+                    setTestEmailAddress("");
+                  }}
+                  data-testid="button-cancel-test-email"
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  onClick={handleSendTestEmail}
+                  disabled={!testEmailAddress || sendTestEmailMutation.isPending}
+                  data-testid="button-send-test-email"
+                >
+                  {sendTestEmailMutation.isPending ? "Sending..." : "Send Test Email"}
+                </Button>
               </div>
             </div>
           </DialogContent>
