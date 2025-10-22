@@ -14,11 +14,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { MessageSquare, Plus, Send, Users, User, CheckCheck, Check } from "lucide-react";
+import { MessageSquare, Plus, Send, Users, User, CheckCheck, Check, Wifi, WifiOff } from "lucide-react";
 import * as z from "zod";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useChatWebSocket } from "@/hooks/use-chat-websocket";
 
 const roomFormSchema = z.object({
   type: z.string(),
@@ -151,10 +152,44 @@ export default function Chat() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [roomFilter, setRoomFilter] = useState<string>("all");
+  const [typingUsers, setTypingUsers] = useState<Map<string, Set<string>>>(new Map());
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const { toast} = useToast();
   const { user } = useAuth();
   const { t } = useLanguage();
+
+  // WebSocket integration for real-time chat
+  const { isConnected, joinRoom, leaveRoom, sendTyping, markMessageRead: markReadViaWebSocket } = useChatWebSocket({
+    enabled: true,
+    onTyping: (roomId, userId, isTyping) => {
+      setTypingUsers(prev => {
+        const newMap = new Map(prev);
+        if (!newMap.has(roomId)) {
+          newMap.set(roomId, new Set());
+        }
+        const roomTypers = newMap.get(roomId)!;
+        if (isTyping) {
+          roomTypers.add(userId);
+        } else {
+          roomTypers.delete(userId);
+        }
+        return newMap;
+      });
+    },
+    onUserStatus: (userId, status) => {
+      setOnlineUsers(prev => {
+        const newSet = new Set(prev);
+        if (status === 'online') {
+          newSet.add(userId);
+        } else {
+          newSet.delete(userId);
+        }
+        return newSet;
+      });
+    },
+  });
 
   const { data: rooms = [], isLoading: roomsLoading } = useQuery<ChatRoom[]>({
     queryKey: ['/api/chat/rooms'],
@@ -230,20 +265,66 @@ export default function Chat() {
       const unreadMessages = messages.filter(
         m => !m.isRead && m.senderId !== user?.id
       );
-      unreadMessages.forEach(m => markReadMutation.mutate(m.id));
+      unreadMessages.forEach(m => {
+        // Use REST API to mark as read in database
+        markReadMutation.mutate(m.id);
+        
+        // Also send WebSocket event to notify other clients
+        if (isConnected) {
+          markReadViaWebSocket(selectedRoomId, m.id);
+        }
+      });
     }
-  }, [messages, selectedRoomId, user?.id]);
+  }, [messages, selectedRoomId, user?.id, isConnected, markReadViaWebSocket]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Auto-join/leave rooms via WebSocket
+  useEffect(() => {
+    if (selectedRoomId && isConnected) {
+      joinRoom(selectedRoomId);
+      return () => {
+        leaveRoom(selectedRoomId);
+      };
+    }
+  }, [selectedRoomId, isConnected, joinRoom, leaveRoom]);
+
   const handleSubmit = (data: RoomFormData) => {
     createRoomMutation.mutate(data);
   };
 
+  const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessageText(value);
+
+    // Send typing indicator
+    if (selectedRoomId && isConnected) {
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Send typing=true
+      sendTyping(selectedRoomId, true);
+
+      // Set timeout to send typing=false
+      typingTimeoutRef.current = setTimeout(() => {
+        sendTyping(selectedRoomId, false);
+      }, 2000);
+    }
+  };
+
   const handleSendMessage = () => {
     if (!selectedRoomId || !messageText.trim()) return;
+    
+    // Clear typing indicator when sending message
+    if (isConnected && typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      sendTyping(selectedRoomId, false);
+    }
+    
     sendMessageMutation.mutate({ roomId: selectedRoomId, message: messageText });
   };
 
@@ -462,27 +543,40 @@ export default function Chat() {
         {selectedRoom ? (
           <>
             <CardHeader className="border-b">
-              <div className="flex items-center gap-2">
-                {selectedRoom.type === 'internal' ? (
-                  <Users className="h-5 w-5" />
-                ) : selectedRoom.type === 'direct' ? (
-                  <MessageSquare className="h-5 w-5" />
-                ) : (
-                  <User className="h-5 w-5" />
-                )}
-                <CardTitle>
-                  {selectedRoom.name || (
-                    selectedRoom.type === 'internal' 
-                      ? t('chat.team.chat')
-                      : selectedRoom.type === 'direct' && selectedRoom.participant
-                        ? selectedRoom.participant.name
-                        : selectedRoom.type === 'client_support' && selectedRoom.client 
-                          ? `${selectedRoom.client.firstName} ${selectedRoom.client.lastName}`
-                          : selectedRoom.type === 'direct' 
-                            ? t('chat.room.type.direct_message')
-                            : t('chat.room.type.client_support')
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {selectedRoom.type === 'internal' ? (
+                    <Users className="h-5 w-5" />
+                  ) : selectedRoom.type === 'direct' ? (
+                    <MessageSquare className="h-5 w-5" />
+                  ) : (
+                    <User className="h-5 w-5" />
                   )}
-                </CardTitle>
+                  <CardTitle>
+                    {selectedRoom.name || (
+                      selectedRoom.type === 'internal' 
+                        ? t('chat.team.chat')
+                        : selectedRoom.type === 'direct' && selectedRoom.participant
+                          ? selectedRoom.participant.name
+                          : selectedRoom.type === 'client_support' && selectedRoom.client 
+                            ? `${selectedRoom.client.firstName} ${selectedRoom.client.lastName}`
+                            : selectedRoom.type === 'direct' 
+                              ? t('chat.room.type.direct_message')
+                              : t('chat.room.type.client_support')
+                    )}
+                  </CardTitle>
+                </div>
+                {isConnected ? (
+                  <Badge variant="outline" className="gap-1">
+                    <Wifi className="h-3 w-3" />
+                    {t('chat.connected') || 'Connected'}
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="gap-1">
+                    <WifiOff className="h-3 w-3" />
+                    {t('chat.disconnected') || 'Disconnected'}
+                  </Badge>
+                )}
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden p-0">
@@ -500,6 +594,17 @@ export default function Chat() {
                         isOwn={message.senderId === user?.id}
                       />
                     ))}
+                    {/* Typing indicator */}
+                    {selectedRoomId && typingUsers.get(selectedRoomId)?.size ? (
+                      <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                        <div className="flex gap-1">
+                          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                        <span>{t('chat.typing') || 'Someone is typing...'}</span>
+                      </div>
+                    ) : null}
                     <div ref={messagesEndRef} />
                   </>
                 )}
@@ -509,12 +614,19 @@ export default function Chat() {
               <div className="flex gap-2">
                 <Input
                   value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
+                  onChange={handleMessageInputChange}
                   placeholder={t('chat.type.message')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage();
+                    }
+                  }}
+                  onBlur={() => {
+                    // Clear typing indicator when input loses focus
+                    if (selectedRoomId && isConnected && typingTimeoutRef.current) {
+                      clearTimeout(typingTimeoutRef.current);
+                      sendTyping(selectedRoomId, false);
                     }
                   }}
                   data-testid="input-message"

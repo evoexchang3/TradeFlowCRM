@@ -4524,6 +4524,255 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // ===== WEBSOCKET FOR REAL-TIME CHAT =====
+  const chatWss = new WebSocketServer({ server: httpServer, path: '/ws/chat' });
+
+  interface ChatClient {
+    ws: WebSocket;
+    userId: string;
+    rooms: Set<string>;
+  }
+
+  const chatClients = new Map<string, ChatClient>();
+
+  // Helper: Check if user has access to a chat room
+  async function canAccessChatRoom(userId: string, roomId: string): Promise<boolean> {
+    try {
+      const room = await db.select().from(chatRooms).where(eq(chatRooms.id, roomId)).limit(1);
+      if (!room || room.length === 0) return false;
+
+      const roomData = room[0];
+      const user = await storage.getUser(userId);
+      if (!user) return false;
+
+      // Internal rooms: accessible by all staff
+      if (roomData.type === 'internal') return true;
+
+      // Direct message: check if user is the participant OR the creator
+      if (roomData.type === 'direct') {
+        // Allow if user is the designated participant
+        if (roomData.participantId === userId) return true;
+
+        // Allow if user is the room creator
+        if (roomData.createdBy === userId) return true;
+
+        return false;
+      }
+
+      // Client support: check if user has access to this client
+      if (roomData.type === 'client_support' && roomData.clientId) {
+        const client = await storage.getClient(roomData.clientId);
+        if (!client) return false;
+
+        // Get user's role and check permissions
+        const role = user.roleId ? await storage.getRole(user.roleId) : null;
+        const roleName = role?.name?.toLowerCase();
+
+        // Administrator and CRM Manager have access to all clients
+        if (roleName === 'administrator' || roleName === 'crm manager') return true;
+
+        // Team Leader: access to clients in their team
+        if (roleName === 'team leader' && user.teamId) {
+          return client.teamId === user.teamId;
+        }
+
+        // Agent: access to assigned clients or team clients
+        if (roleName === 'agent' || roleName === 'sales agent') {
+          if (client.assignedTo === userId) return true;
+          if (user.teamId && client.teamId === user.teamId) return true;
+        }
+
+        return false;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking room access:', error);
+      return false;
+    }
+  }
+
+  chatWss.on('connection', async (ws: WebSocket, req) => {
+    try {
+      // Authenticate via token in query params
+      const url = new URL(req.url!, `http://${req.headers.host}`);
+      const token = url.searchParams.get('token');
+
+      if (!token) {
+        ws.close(1008, 'Authentication required');
+        return;
+      }
+
+      const decoded = verifyToken(token);
+      if (!decoded || decoded.type !== 'user') {
+        ws.close(1008, 'Invalid token');
+        return;
+      }
+
+      const userId = decoded.id;
+      const clientId = `${userId}-${Date.now()}`;
+
+      // Register client
+      chatClients.set(clientId, {
+        ws,
+        userId,
+        rooms: new Set(),
+      });
+
+      console.log(`Chat client connected: ${userId} (${clientId})`);
+
+      // Send online status to all users
+      broadcastToAll({
+        type: 'user_status',
+        userId,
+        status: 'online',
+      });
+
+      ws.on('message', async (message: string) => {
+        try {
+          const data = JSON.parse(message.toString());
+
+          switch (data.type) {
+            case 'join_room':
+              if (data.roomId) {
+                // Authorize access to room
+                const hasAccess = await canAccessChatRoom(userId, data.roomId);
+                if (!hasAccess) {
+                  console.log(`User ${userId} denied access to room ${data.roomId}`);
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'Access denied to room',
+                    roomId: data.roomId,
+                  }));
+                  break;
+                }
+
+                const client = chatClients.get(clientId);
+                if (client) {
+                  client.rooms.add(data.roomId);
+                  console.log(`User ${userId} joined room ${data.roomId}`);
+                }
+              }
+              break;
+
+            case 'leave_room':
+              if (data.roomId) {
+                const client = chatClients.get(clientId);
+                if (client) {
+                  client.rooms.delete(data.roomId);
+                  console.log(`User ${userId} left room ${data.roomId}`);
+                }
+              }
+              break;
+
+            case 'new_message':
+              // Broadcast message to all clients in the same room
+              if (data.roomId && data.message) {
+                // Authorize access to room
+                const hasAccess = await canAccessChatRoom(userId, data.roomId);
+                if (!hasAccess) {
+                  console.log(`User ${userId} denied posting to room ${data.roomId}`);
+                  ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'Access denied to room',
+                    roomId: data.roomId,
+                  }));
+                  break;
+                }
+
+                broadcastToRoom(data.roomId, {
+                  type: 'new_message',
+                  roomId: data.roomId,
+                  message: data.message,
+                });
+              }
+              break;
+
+            case 'typing':
+              // Broadcast typing indicator to all clients in the same room
+              if (data.roomId) {
+                // Authorize access to room
+                const hasAccess = await canAccessChatRoom(userId, data.roomId);
+                if (!hasAccess) break; // Silently ignore unauthorized typing events
+
+                broadcastToRoom(data.roomId, {
+                  type: 'typing',
+                  roomId: data.roomId,
+                  userId,
+                  isTyping: data.isTyping || false,
+                }, clientId);
+              }
+              break;
+
+            case 'mark_read':
+              // Broadcast read receipt to all clients in the same room
+              if (data.roomId && data.messageId) {
+                // Authorize access to room
+                const hasAccess = await canAccessChatRoom(userId, data.roomId);
+                if (!hasAccess) break; // Silently ignore unauthorized read receipts
+
+                broadcastToRoom(data.roomId, {
+                  type: 'message_read',
+                  roomId: data.roomId,
+                  messageId: data.messageId,
+                  userId,
+                });
+              }
+              break;
+
+            default:
+              console.log(`Unknown chat message type: ${data.type}`);
+          }
+        } catch (error) {
+          console.error('Chat WebSocket message error:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        chatClients.delete(clientId);
+        console.log(`Chat client disconnected: ${userId} (${clientId})`);
+
+        // Check if user has any other active connections
+        const hasOtherConnections = Array.from(chatClients.values()).some(
+          client => client.userId === userId
+        );
+
+        if (!hasOtherConnections) {
+          // Send offline status to all users
+          broadcastToAll({
+            type: 'user_status',
+            userId,
+            status: 'offline',
+          });
+        }
+      });
+
+    } catch (error) {
+      console.error('Chat WebSocket connection error:', error);
+      ws.close(1011, 'Internal server error');
+    }
+  });
+
+  // Helper function to broadcast to all clients in a room
+  function broadcastToRoom(roomId: string, message: any, excludeClientId?: string) {
+    chatClients.forEach((client, clientId) => {
+      if (client.rooms.has(roomId) && clientId !== excludeClientId) {
+        if (client.ws.readyState === WebSocket.OPEN) {
+          client.ws.send(JSON.stringify(message));
+        }
+      }
+    });
+  }
+
+  // Helper function to broadcast to all connected clients
+  function broadcastToAll(message: any) {
+    chatClients.forEach((client) => {
+      if (client.ws.readyState === WebSocket.OPEN) {
+        client.ws.send(JSON.stringify(message));
+      }
+    });
+  }
+
   // ===== SERVICE API (for Trading Platform) =====
   // Get client information by email
   app.get("/api/service/clients/:email", serviceTokenMiddleware, async (req, res) => {
@@ -5935,6 +6184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId: req.body.clientId || null,
         participantId: req.body.participantId || null,
         name: req.body.name || null,
+        createdBy: req.user.id, // Track who created the room
       }).returning();
 
       // Enrich the room data to match the GET endpoint format

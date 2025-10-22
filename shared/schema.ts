@@ -469,8 +469,9 @@ export const chatRooms = pgTable("chat_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   type: text("type").notNull(), // 'internal', 'client_support', 'direct'
   clientId: varchar("client_id").references(() => clients.id),
-  participantId: varchar("participant_id").references(() => users.id), // For direct messages
+  participantId: varchar("participant_id").references(() => users.id), // For direct messages  
   name: text("name"),
+  createdBy: varchar("created_by").references(() => users.id), // User who created the room
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
