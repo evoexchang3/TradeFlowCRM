@@ -5734,22 +5734,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      const updateData: any = { ...req.body, updatedAt: new Date() };
-      if (req.body.startTime) updateData.startTime = new Date(req.body.startTime);
-      if (req.body.endTime) updateData.endTime = new Date(req.body.endTime);
+      const eventId = req.params.id;
+      const updateAll = req.query.updateAll === 'true';
 
-      const [updatedEvent] = await db.update(calendarEvents)
-        .set(updateData)
-        .where(eq(calendarEvents.id, req.params.id))
-        .returning();
+      // Check if this is a recurring event instance (ID format: baseId_instanceDate)
+      const isInstance = eventId.includes('_') && eventId.split('_').length === 2;
+      
+      if (isInstance && !updateAll) {
+        // Editing single instance: Create a new standalone event
+        const [baseEventId, instanceDateStr] = eventId.split('_');
+        
+        // Get the base event
+        const [baseEvent] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, baseEventId));
+        
+        if (!baseEvent) {
+          return res.status(404).json({ error: 'Base event not found' });
+        }
 
-      await storage.createAuditLog({
-        userId: user.id,
-        action: 'calendar_event_edit',
-        details: { eventId: req.params.id, changes: req.body },
-      });
+        // Add this date to recurrence exceptions (to hide the original instance)
+        // Store full ISO timestamp to match expansion logic
+        const currentExceptions = (baseEvent.recurrenceExceptions as string[]) || [];
+        const exceptionDate = instanceDateStr; // Already in ISO format from instance ID
+        
+        if (!currentExceptions.includes(exceptionDate)) {
+          currentExceptions.push(exceptionDate);
+        }
 
-      res.json(updatedEvent);
+        await db.update(calendarEvents)
+          .set({ 
+            recurrenceExceptions: currentExceptions,
+            updatedAt: new Date()
+          })
+          .where(eq(calendarEvents.id, baseEventId));
+
+        // Create a new standalone event with the edited data
+        const updateData: any = { ...req.body };
+        if (req.body.startTime) updateData.startTime = new Date(req.body.startTime);
+        if (req.body.endTime) updateData.endTime = new Date(req.body.endTime);
+
+        const [newEvent] = await db.insert(calendarEvents).values({
+          title: updateData.title || baseEvent.title,
+          description: updateData.description !== undefined ? updateData.description : baseEvent.description,
+          startTime: updateData.startTime || baseEvent.startTime,
+          endTime: updateData.endTime || baseEvent.endTime,
+          userId: updateData.userId || baseEvent.userId,
+          clientId: updateData.clientId !== undefined ? updateData.clientId : baseEvent.clientId,
+          eventType: updateData.eventType || baseEvent.eventType,
+          status: updateData.status || baseEvent.status,
+          location: updateData.location !== undefined ? updateData.location : baseEvent.location,
+          isRecurring: false, // This is now a standalone event
+          parentEventId: baseEventId, // Reference to original recurring event
+        }).returning();
+
+        await storage.createAuditLog({
+          userId: user.id,
+          action: 'calendar_event_instance_edit',
+          details: { baseEventId, instanceDate: exceptionDate, newEventId: newEvent.id },
+        });
+
+        res.json(newEvent);
+      } else {
+        // Update the entire event (or base recurring event if updateAll=true)
+        const actualId = isInstance ? eventId.split('_')[0] : eventId;
+        
+        const updateData: any = { ...req.body, updatedAt: new Date() };
+        if (req.body.startTime) updateData.startTime = new Date(req.body.startTime);
+        if (req.body.endTime) updateData.endTime = new Date(req.body.endTime);
+
+        const [updatedEvent] = await db.update(calendarEvents)
+          .set(updateData)
+          .where(eq(calendarEvents.id, actualId))
+          .returning();
+
+        await storage.createAuditLog({
+          userId: user.id,
+          action: 'calendar_event_edit',
+          details: { eventId: actualId, changes: req.body, updateAll },
+        });
+
+        res.json(updatedEvent);
+      }
     } catch (error: any) {
       console.error('[Calendar Events PATCH Error]:', error);
       res.status(500).json({ error: error.message });
@@ -5774,15 +5838,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
-      await db.delete(calendarEvents).where(eq(calendarEvents.id, req.params.id));
+      const eventId = req.params.id;
+      const deleteAll = req.query.deleteAll === 'true';
 
-      await storage.createAuditLog({
-        userId: user.id,
-        action: 'calendar_event_delete',
-        details: { eventId: req.params.id },
-      });
+      // Check if this is a recurring event instance (ID format: baseId_instanceDate)
+      const isInstance = eventId.includes('_') && eventId.split('_').length === 2;
+      
+      if (isInstance && !deleteAll) {
+        // Delete single instance by adding to exceptions
+        const [baseEventId, instanceDateStr] = eventId.split('_');
+        
+        // Get the base event
+        const [baseEvent] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, baseEventId));
+        
+        if (!baseEvent) {
+          return res.status(404).json({ error: 'Base event not found' });
+        }
 
-      res.json({ success: true });
+        // Add this date to recurrence exceptions
+        // Store full ISO timestamp to match expansion logic
+        const currentExceptions = (baseEvent.recurrenceExceptions as string[]) || [];
+        const exceptionDate = instanceDateStr; // Already in ISO format from instance ID
+        
+        if (!currentExceptions.includes(exceptionDate)) {
+          currentExceptions.push(exceptionDate);
+        }
+
+        await db.update(calendarEvents)
+          .set({ 
+            recurrenceExceptions: currentExceptions,
+            updatedAt: new Date()
+          })
+          .where(eq(calendarEvents.id, baseEventId));
+
+        await storage.createAuditLog({
+          userId: user.id,
+          action: 'calendar_event_instance_delete',
+          details: { baseEventId, instanceDate: exceptionDate },
+        });
+
+        res.json({ success: true, deletedInstance: true });
+      } else {
+        // Delete the entire event (or base recurring event if deleteAll=true)
+        const actualId = isInstance ? eventId.split('_')[0] : eventId;
+        
+        await db.delete(calendarEvents).where(eq(calendarEvents.id, actualId));
+
+        await storage.createAuditLog({
+          userId: user.id,
+          action: 'calendar_event_delete',
+          details: { eventId: actualId, deleteAll },
+        });
+
+        res.json({ success: true });
+      }
     } catch (error: any) {
       console.error('[Calendar Events DELETE Error]:', error);
       res.status(500).json({ error: error.message });

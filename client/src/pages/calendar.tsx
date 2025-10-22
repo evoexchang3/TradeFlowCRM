@@ -130,6 +130,8 @@ interface CalendarEvent {
   recurrencePattern?: RecurrencePattern;
   recurrenceExceptions?: string[];
   parentEventId?: string;
+  isInstance?: boolean; // True for expanded recurring event instances
+  instanceDate?: Date; // Date of this instance
   createdAt: string;
   updatedAt: string;
 }
@@ -510,6 +512,10 @@ export default function Calendar() {
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
   const [deleteEvent, setDeleteEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [deleteScope, setDeleteScope] = useState<'this' | 'all'>('this');
+  const [editScope, setEditScope] = useState<'this' | 'all'>('this');
+  const [showEditScopeDialog, setShowEditScopeDialog] = useState(false);
+  const [pendingEditData, setPendingEditData] = useState<EventFormData | null>(null);
 
   const { data: events = [], isLoading } = useQuery<any[]>({
     queryKey: [`/api/calendar/events${calendarView !== "default" ? `?view=${calendarView}` : ""}`],
@@ -543,27 +549,33 @@ export default function Calendar() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...data }: EventFormData & { id: string }) => {
-      return await apiRequest("PATCH", `/api/calendar/events/${id}`, data);
+    mutationFn: async ({ id, updateAll, ...data }: EventFormData & { id: string; updateAll?: boolean }) => {
+      const url = `/api/calendar/events/${id}${updateAll ? '?updateAll=true' : ''}`;
+      return await apiRequest("PATCH", url, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
         query.queryKey[0]?.toString().startsWith('/api/calendar/events') ?? false
       });
       setEditEvent(null);
+      setShowEditScopeDialog(false);
+      setPendingEditData(null);
+      setEditScope('this');
       toast({ title: t('toast.success.updated') });
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/calendar/events/${id}`, undefined);
+    mutationFn: async ({ id, deleteAll }: { id: string; deleteAll?: boolean }) => {
+      const url = `/api/calendar/events/${id}${deleteAll ? '?deleteAll=true' : ''}`;
+      return await apiRequest("DELETE", url, undefined);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
         query.queryKey[0]?.toString().startsWith('/api/calendar/events') ?? false
       });
       setDeleteEvent(null);
+      setDeleteScope('this');
       toast({ title: t('toast.success.deleted') });
     },
   });
@@ -1042,7 +1054,16 @@ END:VEVENT
                   location: editEvent.location,
                   status: editEvent.status,
                 }}
-                onSubmit={(data) => updateMutation.mutate({ id: editEvent.id, ...data })}
+                onSubmit={(data) => {
+                  if (editEvent.isInstance) {
+                    // Show scope dialog for recurring instances
+                    setPendingEditData(data);
+                    setShowEditScopeDialog(true);
+                  } else {
+                    // Directly update non-recurring events
+                    updateMutation.mutate({ id: editEvent.id, ...data });
+                  }
+                }}
                 isPending={updateMutation.isPending}
               />
               <Button
@@ -1061,21 +1082,119 @@ END:VEVENT
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteEvent} onOpenChange={(open) => !open && setDeleteEvent(null)}>
+      <AlertDialog open={!!deleteEvent} onOpenChange={(open) => {
+        if (!open) {
+          setDeleteEvent(null);
+          setDeleteScope('this');
+        }
+      }}>
         <AlertDialogContent data-testid="dialog-delete-confirm">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('calendar.delete.event.dialog.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('calendar.delete.event.dialog.description', { title: deleteEvent?.title || '' })}
+              {deleteEvent?.isInstance ? (
+                <div className="space-y-3">
+                  <p>{t('calendar.delete.recurring.description')}</p>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deleteScope"
+                        value="this"
+                        checked={deleteScope === 'this'}
+                        onChange={() => setDeleteScope('this')}
+                        className="w-4 h-4"
+                      />
+                      <span>{t('calendar.delete.this.event')}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="deleteScope"
+                        value="all"
+                        checked={deleteScope === 'all'}
+                        onChange={() => setDeleteScope('all')}
+                        className="w-4 h-4"
+                      />
+                      <span>{t('calendar.delete.all.events')}</span>
+                    </label>
+                  </div>
+                </div>
+              ) : (
+                t('calendar.delete.event.dialog.description', { title: deleteEvent?.title || '' })
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel data-testid="button-cancel-delete">{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteEvent && deleteMutation.mutate(deleteEvent.id)}
+              onClick={() => deleteEvent && deleteMutation.mutate({ 
+                id: deleteEvent.id,
+                deleteAll: deleteScope === 'all'
+              })}
               data-testid="button-confirm-delete"
             >
               {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showEditScopeDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowEditScopeDialog(false);
+          setPendingEditData(null);
+          setEditScope('this');
+        }
+      }}>
+        <AlertDialogContent data-testid="dialog-edit-scope">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('calendar.edit.recurring.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-3">
+                <p>{t('calendar.edit.recurring.description')}</p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editScope"
+                      value="this"
+                      checked={editScope === 'this'}
+                      onChange={() => setEditScope('this')}
+                      className="w-4 h-4"
+                    />
+                    <span>{t('calendar.edit.this.event')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="editScope"
+                      value="all"
+                      checked={editScope === 'all'}
+                      onChange={() => setEditScope('all')}
+                      className="w-4 h-4"
+                    />
+                    <span>{t('calendar.edit.all.events')}</span>
+                  </label>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-edit-scope">{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (editEvent && pendingEditData) {
+                  updateMutation.mutate({
+                    id: editEvent.id,
+                    updateAll: editScope === 'all',
+                    ...pendingEditData
+                  });
+                }
+              }}
+              data-testid="button-confirm-edit-scope"
+            >
+              {t('common.save')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

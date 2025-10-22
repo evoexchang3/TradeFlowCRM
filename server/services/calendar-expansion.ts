@@ -40,10 +40,20 @@ export function expandRecurringEvent(
     }
   }
 
-  // Get exceptions (dates to skip)
-  const exceptions = new Set(
-    ((event.recurrenceExceptions as string[]) || []).map(d => new Date(d).toDateString())
-  );
+  // Get exceptions - support both legacy (YYYY-MM-DD) and new (ISO timestamp) formats
+  const rawExceptions = ((event.recurrenceExceptions as string[]) || []);
+  
+  // Helper to check if a date should be excluded
+  const isExcluded = (candidateISO: string): boolean => {
+    // Check if exact ISO timestamp matches (new format)
+    if (rawExceptions.includes(candidateISO)) {
+      return true;
+    }
+    
+    // Check if date portion matches any legacy date-only exception (YYYY-MM-DD)
+    const candidateDate = candidateISO.split('T')[0];
+    return rawExceptions.includes(candidateDate);
+  };
 
   let instanceCount = 0;
   const maxCount = pattern.count || 365; // Max 365 instances to prevent infinite loops
@@ -71,8 +81,9 @@ export function expandRecurringEvent(
             candidateDate <= recurrenceEnd &&
             candidateDate >= rangeStart && 
             candidateDate <= rangeEnd) {
-          const dateKey = candidateDate.toDateString();
-          if (!exceptions.has(dateKey)) {
+          // Check if this instance should be excluded (supports both legacy and new formats)
+          const dateKey = candidateDate.toISOString();
+          if (!isExcluded(dateKey)) {
             instances.push(createInstance(event, candidateDate, duration));
             instanceCount++;
             if (instanceCount >= maxCount) break;
@@ -95,10 +106,11 @@ export function expandRecurringEvent(
     while (currentDate <= recurrenceEnd && instanceCount < maxCount) {
       // Check if current instance falls within the requested range
       if (currentDate >= rangeStart && currentDate <= recurrenceEnd) {
-        const dateKey = currentDate.toDateString();
+        // Check if this instance should be excluded (supports both legacy and new formats)
+        const dateKey = currentDate.toISOString();
         
         // Skip if in exceptions list
-        if (!exceptions.has(dateKey)) {
+        if (!isExcluded(dateKey)) {
           instances.push(createInstance(event, currentDate, duration));
           instanceCount++;
         }
