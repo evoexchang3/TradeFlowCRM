@@ -39,6 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/lib/auth";
 import { DocumentManagement } from "@/components/document-management";
+import { KycProgress } from "@/components/kyc-progress";
 
 interface CustomStatus {
   id: string;
@@ -866,10 +867,13 @@ export default function ClientDetail() {
               </Select>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{t('client.detail.language')}</span>
+              <span className="text-sm text-muted-foreground">KYC Status</span>
               <Badge variant={client.kycStatus === 'verified' ? 'default' : 'secondary'}>
                 {client.kycStatus}
               </Badge>
+            </div>
+            <div className="py-2 border-t">
+              <KycProgress clientId={client.id} showDetails={true} />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{t('common.status')}</span>

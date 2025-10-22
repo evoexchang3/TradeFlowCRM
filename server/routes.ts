@@ -8229,6 +8229,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:clientId/kyc-progress", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const db = storage.db;
+      
+      // Get all active KYC questions
+      const activeQuestions = await db.select()
+        .from(kycQuestions)
+        .where(eq(kycQuestions.isActive, true));
+      
+      // Get client's responses
+      const allResponses = await db.select()
+        .from(kycResponses)
+        .where(eq(kycResponses.clientId, req.params.clientId));
+      
+      // Create a Set of active question IDs for fast lookup
+      const activeQuestionIds = new Set(activeQuestions.map(q => q.id));
+      
+      // Filter responses to only include those for currently active questions
+      const responses = allResponses.filter(r => activeQuestionIds.has(r.questionId));
+      
+      const totalQuestions = activeQuestions.length;
+      const answeredQuestions = responses.length;
+      const requiredQuestions = activeQuestions.filter(q => q.isRequired).length;
+      const answeredRequiredQuestions = responses.filter(r => 
+        activeQuestions.find(q => q.id === r.questionId && q.isRequired)
+      ).length;
+      
+      // Clamp percentages to 0-100 range
+      const completionPercentage = totalQuestions > 0 
+        ? Math.min(100, Math.round((answeredQuestions / totalQuestions) * 100))
+        : 0;
+      
+      const requiredCompletionPercentage = requiredQuestions > 0
+        ? Math.min(100, Math.round((answeredRequiredQuestions / requiredQuestions) * 100))
+        : 0;
+      
+      res.json({
+        totalQuestions,
+        answeredQuestions,
+        requiredQuestions,
+        answeredRequiredQuestions,
+        completionPercentage,
+        requiredCompletionPercentage,
+        isComplete: answeredQuestions >= totalQuestions && totalQuestions > 0,
+        isRequiredComplete: answeredRequiredQuestions >= requiredQuestions && requiredQuestions > 0,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/clients/:clientId/kyc-responses", authMiddleware, async (req: AuthRequest, res) => {
     try {
       if (req.user?.type !== 'user') {
