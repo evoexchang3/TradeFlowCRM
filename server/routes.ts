@@ -10253,5 +10253,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== WEBSOCKET FOR REAL-TIME EQUITY UPDATES =====
+  const equityWss = new WebSocketServer({ server: httpServer, path: '/ws/equity' });
+
+  interface EquityClient {
+    ws: WebSocket;
+    userId: string;
+    positions: Map<string, any>; // positionId -> position data
+    subscriptions: Map<string, (quote: any) => void>; // symbol -> callback
+  }
+
+  const equityClients = new Map<string, EquityClient>();
+
+  equityWss.on('connection', async (ws: WebSocket, req) => {
+    try {
+      // Authenticate via token in query params (same as chat WebSocket)
+      const url = new URL(req.url!, `http://${req.headers.host}`);
+      const token = url.searchParams.get('token');
+
+      if (!token) {
+        ws.close(1008, 'Authentication required');
+        return;
+      }
+
+      const decoded = verifyToken(token);
+      if (!decoded || decoded.type !== 'user') {
+        ws.close(1008, 'Invalid token');
+        return;
+      }
+
+      const userId = decoded.id;
+      console.log(`Equity stream connected (authenticated): ${userId}`);
+
+      const client: EquityClient = {
+        ws,
+        userId,
+        positions: new Map(),
+        subscriptions: new Map(),
+      };
+
+      equityClients.set(userId, client);
+
+      // Function to calculate and send position P/L
+      const calculateAndSendPL = (positionId: string, currentPrice: number) => {
+        const position = client.positions.get(positionId);
+        if (!position || position.status !== 'open') return;
+
+        const quantity = parseFloat(position.quantity);
+        const entryPrice = parseFloat(position.entryPrice);
+        const isLong = position.side === 'buy';
+
+        // Calculate P/L
+        let unrealizedPL = 0;
+        if (isLong) {
+          unrealizedPL = (currentPrice - entryPrice) * quantity;
+        } else {
+          unrealizedPL = (entryPrice - currentPrice) * quantity;
+        }
+
+        // Calculate percentage
+        const plPercentage = ((currentPrice - entryPrice) / entryPrice) * 100 * (isLong ? 1 : -1);
+
+        // Send update
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'equity_update',
+            data: {
+              positionId,
+              symbol: position.symbol,
+              currentPrice,
+              entryPrice,
+              unrealizedPL,
+              plPercentage,
+              timestamp: new Date().toISOString(),
+            },
+          }));
+        }
+      };
+
+      // Handle messages from client
+      ws.on('message', async (message: string) => {
+        try {
+          const data = JSON.parse(message.toString());
+
+          if (data.action === 'refresh') {
+            // Refresh positions and subscriptions
+            const openPositions = await storage.getPositions({
+              accountId: data.accountId,
+              status: 'open',
+            });
+
+            // Clear existing subscriptions
+            client.subscriptions.forEach((callback, symbol) => {
+              twelveDataService.unsubscribe(symbol, callback);
+            });
+            client.subscriptions.clear();
+            client.positions.clear();
+
+            // Set up new subscriptions
+            openPositions.forEach((position: any) => {
+              client.positions.set(position.id, position);
+
+              if (!client.subscriptions.has(position.symbol)) {
+                const callback = (quote: any) => {
+                  // Update all positions with this symbol
+                  client.positions.forEach((pos, posId) => {
+                    if (pos.symbol === position.symbol) {
+                      calculateAndSendPL(posId, quote.price);
+                    }
+                  });
+                };
+
+                client.subscriptions.set(position.symbol, callback);
+                twelveDataService.subscribe(position.symbol, callback);
+              }
+            });
+
+            // Send initial equity snapshot
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'positions_loaded',
+                data: {
+                  count: openPositions.length,
+                  symbols: Array.from(client.subscriptions.keys()),
+                },
+              }));
+            }
+          }
+        } catch (error) {
+          console.error('Equity WebSocket message error:', error);
+        }
+      });
+
+      ws.on('close', () => {
+        // Cleanup subscriptions
+        client.subscriptions.forEach((callback, symbol) => {
+          twelveDataService.unsubscribe(symbol, callback);
+        });
+        equityClients.delete(userId);
+        console.log(`Equity stream disconnected: ${userId}`);
+      });
+
+    } catch (error) {
+      console.error('Equity WebSocket connection error:', error);
+      ws.close(1011, 'Server error');
+    }
+  });
+
   return httpServer;
 }
