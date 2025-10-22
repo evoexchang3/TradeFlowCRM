@@ -6280,36 +6280,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Staff only' });
       }
 
-      const roomsData = await db
-        .select({
-          id: chatRooms.id,
-          type: chatRooms.type,
-          clientId: chatRooms.clientId,
-          participantId: chatRooms.participantId,
-          name: chatRooms.name,
-          createdAt: chatRooms.createdAt,
-          client: {
-            id: clients.id,
-            firstName: clients.firstName,
-            lastName: clients.lastName,
-          },
-          participant: {
-            id: users.id,
-            name: users.name,
-          },
-        })
-        .from(chatRooms)
-        .leftJoin(clients, eq(chatRooms.clientId, clients.id))
-        .leftJoin(users, eq(chatRooms.participantId, users.id));
+      // Query rooms without joins
+      const roomsData = await db.select().from(chatRooms);
 
-      const rooms = roomsData.map((r: any) => ({
-        ...r,
-        client: r.client.id ? r.client : null,
-        participant: r.participant.id ? r.participant : null,
+      // Enrich with client and participant data
+      const rooms = await Promise.all(roomsData.map(async (room) => {
+        let client = null;
+        let participant = null;
+
+        if (room.clientId) {
+          const [clientData] = await db
+            .select({
+              id: clients.id,
+              firstName: clients.firstName,
+              lastName: clients.lastName,
+            })
+            .from(clients)
+            .where(eq(clients.id, room.clientId))
+            .limit(1);
+          client = clientData || null;
+        }
+
+        if (room.participantId) {
+          const [participantData] = await db
+            .select({
+              id: users.id,
+              name: users.name,
+            })
+            .from(users)
+            .where(eq(users.id, room.participantId))
+            .limit(1);
+          participant = participantData || null;
+        }
+
+        return {
+          ...room,
+          client,
+          participant,
+        };
       }));
 
       res.json(rooms);
     } catch (error: any) {
+      console.error('[Chat Rooms Error]:', error);
       res.status(500).json({ error: error.message });
     }
   });
