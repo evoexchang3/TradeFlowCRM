@@ -124,6 +124,12 @@ const menuItems: MenuItem[] = [
     roles: ['administrator', 'crm manager', 'team leader'],
   },
   {
+    titleKey: "nav.trading.analytics",
+    url: "/trading/analytics",
+    icon: BarChart3,
+    roles: ['administrator', 'crm manager', 'team leader'],
+  },
+  {
     titleKey: "nav.trading",
     url: "/trading",
     icon: TrendingUp,

@@ -93,6 +93,7 @@ export default {
   'nav.cfd.accounts': 'CFD Accounts',
   'nav.open.positions': 'Open Positions',
   'nav.closed.positions': 'Closed Positions',
+  'nav.trading.analytics': 'Trading Analytics',
   'nav.trading': 'Trading',
   'nav.transactions': 'Transactions',
   'nav.calendar': 'Calendar',

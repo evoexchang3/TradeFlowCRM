@@ -3959,6 +3959,189 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Trading Analytics Dashboard
+  app.get("/api/analytics/trading", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Check permission
+      const hasPermission = await storage.hasPermission(req.user!.id, 'position.view');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Unauthorized: Missing position.view permission' });
+      }
+
+      const { startDate: startParam, endDate: endParam, symbol, accountType } = req.query;
+      
+      // Date range (default: last 30 days)
+      const endDate = endParam ? new Date(endParam as string) : new Date();
+      const startDate = startParam ? new Date(startParam as string) : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Fetch all positions
+      let positions = await storage.getPositions({});
+      
+      // Apply filters
+      if (symbol) {
+        positions = positions.filter(p => p.symbol === symbol);
+      }
+      if (accountType) {
+        positions = positions.filter(p => p.accountType === accountType);
+      }
+
+      // Filter by date range (use openTime)
+      positions = positions.filter(p => {
+        const openTime = new Date(p.openTime);
+        return openTime >= startDate && openTime <= endDate;
+      });
+
+      // Separate open and closed positions
+      const openPositions = positions.filter(p => p.status === 'open');
+      const closedPositions = positions.filter(p => p.status === 'closed');
+
+      // Calculate overall metrics
+      const totalVolume = positions.reduce((sum, p) => sum + Number(p.volume), 0);
+      const totalGrossPnL = positions.reduce((sum, p) => sum + Number(p.unrealizedPnL || 0) + Number(p.realizedPnL || 0), 0);
+      const totalCommission = positions.reduce((sum, p) => sum + Number(p.commission || 0), 0);
+      const totalNetPnL = totalGrossPnL - totalCommission;
+
+      // Win/Loss analysis (closed positions only)
+      const profitablePositions = closedPositions.filter(p => Number(p.realizedPnL || 0) > 0);
+      const losingPositions = closedPositions.filter(p => Number(p.realizedPnL || 0) < 0);
+      const winRate = closedPositions.length > 0 
+        ? Math.round((profitablePositions.length / closedPositions.length) * 100) 
+        : 0;
+
+      // Symbol performance
+      const bySymbol = positions.reduce((acc: any, pos) => {
+        if (!acc[pos.symbol]) {
+          acc[pos.symbol] = {
+            symbol: pos.symbol,
+            totalTrades: 0,
+            volume: 0,
+            grossPnL: 0,
+            netPnL: 0,
+            commission: 0,
+            wins: 0,
+            losses: 0,
+          };
+        }
+        acc[pos.symbol].totalTrades++;
+        acc[pos.symbol].volume += Number(pos.volume);
+        acc[pos.symbol].grossPnL += Number(pos.unrealizedPnL || 0) + Number(pos.realizedPnL || 0);
+        acc[pos.symbol].commission += Number(pos.commission || 0);
+        acc[pos.symbol].netPnL = acc[pos.symbol].grossPnL - acc[pos.symbol].commission;
+        
+        if (pos.status === 'closed') {
+          if (Number(pos.realizedPnL || 0) > 0) acc[pos.symbol].wins++;
+          else if (Number(pos.realizedPnL || 0) < 0) acc[pos.symbol].losses++;
+        }
+        
+        return acc;
+      }, {});
+
+      // Robot vs Manual comparison
+      const robotPositions = positions.filter(p => p.isRobotTrade);
+      const manualPositions = positions.filter(p => !p.isRobotTrade);
+      
+      const robotMetrics = {
+        totalTrades: robotPositions.length,
+        volume: robotPositions.reduce((sum, p) => sum + Number(p.volume), 0),
+        grossPnL: robotPositions.reduce((sum, p) => sum + Number(p.unrealizedPnL || 0) + Number(p.realizedPnL || 0), 0),
+        commission: robotPositions.reduce((sum, p) => sum + Number(p.commission || 0), 0),
+        closedTrades: robotPositions.filter(p => p.status === 'closed').length,
+        wins: robotPositions.filter(p => p.status === 'closed' && Number(p.realizedPnL || 0) > 0).length,
+      };
+      robotMetrics['netPnL'] = robotMetrics.grossPnL - robotMetrics.commission;
+      robotMetrics['winRate'] = robotMetrics.closedTrades > 0 
+        ? Math.round((robotMetrics.wins / robotMetrics.closedTrades) * 100) 
+        : 0;
+
+      const manualMetrics = {
+        totalTrades: manualPositions.length,
+        volume: manualPositions.reduce((sum, p) => sum + Number(p.volume), 0),
+        grossPnL: manualPositions.reduce((sum, p) => sum + Number(p.unrealizedPnL || 0) + Number(p.realizedPnL || 0), 0),
+        commission: manualPositions.reduce((sum, p) => sum + Number(p.commission || 0), 0),
+        closedTrades: manualPositions.filter(p => p.status === 'closed').length,
+        wins: manualPositions.filter(p => p.status === 'closed' && Number(p.realizedPnL || 0) > 0).length,
+      };
+      manualMetrics['netPnL'] = manualMetrics.grossPnL - manualMetrics.commission;
+      manualMetrics['winRate'] = manualMetrics.closedTrades > 0 
+        ? Math.round((manualMetrics.wins / manualMetrics.closedTrades) * 100) 
+        : 0;
+
+      // P/L trend over time (group by day)
+      const pnlTrend: any = {};
+      positions.forEach(pos => {
+        const date = new Date(pos.openTime).toISOString().split('T')[0];
+        if (!pnlTrend[date]) {
+          pnlTrend[date] = {
+            date,
+            volume: 0,
+            grossPnL: 0,
+            netPnL: 0,
+            trades: 0,
+          };
+        }
+        pnlTrend[date].volume += Number(pos.volume);
+        pnlTrend[date].grossPnL += Number(pos.unrealizedPnL || 0) + Number(pos.realizedPnL || 0);
+        pnlTrend[date].netPnL += Number(pos.unrealizedPnL || 0) + Number(pos.realizedPnL || 0) - Number(pos.commission || 0);
+        pnlTrend[date].trades++;
+      });
+
+      res.json({
+        // Overview
+        overview: {
+          totalPositions: positions.length,
+          openPositions: openPositions.length,
+          closedPositions: closedPositions.length,
+          totalVolume: Math.round(totalVolume * 100) / 100,
+          totalGrossPnL: Math.round(totalGrossPnL * 100) / 100,
+          totalNetPnL: Math.round(totalNetPnL * 100) / 100,
+          totalCommission: Math.round(totalCommission * 100) / 100,
+          winRate,
+        },
+        // Symbol performance (sorted by net P/L)
+        bySymbol: Object.values(bySymbol)
+          .map((s: any) => ({
+            ...s,
+            volume: Math.round(s.volume * 100) / 100,
+            grossPnL: Math.round(s.grossPnL * 100) / 100,
+            netPnL: Math.round(s.netPnL * 100) / 100,
+            commission: Math.round(s.commission * 100) / 100,
+            winRate: s.wins + s.losses > 0 
+              ? Math.round((s.wins / (s.wins + s.losses)) * 100) 
+              : 0,
+          }))
+          .sort((a: any, b: any) => b.netPnL - a.netPnL),
+        // Robot vs Manual
+        robotVsManual: {
+          robot: {
+            ...robotMetrics,
+            volume: Math.round(robotMetrics.volume * 100) / 100,
+            grossPnL: Math.round(robotMetrics.grossPnL * 100) / 100,
+            netPnL: Math.round(robotMetrics.netPnL * 100) / 100,
+            commission: Math.round(robotMetrics.commission * 100) / 100,
+          },
+          manual: {
+            ...manualMetrics,
+            volume: Math.round(manualMetrics.volume * 100) / 100,
+            grossPnL: Math.round(manualMetrics.grossPnL * 100) / 100,
+            netPnL: Math.round(manualMetrics.netPnL * 100) / 100,
+            commission: Math.round(manualMetrics.commission * 100) / 100,
+          },
+        },
+        // Time series (sorted by date)
+        timeSeries: Object.values(pnlTrend)
+          .map((d: any) => ({
+            ...d,
+            volume: Math.round(d.volume * 100) / 100,
+            grossPnL: Math.round(d.grossPnL * 100) / 100,
+            netPnL: Math.round(d.netPnL * 100) / 100,
+          }))
+          .sort((a: any, b: any) => a.date.localeCompare(b.date)),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== API KEY MANAGEMENT =====
   app.post("/api/admin/api-keys", authMiddleware, async (req: AuthRequest, res) => {
     try {

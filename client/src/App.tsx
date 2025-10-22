@@ -28,6 +28,7 @@ import ClientForm from "@/pages/client-form";
 import Trading from "@/pages/trading";
 import GlobalOpenPositions from "@/pages/global-open-positions";
 import GlobalClosedPositions from "@/pages/global-closed-positions";
+import TradingAnalytics from "@/pages/trading-analytics";
 import SalesDashboard from "@/pages/sales-dashboard";
 import RetentionDashboard from "@/pages/retention-dashboard";
 import ActivityFeed from "@/pages/activity-feed";
@@ -188,6 +189,11 @@ function Router() {
       <Route path="/trading/closed-positions">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
           <GlobalClosedPositions />
+        </RouteGuard>
+      </Route>
+      <Route path="/trading/analytics">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <TradingAnalytics />
         </RouteGuard>
       </Route>
       <Route path="/trading">
