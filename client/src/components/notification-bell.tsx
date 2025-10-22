@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Bell, Check, X, Trash2 } from "lucide-react";
+import { 
+  Bell, Check, CheckCheck, UserPlus, DollarSign, MessageCircle, 
+  RefreshCw, CheckCircle2, Wallet, Settings 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -12,60 +15,43 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
-
-interface Notification {
-  id: string;
-  userId: string;
-  type: string;
-  title: string;
-  message: string;
-  relatedClientId?: string | null;
-  relatedEntity?: string | null;
-  relatedEntityId?: string | null;
-  isRead: boolean;
-  createdAt: string;
-}
+import { useNavigate } from "wouter";
+import type { Notification } from "@shared/schema";
 
 export function NotificationBell() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const { data: response } = useQuery<{ notifications: Notification[]; unreadCount: number }>({
-    queryKey: ['/api/notifications'],
-    queryFn: async () => {
-      const res = await fetch('/api/notifications?limit=20', {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to fetch notifications');
-      return res.json();
-    },
+  // Fetch unread count
+  const { data: unreadCountData } = useQuery<{ count: number }>({
+    queryKey: ['/api/notifications/unread-count'],
     refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Fetch notifications
+  const { data: notifications = [] } = useQuery<Notification[]>({
+    queryKey: ['/api/notifications'],
+    enabled: isOpen,
   });
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
-      return apiRequest('PATCH', `/api/notifications/${notificationId}/read`);
+      return apiRequest('PATCH', `/api/notifications/${notificationId}/read`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
     },
   });
 
   const markAllAsReadMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('POST', '/api/notifications/read-all');
+      return apiRequest('PATCH', '/api/notifications/read-all', {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (notificationId: string) => {
-      return apiRequest('DELETE', `/api/notifications/${notificationId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
     },
   });
 
@@ -78,11 +64,6 @@ export function NotificationBell() {
     markAllAsReadMutation.mutate();
   };
 
-  const handleDelete = (notificationId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    deleteMutation.mutate(notificationId);
-  };
-
   const handleNotificationClick = (notification: Notification) => {
     if (!notification.isRead) {
       markAsReadMutation.mutate(notification.id);
@@ -90,13 +71,34 @@ export function NotificationBell() {
     
     // Navigate to related entity if available
     if (notification.relatedClientId) {
-      window.location.href = `/clients/${notification.relatedClientId}`;
+      navigate(`/clients/${notification.relatedClientId}`);
     }
     setIsOpen(false);
   };
 
-  const unreadCount = response?.unreadCount || 0;
-  const notifications = response?.notifications || [];
+  const getNotificationIcon = (type: string) => {
+    const iconClass = "h-5 w-5";
+    switch (type) {
+      case 'client_assigned':
+        return <UserPlus className={iconClass} />;
+      case 'ftd_achieved':
+        return <DollarSign className={iconClass} />;
+      case 'comment_added':
+        return <MessageCircle className={iconClass} />;
+      case 'status_changed':
+        return <RefreshCw className={iconClass} />;
+      case 'kyc_status_update':
+        return <CheckCircle2 className={iconClass} />;
+      case 'balance_adjusted':
+        return <Wallet className={iconClass} />;
+      case 'system':
+        return <Settings className={iconClass} />;
+      default:
+        return <Bell className={iconClass} />;
+    }
+  };
+
+  const unreadCount = unreadCountData?.count || 0;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -104,7 +106,7 @@ export function NotificationBell() {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="relative" 
+          className="relative hover-elevate active-elevate-2" 
           data-testid="button-notifications"
         >
           <Bell className="h-5 w-5" />
@@ -114,7 +116,7 @@ export function NotificationBell() {
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
               data-testid="badge-notification-count"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
           )}
         </Button>
@@ -122,14 +124,15 @@ export function NotificationBell() {
       <PopoverContent className="w-96 p-0" align="end">
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="font-semibold">{t('notifications.title')}</h3>
-          {unreadCount > 0 && (
+          {notifications.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={handleMarkAllAsRead}
+              disabled={markAllAsReadMutation.isPending || notifications.every(n => n.isRead)}
               data-testid="button-mark-all-read"
             >
-              <Check className="h-4 w-4 mr-2" />
+              <CheckCheck className="h-4 w-4 mr-2" />
               {t('notifications.mark.all.read')}
             </Button>
           )}
@@ -138,58 +141,39 @@ export function NotificationBell() {
           {notifications.length > 0 ? (
             <div className="divide-y">
               {notifications.map((notification) => (
-                <div
+                <button
                   key={notification.id}
-                  className={`p-4 hover-elevate cursor-pointer transition-colors ${
-                    !notification.isRead ? 'bg-accent/20' : ''
+                  className={`w-full text-left p-4 hover-elevate active-elevate-2 transition-colors ${
+                    !notification.isRead ? 'bg-muted/30' : ''
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                   data-testid={`notification-item-${notification.id}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 text-muted-foreground">
+                      {getNotificationIcon(notification.type)}
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-start justify-between gap-2">
                         <p className="font-medium text-sm">{notification.title}</p>
                         {!notification.isRead && (
-                          <div className="h-2 w-2 rounded-full bg-primary" />
+                          <div className="h-2 w-2 rounded-full bg-primary flex-shrink-0 mt-1" />
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-2">
                         {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                       </p>
                     </div>
-                    <div className="flex gap-1">
-                      {!notification.isRead && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => handleMarkAsRead(notification.id, e)}
-                          data-testid={`button-mark-read-${notification.id}`}
-                        >
-                          <Check className="h-3 w-3" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={(e) => handleDelete(notification.id, e)}
-                        data-testid={`button-delete-${notification.id}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full py-12">
-              <Bell className="h-12 w-12 text-muted-foreground mb-4" />
+              <Bell className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">{t('notifications.no.notifications')}</p>
             </div>
           )}

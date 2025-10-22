@@ -8404,6 +8404,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.addComment(req.params.clientId, req.user.id, `KYC ${kycStatus.toUpperCase()}: ${notes}`);
       }
 
+      // Create notification for the assigned agent if client has one
+      if (currentClient.assignedAgentId) {
+        await storage.createNotification({
+          userId: currentClient.assignedAgentId,
+          type: 'kyc_status_update',
+          title: `KYC ${kycStatus === 'verified' ? 'Approved' : kycStatus === 'rejected' ? 'Rejected' : 'Status Updated'}`,
+          message: `KYC for ${currentClient.firstName} ${currentClient.lastName} has been ${kycStatus}${notes ? ': ' + notes : ''}`,
+          relatedClientId: req.params.clientId,
+          relatedEntity: 'client',
+          relatedEntityId: req.params.clientId,
+        });
+      }
+
       // Log the action using correct method
       await storage.createAuditLog({
         userId: req.user.id,
@@ -9904,6 +9917,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { robotExecutor } = await import("./services/robot-executor");
       const result = await robotExecutor.executeRobot(req.params.id, req.user?.id);
       res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Notifications
+  // Get all notifications for current user
+  app.get("/api/notifications", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const { limit = '50', includeRead = 'false' } = req.query;
+      const db = storage.db;
+      
+      let query = db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, req.user.id))
+        .orderBy(desc(notifications.createdAt))
+        .limit(parseInt(limit as string));
+
+      if (includeRead === 'false') {
+        query = db
+          .select()
+          .from(notifications)
+          .where(and(
+            eq(notifications.userId, req.user.id),
+            eq(notifications.isRead, false)
+          ))
+          .orderBy(desc(notifications.createdAt))
+          .limit(parseInt(limit as string));
+      }
+
+      const userNotifications = await query;
+      res.json(userNotifications);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get unread notification count
+  app.get("/api/notifications/unread-count", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const db = storage.db;
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(notifications)
+        .where(and(
+          eq(notifications.userId, req.user.id),
+          eq(notifications.isRead, false)
+        ));
+
+      res.json({ count: result?.count || 0 });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark a notification as read
+  app.patch("/api/notifications/:id/read", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const db = storage.db;
+      
+      // Verify the notification belongs to the current user
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(and(
+          eq(notifications.id, req.params.id),
+          eq(notifications.userId, req.user.id)
+        ))
+        .limit(1);
+
+      if (!notification) {
+        return res.status(404).json({ error: 'Notification not found' });
+      }
+
+      const [updated] = await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, req.params.id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark all notifications as read
+  app.patch("/api/notifications/read-all", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const db = storage.db;
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(and(
+          eq(notifications.userId, req.user.id),
+          eq(notifications.isRead, false)
+        ));
+
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

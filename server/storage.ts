@@ -118,6 +118,9 @@ export interface IStorage {
   updateClientComment(id: string, updates: Partial<InsertClientComment>): Promise<ClientComment>;
   deleteClientComment(id: string): Promise<void>;
   
+  // Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  
   // API Keys
   getApiKeys(createdBy?: string): Promise<ApiKey[]>;
   getApiKey(id: string): Promise<ApiKey | undefined>;
@@ -567,6 +570,12 @@ export class DatabaseStorage implements IStorage {
 
   async deleteClientComment(id: string): Promise<void> {
     await db.delete(clientComments).where(eq(clientComments.id, id));
+  }
+
+  // Notifications
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(insertNotification).returning();
+    return notification;
   }
 
   // API Keys
