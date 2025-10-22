@@ -15,13 +15,13 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import type { Notification } from "@shared/schema";
 
 export function NotificationBell() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   // Fetch unread count
   const { data: unreadCountData } = useQuery<{ count: number }>({
@@ -71,7 +71,7 @@ export function NotificationBell() {
     
     // Navigate to related entity if available
     if (notification.relatedClientId) {
-      navigate(`/clients/${notification.relatedClientId}`);
+      setLocation(`/clients/${notification.relatedClientId}`);
     }
     setIsOpen(false);
   };
