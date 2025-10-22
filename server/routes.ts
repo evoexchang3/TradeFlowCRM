@@ -8095,10 +8095,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { clientId } = req.params;
 
-      // Verify client exists and user has access
+      // Verify client exists
       const client = await storage.getClient(clientId);
       if (!client) {
         return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Verify user has access to this specific client
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      let hasClientAccess = false;
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          hasClientAccess = true;
+        } else if (isTeamLeaderRole(roleName)) {
+          hasClientAccess = client.teamId === user.teamId;
+        } else if (isAgentRole(roleName)) {
+          hasClientAccess = client.assignedAgentId === user.id;
+        } else {
+          hasClientAccess = client.assignedAgentId === user.id;
+        }
+      } else {
+        hasClientAccess = client.assignedAgentId === user.id;
+      }
+
+      if (!hasClientAccess) {
+        return res.status(403).json({ error: 'Unauthorized: No access to this client' });
       }
 
       const documents = await storage.getDocuments(clientId);
@@ -8124,10 +8151,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Document not found' });
       }
 
-      // Verify client access
+      // Verify client exists
       const client = await storage.getClient(document.clientId);
       if (!client) {
         return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Verify user has access to this specific client
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      let hasClientAccess = false;
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          hasClientAccess = true;
+        } else if (isTeamLeaderRole(roleName)) {
+          hasClientAccess = client.teamId === user.teamId;
+        } else if (isAgentRole(roleName)) {
+          hasClientAccess = client.assignedAgentId === user.id;
+        } else {
+          hasClientAccess = client.assignedAgentId === user.id;
+        }
+      } else {
+        hasClientAccess = client.assignedAgentId === user.id;
+      }
+
+      if (!hasClientAccess) {
+        return res.status(403).json({ error: 'Unauthorized: No access to this client' });
       }
 
       // Audit log
@@ -8161,6 +8215,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasPermission = await storage.hasPermission(req.user!.id, 'document.delete');
       if (!hasPermission) {
         return res.status(403).json({ error: 'Unauthorized: Missing document.delete permission' });
+      }
+
+      // Verify client exists
+      const client = await storage.getClient(document.clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Verify user has access to this specific client
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      let hasClientAccess = false;
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          hasClientAccess = true;
+        } else if (isTeamLeaderRole(roleName)) {
+          hasClientAccess = client.teamId === user.teamId;
+        } else if (isAgentRole(roleName)) {
+          hasClientAccess = client.assignedAgentId === user.id;
+        } else {
+          hasClientAccess = client.assignedAgentId === user.id;
+        }
+      } else {
+        hasClientAccess = client.assignedAgentId === user.id;
+      }
+
+      if (!hasClientAccess) {
+        return res.status(403).json({ error: 'Unauthorized: No access to this client' });
       }
 
       // Delete file from disk
@@ -8203,6 +8290,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasPermission = await storage.hasPermission(req.user!.id, 'document.verify');
       if (!hasPermission) {
         return res.status(403).json({ error: 'Unauthorized: Missing document.verify permission' });
+      }
+
+      // Verify client exists
+      const client = await storage.getClient(document.clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Verify user has access to this specific client
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      let hasClientAccess = false;
+      if (user.roleId) {
+        const role = await storage.getRole(user.roleId);
+        const roleName = role?.name?.toLowerCase();
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          hasClientAccess = true;
+        } else if (isTeamLeaderRole(roleName)) {
+          hasClientAccess = client.teamId === user.teamId;
+        } else if (isAgentRole(roleName)) {
+          hasClientAccess = client.assignedAgentId === user.id;
+        } else {
+          hasClientAccess = client.assignedAgentId === user.id;
+        }
+      } else {
+        hasClientAccess = client.assignedAgentId === user.id;
+      }
+
+      if (!hasClientAccess) {
+        return res.status(403).json({ error: 'Unauthorized: No access to this client' });
       }
 
       const verified = await storage.verifyDocument(id, req.user!.id);
