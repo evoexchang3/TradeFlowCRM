@@ -527,7 +527,7 @@ export default function Calendar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/calendar/events') 
+        query.queryKey[0]?.toString().startsWith('/api/calendar/events') ?? false
       });
       setIsCreateOpen(false);
       toast({ title: t('toast.success.created') });
@@ -548,7 +548,7 @@ export default function Calendar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/calendar/events') 
+        query.queryKey[0]?.toString().startsWith('/api/calendar/events') ?? false
       });
       setEditEvent(null);
       toast({ title: t('toast.success.updated') });
@@ -561,7 +561,7 @@ export default function Calendar() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ predicate: (query) => 
-        query.queryKey[0]?.toString().startsWith('/api/calendar/events') 
+        query.queryKey[0]?.toString().startsWith('/api/calendar/events') ?? false
       });
       setDeleteEvent(null);
       toast({ title: t('toast.success.deleted') });
