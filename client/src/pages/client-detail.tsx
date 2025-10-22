@@ -93,6 +93,7 @@ export default function ClientDetail() {
   const [eventEndTime, setEventEndTime] = useState('');
   const [eventLocation, setEventLocation] = useState('');
   const [kycFormResponses, setKycFormResponses] = useState<Record<string, string>>({});
+  const [kycVerificationNotes, setKycVerificationNotes] = useState('');
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, hasAnyPermission } = useAuth();
@@ -338,6 +339,27 @@ export default function ClientDetail() {
       toast({
         title: t('common.error'),
         description: error.message || t('client.kyc.failed.to.save'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateKycStatusMutation = useMutation({
+    mutationFn: ({ status, notes }: { status: 'pending' | 'verified' | 'rejected', notes?: string }) =>
+      apiRequest('PATCH', `/api/clients/${clientId}/kyc-status`, { kycStatus: status, notes }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId, 'kyc-progress'] });
+      setKycVerificationNotes('');
+      toast({
+        title: 'KYC Status Updated',
+        description: `KYC has been ${variables.status}.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t('common.error'),
+        description: error.message || 'Failed to update KYC status',
         variant: "destructive",
       });
     },
@@ -631,6 +653,11 @@ export default function ClientDetail() {
   const canViewKyc = () => {
     // Everyone with KYC permissions can view
     return hasAnyPermission(['kyc.view', 'kyc.fill', 'kyc.edit', 'kyc.manage', '*']);
+  };
+
+  const canManageKyc = () => {
+    // Only managers can approve/reject KYC
+    return hasAnyPermission(['kyc.manage', '*']);
   };
 
   const handleKycFormSubmit = () => {
@@ -2061,6 +2088,80 @@ export default function ClientDetail() {
               )}
             </CardContent>
           </Card>
+
+          {canManageKyc() && client && canViewKyc() && kycQuestions.length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="text-lg">KYC Verification</CardTitle>
+                <p className="text-sm text-muted-foreground">Review and verify client's KYC submission</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 border rounded-md bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Current Status:</span>
+                    <Badge 
+                      variant={client.kycStatus === 'verified' ? 'default' : client.kycStatus === 'rejected' ? 'destructive' : 'secondary'}
+                      data-testid="badge-kyc-status"
+                    >
+                      {client.kycStatus}
+                    </Badge>
+                  </div>
+                  <KycProgress clientId={client.id} showDetails={false} />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Verification Notes (Optional)</Label>
+                  <Textarea
+                    value={kycVerificationNotes}
+                    onChange={(e) => setKycVerificationNotes(e.target.value)}
+                    placeholder="Add notes about the verification decision (e.g., missing documents, clarifications needed, approval reason)"
+                    rows={3}
+                    data-testid="textarea-kyc-verification-notes"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  {client.kycStatus !== 'pending' && (
+                    <Button
+                      variant="outline"
+                      onClick={() => updateKycStatusMutation.mutate({ 
+                        status: 'pending', 
+                        notes: kycVerificationNotes 
+                      })}
+                      disabled={updateKycStatusMutation.isPending}
+                      data-testid="button-kyc-reset"
+                    >
+                      Reset to Pending
+                    </Button>
+                  )}
+                  <Button
+                    variant="destructive"
+                    onClick={() => updateKycStatusMutation.mutate({ 
+                      status: 'rejected', 
+                      notes: kycVerificationNotes 
+                    })}
+                    disabled={updateKycStatusMutation.isPending || client.kycStatus === 'rejected'}
+                    data-testid="button-kyc-reject"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Reject KYC
+                  </Button>
+                  <Button
+                    onClick={() => updateKycStatusMutation.mutate({ 
+                      status: 'verified', 
+                      notes: kycVerificationNotes 
+                    })}
+                    disabled={updateKycStatusMutation.isPending || client.kycStatus === 'verified'}
+                    data-testid="button-kyc-approve"
+                    className="hover-elevate active-elevate-2"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Approve KYC
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="comments" className="mt-6">

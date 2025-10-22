@@ -8361,6 +8361,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/clients/:clientId/kyc-status", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      // Check for kyc.manage permission
+      const hasPermission = await storage.hasPermission(req.user.id, 'kyc.manage');
+      if (!hasPermission) {
+        return res.status(403).json({ error: 'Permission denied: kyc.manage required' });
+      }
+
+      const { kycStatus, notes } = req.body;
+
+      if (!kycStatus || !['pending', 'verified', 'rejected'].includes(kycStatus)) {
+        return res.status(400).json({ error: 'Invalid KYC status. Must be pending, verified, or rejected.' });
+      }
+
+      const db = storage.db;
+      
+      // Get current client to capture old status before updating
+      const [currentClient] = await db.select()
+        .from(clients)
+        .where(eq(clients.id, req.params.clientId))
+        .limit(1);
+
+      if (!currentClient) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      const oldStatus = currentClient.kycStatus;
+      
+      // Update client KYC status
+      const [updatedClient] = await db.update(clients)
+        .set({ kycStatus: kycStatus as 'pending' | 'verified' | 'rejected' })
+        .where(eq(clients.id, req.params.clientId))
+        .returning();
+
+      // If notes are provided, add a comment to the client
+      if (notes && notes.trim() !== '') {
+        await storage.addComment(req.params.clientId, req.user.id, `KYC ${kycStatus.toUpperCase()}: ${notes}`);
+      }
+
+      // Log the action using correct method
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'kyc_status_update',
+        clientId: req.params.clientId,
+        ipAddress: req.ip || 'unknown',
+        userAgent: req.get('user-agent') || 'unknown',
+        details: { oldStatus, newStatus: kycStatus, notes },
+      });
+
+      res.json(updatedClient);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Template Variables
   app.get("/api/template-variables", authMiddleware, async (req: AuthRequest, res) => {
     try {
