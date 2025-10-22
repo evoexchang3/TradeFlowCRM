@@ -65,6 +65,38 @@ function isTeamLeaderRole(roleName: string | undefined): boolean {
   return normalized === 'team leader' || normalized === 'sales team leader' || normalized === 'retention team leader';
 }
 
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: 'server/uploads/',
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + '-' + file.originalname);
+    }
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow common file types
+    const allowedMimes = [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain', 'text/csv'
+    ];
+    
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Allowed: images, PDFs, documents, spreadsheets, text files'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Webhook endpoint MUST come before express.json() to preserve raw body for signature verification
   app.post("/api/webhooks/site", express.raw({ type: 'application/json' }), async (req, res) => {
@@ -6233,6 +6265,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(messages);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve uploaded files as static content
+  app.use('/api/uploads', express.static('server/uploads'));
+
+  // File upload endpoint for chat attachments
+  app.post("/api/chat/upload", authMiddleware, upload.single('file'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+
+      // Return file metadata
+      const fileUrl = `/api/uploads/${req.file.filename}`;
+      res.json({
+        filename: req.file.originalname,
+        url: fileUrl,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      });
+    } catch (error: any) {
+      console.error('File upload error:', error);
+      res.status(500).json({ error: error.message || 'File upload failed' });
     }
   });
 

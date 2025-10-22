@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { MessageSquare, Plus, Send, Users, User, CheckCheck, Check, Wifi, WifiOff } from "lucide-react";
+import { MessageSquare, Plus, Send, Users, User, CheckCheck, Check, Wifi, WifiOff, Paperclip, X, FileText, Loader2 } from "lucide-react";
 import * as z from "zod";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNow } from "date-fns";
@@ -79,6 +79,53 @@ function MessageBubble({ message, isOwn }: { message: ChatMessage; isOwn: boolea
           <p className="text-sm whitespace-pre-wrap" data-testid={`message-${message.id}`}>
             {message.message}
           </p>
+          
+          {/* Attachments */}
+          {message.attachments && Array.isArray(message.attachments) && message.attachments.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {message.attachments.map((attachment: any, idx: number) => {
+                const isImage = attachment.mimetype?.startsWith('image/');
+                
+                return (
+                  <div key={idx} className="flex items-center gap-2 text-xs">
+                    {isImage ? (
+                      <a 
+                        href={attachment.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block"
+                        data-testid={`attachment-image-${idx}`}
+                      >
+                        <img 
+                          src={attachment.url} 
+                          alt={attachment.filename}
+                          className="max-w-xs max-h-48 rounded border"
+                        />
+                      </a>
+                    ) : (
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center gap-2 px-2 py-1 rounded ${
+                          isOwn 
+                            ? 'bg-primary-foreground/20 hover:bg-primary-foreground/30' 
+                            : 'bg-background hover:bg-background/80'
+                        }`}
+                        data-testid={`attachment-file-${idx}`}
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>{attachment.filename}</span>
+                        <span className="text-xs opacity-70">
+                          ({(attachment.size / 1024).toFixed(1)} KB)
+                        </span>
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}</span>
@@ -154,6 +201,9 @@ export default function Chat() {
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [typingUsers, setTypingUsers] = useState<Map<string, Set<string>>>(new Map());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast} = useToast();
@@ -240,8 +290,11 @@ export default function Chat() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: (data: { roomId: string; message: string }) =>
-      apiRequest('POST', `/api/chat/rooms/${data.roomId}/messages`, { message: data.message }),
+    mutationFn: (data: { roomId: string; message: string; attachments?: any[] }) =>
+      apiRequest('POST', `/api/chat/rooms/${data.roomId}/messages`, { 
+        message: data.message,
+        attachments: data.attachments || []
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat/rooms', selectedRoomId, 'messages'] });
       setMessageText("");
@@ -316,16 +369,69 @@ export default function Chat() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!selectedRoomId || !messageText.trim()) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(files => files.filter((_, i) => i !== index));
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedRoomId || (!messageText.trim() && selectedFiles.length === 0)) return;
     
     // Clear typing indicator when sending message
     if (isConnected && typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       sendTyping(selectedRoomId, false);
     }
-    
-    sendMessageMutation.mutate({ roomId: selectedRoomId, message: messageText });
+
+    try {
+      let attachments: any[] = [];
+
+      // Upload files if any
+      if (selectedFiles.length > 0) {
+        setUploadingFiles(true);
+        
+        for (const file of selectedFiles) {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/chat/upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            },
+            body: formData,
+          });
+
+          if (!response.ok) throw new Error('File upload failed');
+
+          const fileData = await response.json();
+          attachments.push(fileData);
+        }
+        
+        setUploadingFiles(false);
+        setSelectedFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+
+      // Send message with attachments
+      sendMessageMutation.mutate({ 
+        roomId: selectedRoomId, 
+        message: messageText || 'Attachment',
+        attachments 
+      });
+    } catch (error) {
+      setUploadingFiles(false);
+      toast({
+        variant: 'destructive',
+        title: t('chat.upload.failed'),
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
@@ -611,7 +717,45 @@ export default function Chat() {
               </ScrollArea>
             </CardContent>
             <div className="border-t p-4">
+              {/* File preview section */}
+              {selectedFiles.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {selectedFiles.map((file, index) => (
+                    <Badge key={index} variant="secondary" className="gap-2">
+                      <Paperclip className="h-3 w-3" />
+                      <span className="text-xs">{file.name}</span>
+                      <button
+                        onClick={() => handleRemoveFile(index)}
+                        className="hover:text-destructive"
+                        data-testid={`button-remove-file-${index}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
               <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                  data-testid="input-file"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFiles}
+                  data-testid="button-attach-file"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
                 <Input
                   value={messageText}
                   onChange={handleMessageInputChange}
@@ -629,14 +773,15 @@ export default function Chat() {
                       sendTyping(selectedRoomId, false);
                     }
                   }}
+                  disabled={uploadingFiles}
                   data-testid="input-message"
                 />
                 <Button
                   onClick={handleSendMessage}
-                  disabled={!messageText.trim() || sendMessageMutation.isPending}
+                  disabled={(!messageText.trim() && selectedFiles.length === 0) || sendMessageMutation.isPending || uploadingFiles}
                   data-testid="button-send"
                 >
-                  <Send className="h-4 w-4" />
+                  {uploadingFiles ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
