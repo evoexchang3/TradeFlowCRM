@@ -2,7 +2,7 @@
 import { db } from "./db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents, webhookEndpoints, webhookDeliveries,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -27,6 +27,8 @@ import {
   type SmtpSetting,
   type EmailTemplate,
   type Document, type InsertDocument,
+  type WebhookEndpoint, type InsertWebhookEndpoint,
+  type WebhookDelivery, type InsertWebhookDelivery,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -165,6 +167,17 @@ export interface IStorage {
   updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document>;
   deleteDocument(id: string): Promise<void>;
   verifyDocument(id: string, verifiedBy: string): Promise<Document>;
+  
+  // Webhook Endpoints (Outbound)
+  getWebhookEndpoints(): Promise<WebhookEndpoint[]>;
+  getWebhookEndpoint(id: string): Promise<WebhookEndpoint | undefined>;
+  createWebhookEndpoint(endpoint: InsertWebhookEndpoint): Promise<WebhookEndpoint>;
+  updateWebhookEndpoint(id: string, updates: Partial<Omit<WebhookEndpoint, 'id' | 'createdAt' | 'updatedAt'>>): Promise<WebhookEndpoint>;
+  deleteWebhookEndpoint(id: string): Promise<void>;
+  
+  // Webhook Deliveries
+  getWebhookDeliveries(endpointId?: string): Promise<WebhookDelivery[]>;
+  createWebhookDelivery(delivery: InsertWebhookDelivery): Promise<WebhookDelivery>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -792,6 +805,51 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documents.id, id))
       .returning();
     return document;
+  }
+  
+  // Webhook Endpoints (Outbound)
+  async getWebhookEndpoints(): Promise<WebhookEndpoint[]> {
+    return await db.select().from(webhookEndpoints).orderBy(desc(webhookEndpoints.createdAt));
+  }
+  
+  async getWebhookEndpoint(id: string): Promise<WebhookEndpoint | undefined> {
+    const [endpoint] = await db.select().from(webhookEndpoints).where(eq(webhookEndpoints.id, id));
+    return endpoint;
+  }
+  
+  async createWebhookEndpoint(endpoint: InsertWebhookEndpoint): Promise<WebhookEndpoint> {
+    const [created] = await db.insert(webhookEndpoints).values(endpoint).returning();
+    return created;
+  }
+  
+  async updateWebhookEndpoint(id: string, updates: Partial<Omit<WebhookEndpoint, 'id' | 'createdAt' | 'updatedAt'>>): Promise<WebhookEndpoint> {
+    const [updated] = await db.update(webhookEndpoints)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(webhookEndpoints.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteWebhookEndpoint(id: string): Promise<void> {
+    await db.delete(webhookEndpoints).where(eq(webhookEndpoints.id, id));
+  }
+  
+  // Webhook Deliveries
+  async getWebhookDeliveries(endpointId?: string): Promise<WebhookDelivery[]> {
+    if (endpointId) {
+      return await db.select().from(webhookDeliveries)
+        .where(eq(webhookDeliveries.endpointId, endpointId))
+        .orderBy(desc(webhookDeliveries.createdAt))
+        .limit(100);
+    }
+    return await db.select().from(webhookDeliveries)
+      .orderBy(desc(webhookDeliveries.createdAt))
+      .limit(100);
+  }
+  
+  async createWebhookDelivery(delivery: InsertWebhookDelivery): Promise<WebhookDelivery> {
+    const [created] = await db.insert(webhookDeliveries).values(delivery).returning();
+    return created;
   }
 }
 

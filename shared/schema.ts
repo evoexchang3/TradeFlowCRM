@@ -37,7 +37,8 @@ export const auditActionEnum = pgEnum('audit_action', [
   'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use',
   'symbol_create', 'symbol_edit', 'symbol_delete', 'symbol_group_create', 'symbol_group_edit', 'symbol_group_delete',
   'calendar_event_create', 'calendar_event_edit', 'calendar_event_delete',
-  'email_template_create', 'email_template_edit', 'email_template_delete', 'webhook_received',
+  'email_template_create', 'email_template_edit', 'email_template_delete', 
+  'webhook_received', 'webhook_create', 'webhook_edit', 'webhook_delete', 'webhook_test', 'webhook_delivery',
   'workload_adjusted', 'routing_rule_create', 'routing_rule_edit', 'routing_rule_delete',
   'smart_assignment_toggle', 'smart_assignment_config',
   'robot_create', 'robot_edit', 'robot_delete', 'robot_executed', 'robot_execution_failed', 'robot_paused', 'robot_resumed',
@@ -52,6 +53,12 @@ export const departmentEnum = pgEnum('department', ['sales', 'retention', 'suppo
 export const targetPeriodEnum = pgEnum('target_period', ['daily', 'weekly', 'monthly', 'quarterly']);
 export const achievementTypeEnum = pgEnum('achievement_type', ['badge', 'streak', 'milestone', 'level']);
 export const documentCategoryEnum = pgEnum('document_category', ['kyc', 'contract', 'compliance', 'statement', 'proof_of_address', 'proof_of_id', 'other']);
+export const webhookEventEnum = pgEnum('webhook_event', [
+  'client.created', 'client.updated', 'client.deleted', 'client.ftd',
+  'position.opened', 'position.updated', 'position.closed',
+  'trade.executed', 'deposit.completed', 'withdrawal.completed'
+]);
+export const webhookStatusEnum = pgEnum('webhook_status', ['active', 'inactive', 'failed']);
 
 // Users (Admin/Agent/Team Leader)
 export const users = pgTable("users", {
@@ -738,6 +745,40 @@ export const documents = pgTable("documents", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Webhook Endpoints (Outbound webhooks)
+export const webhookEndpoints = pgTable("webhook_endpoints", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Friendly name
+  url: text("url").notNull(), // Destination URL
+  secret: text("secret").notNull(), // HMAC secret for signature
+  events: jsonb("events").notNull().default('[]'), // Array of webhook_event enum values
+  status: webhookStatusEnum("status").notNull().default('active'),
+  description: text("description"),
+  headers: jsonb("headers").default('{}'), // Custom HTTP headers
+  retryAttempts: integer("retry_attempts").notNull().default(3),
+  retryDelay: integer("retry_delay").notNull().default(60), // seconds
+  lastDeliveryAt: timestamp("last_delivery_at"),
+  lastDeliveryStatus: text("last_delivery_status"), // 'success' or 'failed'
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Webhook Deliveries (Delivery logs)
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  endpointId: varchar("endpoint_id").notNull().references(() => webhookEndpoints.id),
+  event: webhookEventEnum("event").notNull(),
+  payload: jsonb("payload").notNull(), // Full webhook payload
+  httpStatus: integer("http_status"), // Response status code
+  responseBody: text("response_body"), // Response body (truncated)
+  responseTime: integer("response_time"), // milliseconds
+  attemptNumber: integer("attempt_number").notNull().default(1),
+  success: boolean("success").notNull().default(false),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   role: one(roles, { fields: [users.roleId], references: [roles.id] }),
@@ -769,6 +810,15 @@ export const documentsRelations = relations(documents, ({ one }) => ({
   client: one(clients, { fields: [documents.clientId], references: [clients.id] }),
   uploadedByUser: one(users, { fields: [documents.uploadedBy], references: [users.id] }),
   verifiedByUser: one(users, { fields: [documents.verifiedBy], references: [users.id] }),
+}));
+
+export const webhookEndpointsRelations = relations(webhookEndpoints, ({ one, many }) => ({
+  creator: one(users, { fields: [webhookEndpoints.createdBy], references: [users.id] }),
+  deliveries: many(webhookDeliveries),
+}));
+
+export const webhookDeliveriesRelations = relations(webhookDeliveries, ({ one }) => ({
+  endpoint: one(webhookEndpoints, { fields: [webhookDeliveries.endpointId], references: [webhookEndpoints.id] }),
 }));
 
 export const accountsRelations = relations(accounts, ({ one, many }) => ({
@@ -1225,6 +1275,26 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({
 export type Document = typeof documents.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 
+// Webhook schemas
+export const insertWebhookEndpointSchema = createInsertSchema(webhookEndpoints).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastDeliveryAt: true,
+  lastDeliveryStatus: true,
+});
+
+export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
+export type InsertWebhookEndpoint = z.infer<typeof insertWebhookEndpointSchema>;
+
+export const insertWebhookDeliverySchema = createInsertSchema(webhookDeliveries).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+export type InsertWebhookDelivery = z.infer<typeof insertWebhookDeliverySchema>;
+
 // Team Routing Rules schemas
 export const insertTeamRoutingRuleSchema = createInsertSchema(teamRoutingRules).omit({
   id: true,
@@ -1334,4 +1404,11 @@ export const PERMISSIONS = {
   DOCUMENT_DOWNLOAD: 'document.download',
   DOCUMENT_DELETE: 'document.delete',
   DOCUMENT_VERIFY: 'document.verify',
+  
+  // Webhook Management (Outbound)
+  WEBHOOK_VIEW: 'webhook.view',
+  WEBHOOK_CREATE: 'webhook.create',
+  WEBHOOK_EDIT: 'webhook.edit',
+  WEBHOOK_DELETE: 'webhook.delete',
+  WEBHOOK_TEST: 'webhook.test',
 } as const;

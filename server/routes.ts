@@ -9281,5 +9281,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook Management Routes (Outbound)
+  // List all webhook endpoints
+  app.get("/api/webhooks", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'webhook.view')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing webhook.view permission' });
+      }
+
+      const endpoints = await storage.getWebhookEndpoints();
+      
+      // Sanitize response: mask secrets to prevent exposure
+      const sanitized = endpoints.map(endpoint => ({
+        ...endpoint,
+        secret: `${endpoint.secret.substring(0, 8)}${'*'.repeat(56)}`, // Show first 8 chars, mask rest
+      }));
+      
+      res.json(sanitized);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create new webhook endpoint
+  app.post("/api/webhooks", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'webhook.create')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing webhook.create permission' });
+      }
+
+      const { insertWebhookEndpointSchema } = await import("@shared/schema");
+      const validated = insertWebhookEndpointSchema.parse({
+        ...req.body,
+        createdBy: req.user.id,
+      });
+
+      // Generate a secure random secret for the webhook
+      const secret = crypto.randomBytes(32).toString('hex');
+      
+      const endpoint = await storage.createWebhookEndpoint({
+        ...validated,
+        secret,
+      });
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'webhook_create',
+        targetType: 'webhook',
+        targetId: endpoint.id,
+        details: { name: endpoint.name, url: endpoint.url },
+      });
+
+      // Return full secret only on creation (one-time visibility)
+      res.json({
+        ...endpoint,
+        _secretNote: 'Save this secret securely - it will not be shown again in full',
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update webhook endpoint
+  app.patch("/api/webhooks/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'webhook.edit')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing webhook.edit permission' });
+      }
+
+      const existing = await storage.getWebhookEndpoint(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Webhook endpoint not found' });
+      }
+
+      // Validate and whitelist allowed update fields
+      const { z } = await import("zod");
+      const updateSchema = z.object({
+        name: z.string().min(1).max(255).optional(),
+        url: z.string().url().optional(),
+        description: z.string().optional().nullable(),
+        events: z.array(z.string()).optional(),
+        status: z.enum(['active', 'inactive', 'failed']).optional(),
+        headers: z.record(z.string()).optional(),
+        retryAttempts: z.number().int().min(0).max(10).optional(),
+        retryDelay: z.number().int().min(1).max(3600).optional(),
+      });
+
+      const validated = updateSchema.parse(req.body);
+
+      const updated = await storage.updateWebhookEndpoint(req.params.id, validated);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'webhook_edit',
+        targetType: 'webhook',
+        targetId: updated.id,
+        details: { changes: validated },
+      });
+
+      // Mask secret in response
+      const sanitized = {
+        ...updated,
+        secret: `${updated.secret.substring(0, 8)}${'*'.repeat(56)}`,
+      };
+
+      res.json(sanitized);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete webhook endpoint
+  app.delete("/api/webhooks/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'webhook.delete')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing webhook.delete permission' });
+      }
+
+      const existing = await storage.getWebhookEndpoint(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Webhook endpoint not found' });
+      }
+
+      await storage.deleteWebhookEndpoint(req.params.id);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'webhook_delete',
+        targetType: 'webhook',
+        targetId: req.params.id,
+        details: { name: existing.name },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test webhook endpoint
+  app.post("/api/webhooks/:id/test", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'webhook.test')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing webhook.test permission' });
+      }
+
+      const endpoint = await storage.getWebhookEndpoint(req.params.id);
+      if (!endpoint) {
+        return res.status(404).json({ error: 'Webhook endpoint not found' });
+      }
+
+      // Trigger a test webhook event
+      const { triggerWebhookEvent } = await import("./services/webhookService");
+      await triggerWebhookEvent('client.created', {
+        test: true,
+        message: 'This is a test webhook from CRM system',
+        timestamp: new Date().toISOString(),
+      });
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'webhook_test',
+        targetType: 'webhook',
+        targetId: endpoint.id,
+        details: { name: endpoint.name },
+      });
+
+      res.json({ success: true, message: 'Test webhook triggered' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get webhook delivery history
+  app.get("/api/webhooks/:id/deliveries", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'webhook.view')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing webhook.view permission' });
+      }
+
+      const endpoint = await storage.getWebhookEndpoint(req.params.id);
+      if (!endpoint) {
+        return res.status(404).json({ error: 'Webhook endpoint not found' });
+      }
+
+      const deliveries = await storage.getWebhookDeliveries(req.params.id);
+      res.json(deliveries);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }
