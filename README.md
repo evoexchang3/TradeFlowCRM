@@ -4,31 +4,19 @@ Enterprise-grade CRM system for trading platforms with in-house trading engine, 
 
 ## 🚀 Quick Start
 
-### Self-Hosting (Production)
+Get running in under 5 minutes:
 
-1. **Prerequisites**
-   - Ubuntu 20.04+ (or similar Linux)
-   - Docker Engine 24+ with Compose plugin
-   - Domain name (optional, for HTTPS)
+```bash
+git clone <your-repo>
+cd <repo-directory>
+./scripts/bootstrap
+```
 
-2. **One-Command Bootstrap**
-   ```bash
-   git clone <your-repo>
-   cd <repo-directory>
-   ./scripts/bootstrap
-   ```
+Follow the interactive prompts, and your CRM will be running with HTTPS, database migrations, and initial data.
 
-3. **Follow the prompts** for:
-   - Domain name (or leave empty for localhost)
-   - Email for SSL certificates
-   - External API keys (optional)
+**First login**: `apitwelve001@gmail.com` / `Admin123` (change password immediately!)
 
-4. **Access your CRM**
-   - Navigate to your configured URL
-   - Default credentials: `apitwelve001@gmail.com` / `Admin123`
-   - **Change password immediately!**
-
-For detailed instructions, see [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)
+For detailed instructions, see [docs/QUICK_START.md](docs/QUICK_START.md)
 
 ## 📚 Documentation
 
