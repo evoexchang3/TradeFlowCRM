@@ -1,0 +1,131 @@
+Make the repository fully self-hostable and CI/CD-ready without Replit dependencies. I must be able to:
+Provision real cryptographic secrets on my own server.
+Generate a complete .env with no placeholders.
+Replace all webhooks and secrets everywhere they’re referenced (code, config, DB rows, reverse-proxy labels).
+Start the stack with Docker and pass readiness checks.
+Rotate secrets later with a single command, safely and atomically.
+Optional: sync the same values to GitHub Actions secrets.
+Deliverables (files to add)
+A Bootstrap Guide in docs/BOOTSTRAP.md (human instructions).
+Environment reference in docs/ENV_VARS.md (names, purposes, defaults).
+Two scripts in scripts/:
+bootstrap (one-shot provisioning and bring-up).
+rotate-secrets (safe rotation later).
+Both must be non-interactive capable (read values from flags/env) but also support guided prompts when flags are omitted.
+Production Docker assets:
+Dockerfile (prod).
+docker-compose.yml (app, db, cache, worker, scheduler, reverse proxy optional).
+compose.override.yml (dev).
+Health/readiness endpoints implemented in the app, documented in README.
+CI/CD:
+GitHub Actions workflow to build/push image and optionally deploy via SSH.
+Documentation of all required GitHub secrets.
+(Do not include example keys; all secrets must be generated on my server during bootstrap.)
+Exact behavior required
+1) Secret generation (real values)
+Generate cryptographically strong values locally on my server at run time (never in Git history).
+Required secrets list (expand if the stack needs more):
+Application: JWT_SECRET, SESSION_SECRET, ENCRYPTION_KEY, WEBHOOK_SECRET.
+Datastores: POSTGRES_PASSWORD, REDIS_PASSWORD.
+Optional integrations (only if used): SMTP_PASS, third-party API keys, payment/webhook signing secrets, storage keys.
+Derive connection URLs from generated credentials:
+DATABASE_URL built from DB user, password, host, port, DB name.
+REDIS_URL built from Redis password, host, port, DB index.
+Store final values only in .env on disk (create backups if a file existed).
+2) Webhook & secret replacement (global)
+Find and update every reference to secrets and webhooks in:
+Environment files and templates,
+Reverse-proxy labels/config (Traefik/Caddy/Nginx),
+Application config files,
+Database rows that store webhook URLs or signing secrets (e.g., in a settings/integrations table),
+Any worker/scheduler configuration.
+If the application persists webhook endpoints in the DB, add a step that:
+Connects to the DB after containers are up,
+Upserts the correct webhook URLs and signing secrets into the canonical tables/keys,
+Invalidates any cached config if the app uses one.
+3) Bootstrap flow (one-shot)
+The bootstrap script must:
+Verify prerequisites (Docker Engine + Compose plugin; optional: gh CLI if GitHub sync is enabled).
+Collect inputs:
+Domain (optional). If provided, enable HTTPS with the chosen reverse proxy.
+Contact email for certificates (optional).
+App name, environment (production default), ports.
+DB name/user (with sensible defaults).
+Optional third-party service flags (storage, email).
+Optional GitHub repo slug for secret syncing.
+Script must accept flags or environment variables for non-interactive mode.
+Generate all secrets and compute URLs. Never leave placeholders.
+Write a complete .env (no TODOs, no examples). Backup any pre-existing .env.
+If a domain is provided, render the reverse-proxy config with HTTPS and HTTP→HTTPS redirect.
+Start containers with Docker Compose.
+Wait for health checks to pass (web, db, cache, worker, scheduler).
+Run database migrations.
+Seed minimal admin user or initial tenants only if not present (idempotent).
+Register/update all webhook endpoints and signing secrets in the app/DB.
+Output:
+Public URL,
+Admin login boot details (without printing any secret values to the console),
+Locations of logs and how to tail them,
+How to re-run or roll back (restore from .env backup).
+4) Rotation flow (later use)
+The rotate-secrets script must:
+Create a timestamped backup of .env.
+Allow targeted rotation:
+Stateless: WEBHOOK_SECRET, third-party signing keys (scripts must also re-register/update webhooks where required).
+Stateful: JWT_SECRET, SESSION_SECRET, DB/Redis passwords (warn that sessions/long-lived tokens will be invalidated; handle dependent URL recomputation).
+Update dependent environment variables automatically (e.g., rebuild DATABASE_URL after DB password changes).
+Restart affected containers gracefully:
+Order: cache/db first if their creds changed, then app, workers, scheduler, proxy.
+Re-run webhook registration steps.
+Provide a clear success message and what changed.
+Offer a --dry-run mode printing the planned changes without applying them.
+5) Reverse proxy (must support one of these; document which you implement)
+Caddy (preferred) or Traefik or Nginx.
+Automatic certificates with ACME if a domain is provided.
+Proper proxy headers to the app. The app must trust proxy headers to generate correct absolute URLs.
+Health endpoint passthrough.
+Optional Basic Auth for admin routes (enable via env flag).
+6) Health, readiness, and observability
+Liveness endpoint: returns success if the web process is running.
+Readiness endpoint: verifies connectivity to DB and cache.
+Docker Compose healthchecks must query readiness before marking healthy.
+Logs go to stdout/stderr; no local rotating files inside containers.
+7) Data, volumes, backups
+Named volumes for Postgres and Redis.
+Document a backup approach:
+Daily DB snapshot,
+Retention policy,
+Restore procedure steps.
+If uploads exist, support either a mounted host directory or S3-compatible storage (toggle via env).
+8) CI/CD (GitHub)
+Workflow A: on push/PR, run tests and build image; on main, push to the registry (e.g., GHCR).
+Workflow B (optional): deploy job that SSHes to server and runs docker compose pull && docker compose up -d.
+Optional: when bootstrap is run with “sync to GitHub” enabled, all .env keys (except explicitly excluded ones like DB host if it’s internal-only) are uploaded as GitHub Actions secrets with the same names.
+Configuration inventory (Replit must maintain)
+All environment variable names, what they do, whether they are required, default, and whether they are rotated or static.
+List of every place a webhook or secret is stored (files, env, DB tables/keys).
+The exact migrations/seeders that must run for a clean start.
+The exact health endpoints and expected HTTP statuses.
+Acceptance criteria (do not mark done until all pass)
+Clean server test (Ubuntu + Docker, no prior state):
+I clone the repo.
+I run the bootstrap script once with a domain.
+Result: SSL cert is issued, containers become healthy, the app loads at https://<domain>, an admin user exists, and webhooks are registered and functional.
+No manual edits required.
+No-domain test (internal only):
+I run the bootstrap without a domain.
+Result: App is reachable on host IP + port via HTTP, health checks pass, DB/Redis connected, webhooks registered to the internal URL format if your app supports non-public endpoints (or skipped with a clear message if a domain is required for webhooks).
+Rotation test:
+I run the rotation script targeting WEBHOOK_SECRET and JWT_SECRET.
+Result: Containers restart in the right order; sessions are invalidated as expected; new webhook signing works; no manual edits required.
+Idempotency test:
+Running bootstrap again with PREPARE_ONLY mode (or equivalent) does not break existing env; backups are kept; nothing is overwritten unexpectedly.
+CI/CD test:
+Push to main builds and pushes images.
+Optional deploy workflow pulls and restarts on the server successfully.
+What I (the user) will do on my server (no code from me)
+Install Docker and Docker Compose plugin.
+Clone the repo.
+Run the bootstrap script once (with my domain, if using TLS).
+Done—app is live.
+Later, when needed, I run rotate-secrets to rotate anything (including webhooks) with zero manual edits.
