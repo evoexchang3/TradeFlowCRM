@@ -1,0 +1,100 @@
+✅ Approval to proceed — with binding requirements
+Proceed with everything (full self-hosting + CI/CD). Implement the solution as below. Do not use placeholders or example keys anywhere.
+1) One-shot Bootstrap (must be truly plug-and-play)
+Create a single bootstrap entrypoint called scripts/bootstrap (name fixed) that:
+Runs on my Ubuntu server with Docker installed.
+Generates real cryptographic secrets locally (never committed, never hardcoded, never fetched from Replit or GitHub).
+Produces a complete .env with zero placeholders.
+Computes derived URLs (database/cache) and fills them automatically.
+Renders reverse proxy config when a domain is provided (automatic HTTPS, HTTP→HTTPS redirect).
+Starts the full Docker stack, waits for health checks, then:
+runs DB migrations,
+runs idempotent seeding (only if needed),
+registers or updates webhooks and their signing secrets wherever they live (env, config files, DB tables).
+Finishes with no manual edits required.
+Required modes
+Interactive (prompts for missing values).
+Non-interactive (all inputs via flags/env vars). Both must be supported.
+Inputs the bootstrap must accept
+Domain (optional; when present, HTTPS must be enabled automatically).
+Contact email for ACME (optional).
+App env (default: production), app port, host bind.
+DB name and user (defaults OK; password is always generated).
+Optional: enable Redis sessions; SMTP; storage mode (local volume vs S3-compatible).
+Optional: GitHub repo slug to sync secrets into GitHub Actions (only if I enable it).
+Outputs the bootstrap must provide (without printing secrets)
+Public URL (HTTP or HTTPS depending on domain).
+Confirmation that migrations/seeding/webhook registration completed.
+How to check health, view logs, and roll back to the previous .env (a timestamped backup must always be created if .env existed).
+2) Rotation utility (future secret changes)
+Create scripts/rotate-secrets that:
+Backs up the current .env with a timestamp.
+Lets me target which secrets to rotate (e.g., webhook signing, JWT/SESSION, DB/Redis).
+Regenerates only the selected secrets with strong randomness.
+Rebuilds dependent variables automatically (e.g., DATABASE_URL after DB password change).
+Restarts containers in a safe order (DB/Redis first if their creds changed; then app/worker; proxy last).
+Re-registers webhooks automatically if their signing secret changed.
+Provides dry-run mode describing changes without applying.
+Prints a concise summary of what changed (never printing the actual secret values).
+3) Remove Replit dependencies & Neon driver
+Replace @neondatabase/serverless with a standard Postgres client and connection pooling suitable for containers.
+Ensure no Replit Secrets usage remains—only environment variables loaded at runtime.
+Add Redis option for sessions/caching (recommended for production), but keep the app usable without it.
+4) Health & readiness (required for Docker + proxy)
+Implement two HTTP endpoints:
+Liveness (process up).
+Readiness (DB—and Redis if enabled—connectivity confirmed).
+Compose healthchecks must use readiness; the proxy must pass them through.
+5) Reverse proxy (automatic HTTPS)
+Support Caddy (preferred) or Traefik/Nginx:
+Automatic ACME certificates when a domain is provided.
+Proper proxy headers so the app forms correct absolute URLs.
+HTTP→HTTPS redirect.
+Optional Basic Auth toggle for admin endpoints (via env).
+6) Webhooks — discovery, registration, persistence
+Prepare a source-of-truth map of all webhook endpoints and every location a webhook URL or signing secret is stored:
+Environment variables,
+Reverse-proxy config (if any),
+Application config files,
+Database tables/rows (e.g., webhooks, security_settings, integrations).
+Bootstrap must programmatically upsert these entries (after the domain/URL is known).
+Rotation must re-register relevant webhooks when the signing secret changes.
+7) Documentation (succinct, operator-grade)
+Add three docs:
+docs/BOOTSTRAP.md — how I run the one-shot bootstrap (both interactive and non-interactive), what it does, what it outputs, and how to roll back using the .env backup.
+docs/ENV_VARS.md — a table of every variable you support (name, purpose, required/optional, default, whether it’s rotated, and where it is consumed).
+docs/DEPLOYMENT.md — day-2 ops: backups (DB/Redis/uploads), restores, log/metrics basics, scaling workers, and the exact CI/CD steps I’ll execute.
+Keep them short and actionable.
+8) CI/CD with GitHub (no placeholders)
+Build and push container images on PR/main.
+Optional “deploy” job: SSH to my server and run pull + restart.
+Optional: If I opt in, the bootstrap must be able to sync the final .env keys into GitHub Actions secrets (same names). Skip any keys that are meaningful only on the server (document the exclusions).
+9) Definition of Done (acceptance tests you must pass)
+Clean server + domain
+I clone the repo on a fresh Ubuntu host with Docker.
+I run the bootstrap once with my domain.
+Result: HTTPS works, containers are healthy, DB is migrated, minimal admin exists (or first-run flow is available), and all webhooks are registered and functioning.
+I change nothing manually.
+No-domain scenario
+I run bootstrap without a domain.
+Result: App reachable via server IP + port; health passes; DB/Redis connected; webhook step behaves correctly (either registered to internal URL if supported or clearly skipped with an informative message). No manual edits.
+Secret rotation
+I run rotate-secrets targeting webhook signing and JWT/SESSION.
+Result: Containers restart in the proper order; sessions are invalidated (expected); webhooks re-registered and working; no manual edits.
+Idempotency
+Re-running bootstrap in a prepare-only mode does not overwrite or corrupt the existing .env. A timestamped backup exists for every change.
+CI/CD
+Pushing to main builds and pushes an image successfully.
+(If deploy workflow is enabled) A push triggers an automated pull + restart on my server.
+10) Security & operational constraints
+Secrets are generated only on my server during bootstrap/rotation and never printed in logs or committed.
+Containers must log to stdout/stderr only.
+Runtime images must be minimal and run as a non-root user.
+.env must be exclusive source of secrets for containers; do not duplicate values in other files unless strictly required (and then keep them templated from .env).
+If uploads are supported, provide both local volume and S3-compatible storage modes switchable via env.
+11) What you hand over
+The implemented files and configs.
+The three short docs listed above.
+A one-page “where things live” inventory: every secret/webhook variable, every file/table that stores them, and which script touches them.
+A smoke-test checklist I can run after bootstrap and after rotation.
+If anything above conflicts with your initial report, this message supersedes it. Deliver exactly this so I can run one command on my server and be live—no placeholders, no manual edits, fully portable.
