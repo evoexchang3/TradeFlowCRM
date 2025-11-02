@@ -1,0 +1,35 @@
+# Default Caddyfile for local/development use
+{$DOMAIN:localhost} {
+    # Health check endpoints
+    handle /health/* {
+        reverse_proxy app:5000
+    }
+    
+    # API and WebSocket
+    handle /api/* {
+        reverse_proxy app:5000
+    }
+    
+    handle /ws {
+        reverse_proxy app:5000
+    }
+    
+    # Frontend
+    handle {
+        reverse_proxy app:5000
+    }
+    
+    # Proxy headers
+    header {
+        X-Real-IP {remote_host}
+        X-Forwarded-For {remote_host}
+        X-Forwarded-Proto {scheme}
+        X-Forwarded-Host {host}
+    }
+    
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}

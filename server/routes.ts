@@ -14,6 +14,7 @@ import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenM
 import * as performanceMetrics from "./services/performance-metrics";
 import { expandEventsList } from "./services/calendar-expansion";
 import { previewImport, executeImport } from "./import";
+import { livenessCheck, readinessCheck } from "./health";
 import { 
   modifyPositionSchema, 
   insertPositionTagSchema,
@@ -98,6 +99,10 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoints (no auth required, used by Docker and load balancers)
+  app.get("/health/live", livenessCheck);
+  app.get("/health/ready", readinessCheck);
+
   // Webhook endpoint MUST come before express.json() to preserve raw body for signature verification
   app.post("/api/webhooks/site", express.raw({ type: 'application/json' }), async (req, res) => {
     try {

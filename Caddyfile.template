@@ -1,0 +1,57 @@
+# Caddyfile template - will be rendered by bootstrap script
+{{DOMAIN}} {
+    {{#ENABLE_HTTPS}}
+    # Automatic HTTPS with Let's Encrypt
+    tls {{ACME_EMAIL}}
+    {{/ENABLE_HTTPS}}
+    
+    {{#ENABLE_BASIC_AUTH}}
+    # Optional Basic Auth for admin routes
+    @admin {
+        path /admin/* /api/admin/*
+    }
+    basicauth @admin {
+        {{ADMIN_AUTH_USER}} {{ADMIN_AUTH_PASS_HASH}}
+    }
+    {{/ENABLE_BASIC_AUTH}}
+    
+    # Health check endpoints passthrough
+    handle /health/* {
+        reverse_proxy app:5000
+    }
+    
+    # API and WebSocket
+    handle /api/* {
+        reverse_proxy app:5000
+    }
+    
+    handle /ws {
+        reverse_proxy app:5000
+    }
+    
+    # Frontend
+    handle {
+        reverse_proxy app:5000
+    }
+    
+    # Proxy headers
+    header {
+        X-Real-IP {remote_host}
+        X-Forwarded-For {remote_host}
+        X-Forwarded-Proto {scheme}
+        X-Forwarded-Host {host}
+    }
+    
+    # Logging
+    log {
+        output stdout
+        format json
+    }
+}
+
+{{^ENABLE_HTTPS}}
+# HTTP redirect to HTTPS (when domain is provided)
+http://{{DOMAIN}} {
+    redir https://{host}{uri} permanent
+}
+{{/ENABLE_HTTPS}}

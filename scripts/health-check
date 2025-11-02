@@ -1,0 +1,32 @@
+#!/bin/bash
+set -e
+
+echo "🔍 Running health checks..."
+echo ""
+
+# Container status
+echo "📦 Containers:"
+docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Health}}"
+echo ""
+
+# Health endpoints
+echo "🏥 Health endpoints:"
+echo -n "  Liveness: "
+curl -sf http://localhost/health/live > /dev/null && echo "✅ OK" || echo "❌ FAIL"
+echo -n "  Readiness: "
+curl -sf http://localhost/health/ready > /dev/null && echo "✅ OK" || echo "❌ FAIL"
+echo ""
+
+# Database
+echo "💾 Database:"
+docker compose exec -T postgres psql -U ${PGUSER:-crm_user} -d ${PGDATABASE:-crm} -c "SELECT 1;" > /dev/null 2>&1 && echo "  ✅ Connected" || echo "  ❌ Failed"
+echo ""
+
+# Redis
+if [ -n "${REDIS_PASSWORD:-}" ]; then
+  echo "📦 Redis:"
+  docker compose exec -T redis redis-cli --pass "$REDIS_PASSWORD" PING > /dev/null 2>&1 && echo "  ✅ Connected" || echo "  ❌ Failed"
+  echo ""
+fi
+
+echo "✅ Health check complete"
