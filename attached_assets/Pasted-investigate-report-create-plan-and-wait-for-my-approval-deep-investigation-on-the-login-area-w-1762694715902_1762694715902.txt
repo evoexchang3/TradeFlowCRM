@@ -1,0 +1,22 @@
+investigate report create plan and wait for my approval:
+
+deep investigation:
+
+
+-on the login area we have placeholders need to be replaced, we also have in the client detail view 2 placeholders client.detailed.schedule.event and client.detail.tab.kyc
+
+- calander when we create even it shows successfully created but does not show the event in the calander 
+
+-we need to have the login as client button functioning so that when we click on it we direcly get logged in the tradingplatform as the client that we have opened, need to check what we need to do from our site and what information we need to have from the trading platform give instructions to pass on to the trading platform what to implement 
+
+- client.detail.kyc.title need to replace all placeholders, also it shows lient.kyc.permission.view.denied, even though i'm logged in as admin, this function should be available for everybody 
+
+- I can create subaccounts but I'm not able to adjust balance or transfer funds from main account to subaccounts
+
+- we need to create functions to add transfers also edit them, meaning create deposits or withdrawals, and approve decline or delete them, we meed fields for what kind of transfer wire/crypto/credit card etc. also what type withdrawal or deposit, should also update the balance once transfer is approved
+
+- next follow up in the client detailed view is not working is failing to update follow up date, also when putting this date it should automatically create a event in the calandar
+
+- we need to extend the notification system, agents teamleader etc, should be notifite when client is assigned to them, also remind about upcoming events, 1 hour before , than 30 minutes before and 3 minutes before, also if teamleader create an event with an agent he should also be notifie 
+
+-leaderboard data is not available, we need to finish this, also teamleader /crm manager /admin needs to be able to set monthly target for each agent, for sales it will be how many FTDs, and for Retention how much money  — also need to make teamtargets, it will be all agents targets from that team combined    at the end give me suggestions for everything, what could we add or adjust etc. 
