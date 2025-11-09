@@ -802,6 +802,7 @@ export default {
   'client.detail.back.to.clients': 'Back to Clients',
   'client.detail.call': 'Call',
   'client.detail.email': 'Email',
+  'client.detail.schedule.event': 'Schedule Event',
   'client.detail.login.as.client': 'Login as Client',
   'client.detail.generating': 'Generating...',
   'client.detail.transfer.client': 'Transfer Client',
@@ -820,6 +821,8 @@ export default {
   'client.detail.tab.transfers': 'Transfers',
   'client.detail.tab.comments': 'Comments',
   'client.detail.tab.documents': 'Documents',
+  'client.detail.tab.kyc': 'KYC',
+  'client.detail.kyc.title': 'KYC Information',
   'client.detail.symbol': 'Symbol',
   'client.detail.type': 'Type',
   'client.detail.volume': 'Volume',
@@ -1075,11 +1078,18 @@ export default {
   'client.detail.internal.transfer.button': 'Internal Transfer',
   'client.detail.followup.date.set': 'Follow-up date set',
   'client.detail.followup.date.set.description': 'Next follow-up date has been set.',
+  'client.detail.followup.date.set.with.calendar': 'Follow-up date set and calendar event created.',
   'client.detail.followup.date.update.failed': 'Failed to update follow-up date.',
   'client.detail.followup.date.cleared': 'Follow-up date cleared',
   'client.detail.followup.date.cleared.description': 'Next follow-up date has been cleared.',
   'client.detail.followup.date.removed.description': 'Next follow-up date has been removed.',
   'client.detail.followup.date.clear.failed': 'Failed to clear follow-up date.',
+
+  // KYC Permissions
+  'client.kyc.permission.view.denied': "You don't have permission to view KYC data",
+  'client.kyc.permission.fill.denied': "You don't have permission to fill KYC forms",
+  'client.kyc.permission.edit.denied': "You don't have permission to edit KYC data",
+  'client.kyc.permission.verify.denied': "You don't have permission to verify KYC",
 
   // Trading Terminal (continued)
   'trading.pending.orders': 'Pending Orders',

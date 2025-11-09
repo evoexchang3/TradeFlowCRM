@@ -959,26 +959,57 @@ export default function ClientDetail() {
                   <Input
                     type="date"
                     value={client.nextFollowUpDate ? new Date(client.nextFollowUpDate).toISOString().slice(0, 10) : ''}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const value = e.target.value;
                       if (value) {
-                        // Parse as local date and convert to ISO string for storage
-                        const localDate = new Date(value + 'T00:00:00');
-                        apiRequest('PATCH', `/api/clients/${clientId}`, {
-                          nextFollowUpDate: localDate.toISOString()
-                        }).then(() => {
+                        try {
+                          if (!user?.id) {
+                            throw new Error('User not authenticated');
+                          }
+                          
+                          // Parse as local date and convert to ISO string for storage
+                          const localDate = new Date(value + 'T00:00:00');
+                          
+                          // Update client's next follow-up date
+                          await apiRequest('PATCH', `/api/clients/${clientId}`, {
+                            nextFollowUpDate: localDate.toISOString()
+                          });
+                          
+                          // Create calendar event automatically
+                          const clientName = `${client.firstName} ${client.lastName}`.trim();
+                          const startTime = new Date(value + 'T09:00:00').toISOString();
+                          const endTime = new Date(value + 'T09:30:00').toISOString();
+                          
+                          await apiRequest('POST', '/api/calendar/events', {
+                            title: `Follow-up: ${clientName}`,
+                            eventType: 'follow_up',
+                            userId: user.id,
+                            clientId: client.id,
+                            startTime,
+                            endTime,
+                            status: 'scheduled',
+                            description: `Follow-up call with ${clientName}`,
+                          });
+                          
                           queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+                          queryClient.invalidateQueries({ 
+                            predicate: (query) => {
+                              const key = query.queryKey[0];
+                              return typeof key === 'string' && key.startsWith('/api/calendar/events');
+                            }
+                          });
+                          
                           toast({
                             title: t('client.detail.followup.date.set'),
-                            description: t('client.detail.followup.date.set.description'),
+                            description: t('client.detail.followup.date.set.with.calendar'),
                           });
-                        }).catch(() => {
+                        } catch (error) {
                           toast({
                             title: t('common.error'),
                             description: t('client.detail.followup.date.update.failed'),
                             variant: "destructive",
                           });
-                        });
+                        }
                       } else {
                         apiRequest('PATCH', `/api/clients/${clientId}`, {
                           nextFollowUpDate: null

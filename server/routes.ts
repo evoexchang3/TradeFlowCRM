@@ -5610,16 +5610,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Apply filtering based on view mode and role
       if (viewMode === 'my') {
-        // Show only current user's events
-        query = query.where(eq(calendarEvents.userId, user.id));
+        // Show current user's events AND unassigned events
+        query = query.where(or(eq(calendarEvents.userId, user.id), isNull(calendarEvents.userId)));
       } else if (viewMode === 'team') {
         // Show team events (Team Leaders and Admins can use this)
         if ((isTeamLeaderRole(roleName) || isAdminRole(roleName) || isCRMManagerRole(roleName)) && user.teamId) {
           const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
           const userIds = teamUsers.map(u => u.id);
-          query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
+          query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id)), isNull(calendarEvents.userId)));
         } else {
-          query = query.where(eq(calendarEvents.userId, user.id));
+          query = query.where(or(eq(calendarEvents.userId, user.id), isNull(calendarEvents.userId)));
         }
       } else if (viewMode === 'all') {
         // Show all events (only Admins and CRM Managers)
@@ -5630,11 +5630,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Default view: role-based filtering
         if (isAgentRole(roleName)) {
-          query = query.where(eq(calendarEvents.userId, user.id));
+          query = query.where(or(eq(calendarEvents.userId, user.id), isNull(calendarEvents.userId)));
         } else if (isTeamLeaderRole(roleName) && user.teamId) {
           const teamUsers = await db.select().from(users).where(eq(users.teamId, user.teamId));
           const userIds = teamUsers.map(u => u.id);
-          query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id))));
+          query = query.where(or(...userIds.map(id => eq(calendarEvents.userId, id)), isNull(calendarEvents.userId)));
         }
         // Admin/CRM Manager: no filtering
       }

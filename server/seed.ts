@@ -35,14 +35,19 @@ async function seed() {
     const existingRoleNames = roles.map(r => r.name);
     
     const departmentRoles = [
-      { name: 'Sales Agent', description: 'Handles sales leads and new client acquisition', permissions: ['client.view', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create'] },
-      { name: 'Retention Agent', description: 'Manages existing clients and retention efforts', permissions: ['client.view', 'client.edit', 'trade.view', 'trade.create'] },
-      { name: 'Sales Team Leader', description: 'Leads sales team and manages sales operations', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'team.view'] },
-      { name: 'Retention Team Leader', description: 'Leads retention team and manages client retention', permissions: ['client.view', 'client.view_all', 'client.edit', 'trade.view', 'trade.create', 'team.view'] },
+      { name: 'Administrator', description: 'Full system access with all permissions', permissions: ['*'] },
+      { name: 'CRM Manager', description: 'Manages CRM operations across all departments', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.delete', 'client.mark_ftd', 'trade.view', 'trade.create', 'trade.edit', 'trade.delete', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage', 'user.view', 'role.view'] },
+      { name: 'Sales Manager', description: 'Manages sales department and teams', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage'] },
+      { name: 'Retention Manager', description: 'Manages retention department and teams', permissions: ['client.view', 'client.view_all', 'client.edit', 'trade.view', 'trade.create', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage'] },
+      { name: 'Sales Agent', description: 'Handles sales leads and new client acquisition', permissions: ['client.view', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'kyc.view', 'kyc.fill'] },
+      { name: 'Retention Agent', description: 'Manages existing clients and retention efforts', permissions: ['client.view', 'client.edit', 'trade.view', 'trade.create', 'kyc.view', 'kyc.edit'] },
+      { name: 'Sales Team Leader', description: 'Leads sales team and manages sales operations', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'team.view', 'kyc.view', 'kyc.edit', 'kyc.manage'] },
+      { name: 'Retention Team Leader', description: 'Leads retention team and manages client retention', permissions: ['client.view', 'client.view_all', 'client.edit', 'trade.view', 'trade.create', 'team.view', 'kyc.view', 'kyc.edit', 'kyc.manage'] },
     ];
 
     for (const roleData of departmentRoles) {
-      if (!existingRoleNames.includes(roleData.name)) {
+      const existingRole = roles.find(r => r.name === roleData.name);
+      if (!existingRole) {
         await storage.createRole({
           name: roleData.name,
           description: roleData.description,
@@ -50,7 +55,12 @@ async function seed() {
         });
         console.log(`✅ Created role: ${roleData.name}`);
       } else {
-        console.log(`Role ${roleData.name} already exists, skipping...`);
+        // Update existing role with new permissions
+        await storage.updateRole(existingRole.id, {
+          description: roleData.description,
+          permissions: roleData.permissions,
+        });
+        console.log(`✅ Updated role: ${roleData.name} with new permissions`);
       }
     }
 
