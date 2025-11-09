@@ -9694,8 +9694,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user details and combine data
       const allUsers = await storage.getUsers();
       
+      // Get roles to filter for agents only
+      const roles = await storage.getRoles();
+      const agentRoleIds = new Set(
+        roles
+          .filter(r => r.name.toLowerCase().includes('agent') || r.name.toLowerCase().includes('team leader'))
+          .map(r => r.id)
+      );
+      
       const leaderboardData = allUsers
-        .filter(u => u.isActive && (!teamId || u.teamId === teamId))
+        .filter(u => u.isActive && u.roleId && agentRoleIds.has(u.roleId) && (!teamId || u.teamId === teamId))
         .map(user => {
           const userAchievements = achievementsData.find(a => a.agentId === user.id);
           const userTargets = targetsData.find(t => t.agentId === user.id);
@@ -9706,10 +9714,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             team: user.teamId,
             totalPoints: Number(userAchievements?.totalPoints || 0),
             achievementCount: Number(userAchievements?.achievementCount || 0),
-            targetsMet: Number(userTargets?.targetsMet || 0),
-            totalTargets: Number(userTargets?.totalTargets || 0),
-            targetCompletionRate: userTargets?.totalTargets 
-              ? ((Number(userTargets.targetsMet) / Number(userTargets.totalTargets)) * 100).toFixed(1)
+            currentValue: Number(userTargets?.currentValue || 0),
+            targetValue: Number(userTargets?.targetValue || 0),
+            targetCompletionRate: userTargets?.targetValue && Number(userTargets.targetValue) > 0
+              ? ((Number(userTargets.currentValue) / Number(userTargets.targetValue)) * 100).toFixed(1)
               : '0',
           };
         })

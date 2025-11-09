@@ -161,67 +161,165 @@ export default function Leaderboard() {
           <CardTitle>{t('leaderboard.all.rankings')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">{t('leaderboard.rank')}</TableHead>
-                <TableHead>{t('leaderboard.agent')}</TableHead>
-                <TableHead className="text-center">{t('leaderboard.points')}</TableHead>
-                <TableHead className="text-center">{t('leaderboard.achievements')}</TableHead>
-                <TableHead className="text-center">{t('leaderboard.targets.met')}</TableHead>
-                <TableHead className="text-center">{t('leaderboard.completion.rate')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {leaderboardData?.leaderboard && leaderboardData.leaderboard.length > 0 ? (
-                leaderboardData.leaderboard.map((agent: any, index: number) => (
-                  <TableRow key={agent.agentId} data-testid={`row-agent-${index}`}>
-                    <TableCell>
-                      <div className="flex items-center justify-center">
-                        {index < 3 ? (
-                          <Badge className={getRankBadgeColor(index)}>
-                            {getRankIcon(index)}
-                          </Badge>
-                        ) : (
-                          <span className="text-sm font-medium">#{index + 1}</span>
-                        )}
+          {leaderboardData?.leaderboard && leaderboardData.leaderboard.length > 0 ? (
+            <>
+              {/* Group by team */}
+              {(() => {
+                // Group agents by team
+                const teamGroups = new Map<string, any[]>();
+                const unassigned: any[] = [];
+                
+                leaderboardData.leaderboard.forEach((agent: any) => {
+                  if (agent.team) {
+                    if (!teamGroups.has(agent.team)) {
+                      teamGroups.set(agent.team, []);
+                    }
+                    teamGroups.get(agent.team)!.push(agent);
+                  } else {
+                    unassigned.push(agent);
+                  }
+                });
+                
+                return (
+                  <div className="space-y-6">
+                    {Array.from(teamGroups.entries()).map(([teamId, agents]) => {
+                      const team = teams.find((t: any) => t.id === teamId);
+                      return (
+                        <div key={teamId} className="space-y-2">
+                          <h3 className="text-lg font-semibold text-primary border-b pb-2">
+                            {team?.name || 'Unknown Team'}
+                          </h3>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-20">{t('leaderboard.rank')}</TableHead>
+                                <TableHead>{t('leaderboard.agent')}</TableHead>
+                                <TableHead className="text-center">{t('leaderboard.points')}</TableHead>
+                                <TableHead className="text-center">{t('leaderboard.achievements')}</TableHead>
+                                <TableHead className="text-center">{t('leaderboard.targets.met')}</TableHead>
+                                <TableHead className="text-center">{t('leaderboard.completion.rate')}</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {agents.map((agent: any, index: number) => {
+                                const globalIndex = leaderboardData.leaderboard.findIndex((a: any) => a.agentId === agent.agentId);
+                                return (
+                                  <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex}`}>
+                                    <TableCell>
+                                      <div className="flex items-center justify-center">
+                                        {globalIndex < 3 ? (
+                                          <Badge className={getRankBadgeColor(globalIndex)}>
+                                            {getRankIcon(globalIndex)}
+                                          </Badge>
+                                        ) : (
+                                          <span className="text-sm font-medium">#{globalIndex + 1}</span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="font-medium">{agent.agentName}</TableCell>
+                                    <TableCell className="text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <Star className="h-4 w-4 text-yellow-500" />
+                                        <span className="font-semibold">{agent.totalPoints}</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Badge variant="secondary">{agent.achievementCount}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <Target className="h-4 w-4 text-primary" />
+                                        <span>{agent.currentValue}/{agent.targetValue}</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <TrendingUp className={`h-4 w-4 ${Number(agent.targetCompletionRate) >= 80 ? 'text-green-500' : 'text-muted-foreground'}`} />
+                                        <span className={Number(agent.targetCompletionRate) >= 80 ? 'text-green-600 font-medium' : ''}>
+                                          {agent.targetCompletionRate}%
+                                        </span>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      );
+                    })}
+                    {unassigned.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-muted-foreground border-b pb-2">
+                          Unassigned
+                        </h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-20">{t('leaderboard.rank')}</TableHead>
+                              <TableHead>{t('leaderboard.agent')}</TableHead>
+                              <TableHead className="text-center">{t('leaderboard.points')}</TableHead>
+                              <TableHead className="text-center">{t('leaderboard.achievements')}</TableHead>
+                              <TableHead className="text-center">{t('leaderboard.targets.met')}</TableHead>
+                              <TableHead className="text-center">{t('leaderboard.completion.rate')}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {unassigned.map((agent: any, index: number) => {
+                              const globalIndex = leaderboardData.leaderboard.findIndex((a: any) => a.agentId === agent.agentId);
+                              return (
+                                <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex}`}>
+                                  <TableCell>
+                                    <div className="flex items-center justify-center">
+                                      {globalIndex < 3 ? (
+                                        <Badge className={getRankBadgeColor(globalIndex)}>
+                                          {getRankIcon(globalIndex)}
+                                        </Badge>
+                                      ) : (
+                                        <span className="text-sm font-medium">#{globalIndex + 1}</span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{agent.agentName}</TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Star className="h-4 w-4 text-yellow-500" />
+                                      <span className="font-semibold">{agent.totalPoints}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge variant="secondary">{agent.achievementCount}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Target className="h-4 w-4 text-primary" />
+                                      <span>{agent.currentValue}/{agent.targetValue}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <TrendingUp className={`h-4 w-4 ${Number(agent.targetCompletionRate) >= 80 ? 'text-green-500' : 'text-muted-foreground'}`} />
+                                      <span className={Number(agent.targetCompletionRate) >= 80 ? 'text-green-600 font-medium' : ''}>
+                                        {agent.targetCompletionRate}%
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
                       </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{agent.agentName}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Star className="h-4 w-4 text-yellow-500" />
-                        <span className="font-semibold">{agent.totalPoints}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{agent.achievementCount}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Target className="h-4 w-4 text-primary" />
-                        <span>{agent.targetsMet}/{agent.totalTargets}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <TrendingUp className={`h-4 w-4 ${Number(agent.targetCompletionRate) >= 80 ? 'text-green-500' : 'text-muted-foreground'}`} />
-                        <span className={Number(agent.targetCompletionRate) >= 80 ? 'text-green-600 font-medium' : ''}>
-                          {agent.targetCompletionRate}%
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    {t('leaderboard.no.data')}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    )}
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              {t('leaderboard.no.data')}
+            </div>
+          )}
         </CardContent>
       </Card>
 
