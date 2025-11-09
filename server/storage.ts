@@ -1,6 +1,6 @@
 // Referenced from blueprint:javascript_database - adapted for trading platform CRM
 import { db } from "./db";
-import { eq, and, desc, sql, gte, lte, or } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, or, inArray } from "drizzle-orm";
 
 interface PerformanceTargetFilters {
   agentId?: string;
@@ -318,9 +318,21 @@ export class DatabaseStorage implements IStorage {
   async getTransactions(filters?: any): Promise<Transaction[]> {
     const conditions = [];
     
-    if (filters?.accountId) {
+    if (filters?.clientId) {
+      const clientAccounts = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.clientId, filters.clientId));
+      
+      const accountIds = clientAccounts.map(a => a.id);
+      if (accountIds.length === 0) {
+        return [];
+      }
+      conditions.push(inArray(transactions.accountId, accountIds));
+    } else if (filters?.accountId) {
       conditions.push(eq(transactions.accountId, filters.accountId));
     }
+    
     if (filters?.type) {
       conditions.push(eq(transactions.type, filters.type));
     }

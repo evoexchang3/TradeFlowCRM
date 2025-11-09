@@ -3141,6 +3141,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const filters: any = {};
       
+      if (req.query.clientId) {
+        filters.clientId = req.query.clientId;
+      }
       if (req.query.accountId) {
         filters.accountId = req.query.accountId;
       }

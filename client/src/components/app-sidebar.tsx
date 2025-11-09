@@ -34,6 +34,7 @@ import {
   Activity,
   Search,
   Trophy,
+  Target,
   FileText,
   Bot
 } from "lucide-react";
@@ -178,6 +179,12 @@ const menuItems: MenuItem[] = [
     titleKey: "nav.leaderboard",
     url: "/leaderboard",
     icon: Trophy,
+  },
+  {
+    titleKey: "nav.targets",
+    url: "/targets",
+    icon: Target,
+    roles: ['administrator', 'crm manager', 'team leader'],
   },
 ];
 

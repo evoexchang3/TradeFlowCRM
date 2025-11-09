@@ -2653,7 +2653,24 @@ function TransactionsSection({ clientId }: { clientId: number }) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const { data: transactions, isLoading, isError, error } = useQuery<any[]>({
-    queryKey: ['/api/transactions', { clientId, status: statusFilter !== "all" ? statusFilter : undefined }],
+    queryKey: ['/api/transactions', clientId, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('clientId', clientId.toString());
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      const res = await fetch(`/api/transactions?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
+      return res.json();
+    },
     enabled: Boolean(clientId) && !isNaN(clientId) && clientId > 0,
   });
 

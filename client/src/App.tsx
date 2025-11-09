@@ -63,6 +63,7 @@ import Landing from "@/pages/landing";
 import UserManagement from "@/pages/user-management";
 import GlobalSearch from "@/pages/global-search";
 import Leaderboard from "@/pages/leaderboard";
+import Targets from "@/pages/targets";
 import AuditReports from "@/pages/audit-reports";
 import Robots from "@/pages/robots";
 import RobotAssignments from "@/pages/robot-assignments";
@@ -226,6 +227,13 @@ function Router() {
       <Route path="/leaderboard">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
           <Leaderboard />
+        </RouteGuard>
+      </Route>
+
+      {/* Performance Targets - admin and managers */}
+      <Route path="/targets">
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+          <Targets />
         </RouteGuard>
       </Route>
 
