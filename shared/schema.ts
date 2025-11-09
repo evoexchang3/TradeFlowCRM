@@ -37,6 +37,7 @@ export const auditActionEnum = pgEnum('audit_action', [
   'role_create', 'role_edit', 'role_delete', 'permission_change',
   'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use',
   'symbol_create', 'symbol_edit', 'symbol_delete', 'symbol_group_create', 'symbol_group_edit', 'symbol_group_delete',
+  'target_create', 'target_edit', 'target_delete',
   'calendar_event_create', 'calendar_event_edit', 'calendar_event_delete',
   'email_template_create', 'email_template_edit', 'email_template_delete', 
   'webhook_received', 'webhook_create', 'webhook_edit', 'webhook_delete', 'webhook_test', 'webhook_delivery',
