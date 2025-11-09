@@ -26,22 +26,15 @@ export default function Leaderboard() {
   const [period, setPeriod] = useState("monthly");
   const [teamFilter, setTeamFilter] = useState("all");
 
+  // Build query URL with params
+  const buildLeaderboardUrl = () => {
+    const params = new URLSearchParams({ period });
+    if (teamFilter !== 'all') params.append('teamId', teamFilter);
+    return `/api/leaderboard?${params.toString()}`;
+  };
+
   const { data: leaderboardData, isLoading } = useQuery<any>({
-    queryKey: ['/api/leaderboard', { period, teamId: teamFilter !== 'all' ? teamFilter : undefined }],
-    queryFn: async () => {
-      const params = new URLSearchParams({ period });
-      if (teamFilter !== 'all') params.append('teamId', teamFilter);
-      
-      const response = await fetch(`/api/leaderboard?${params.toString()}`, {
-        credentials: 'include',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch leaderboard');
-      }
-      
-      return response.json();
-    },
+    queryKey: [buildLeaderboardUrl()],
   });
 
   const { data: teams = [] } = useQuery<any[]>({
