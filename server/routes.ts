@@ -3139,8 +3139,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== TRANSACTIONS =====
   app.get("/api/transactions", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const transactions = await storage.getTransactions();
+      const filters: any = {};
+      
+      if (req.query.accountId) {
+        filters.accountId = req.query.accountId;
+      }
+      if (req.query.type) {
+        filters.type = req.query.type;
+      }
+      if (req.query.status) {
+        filters.status = req.query.status;
+      }
+      
+      const transactions = await storage.getTransactions(filters);
       res.json(transactions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/transactions/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const transaction = await storage.getTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+      res.json(transaction);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3148,7 +3172,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/transactions", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      const transaction = await storage.createTransaction(req.body);
+      const transactionData = {
+        ...req.body,
+        initiatedBy: req.user!.id,
+        status: 'pending',
+      };
+      
+      const transaction = await storage.createTransaction(transactionData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: transaction.type === 'deposit' ? 'deposit.completed' : 'withdrawal.completed',
+        targetType: 'transaction',
+        targetId: transaction.id,
+        details: {
+          accountId: transaction.accountId,
+          amount: transaction.amount,
+          fundType: transaction.fundType,
+          method: transaction.method,
+        },
+      });
+      
+      res.json(transaction);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/transactions/:id/approve", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { reviewNotes } = req.body;
+      const transaction = await storage.approveTransaction(
+        req.params.id,
+        req.user!.id,
+        reviewNotes
+      );
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: transaction.type === 'deposit' ? 'deposit.completed' : 'withdrawal.completed',
+        targetType: 'transaction',
+        targetId: transaction.id,
+        details: {
+          accountId: transaction.accountId,
+          amount: transaction.amount,
+          fundType: transaction.fundType,
+          approvedBy: req.user!.id,
+          reviewNotes,
+        },
+      });
+      
+      res.json(transaction);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/transactions/:id/decline", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const { declineReason, reviewNotes } = req.body;
+      
+      if (!declineReason) {
+        return res.status(400).json({ error: "Decline reason is required" });
+      }
+      
+      const transaction = await storage.declineTransaction(
+        req.params.id,
+        req.user!.id,
+        declineReason,
+        reviewNotes
+      );
+      
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user!.id,
+        action: transaction.type === 'deposit' ? 'deposit.completed' : 'withdrawal.completed',
+        targetType: 'transaction',
+        targetId: transaction.id,
+        details: {
+          accountId: transaction.accountId,
+          amount: transaction.amount,
+          fundType: transaction.fundType,
+          declinedBy: req.user!.id,
+          declineReason,
+          reviewNotes,
+        },
+      });
+      
       res.json(transaction);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
