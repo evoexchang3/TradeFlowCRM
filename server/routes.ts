@@ -10363,8 +10363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const agentData = agentsMap.get(target.agentId)!;
           agent = {
             id: agentData.id,
-            firstName: agentData.firstName,
-            lastName: agentData.lastName,
+            name: agentData.name,
           };
         }
         

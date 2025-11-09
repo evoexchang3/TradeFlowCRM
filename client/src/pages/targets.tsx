@@ -152,7 +152,7 @@ export default function Targets() {
 
   const getAssignmentLabel = (target: any) => {
     if (target.agent) {
-      return `${target.agent.firstName} ${target.agent.lastName}`;
+      return target.agent.name;
     }
     if (target.team) {
       return target.team.name;
