@@ -1,8 +1,18 @@
 // Referenced from blueprint:javascript_database - adapted for trading platform CRM
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, or } from "drizzle-orm";
+
+interface PerformanceTargetFilters {
+  agentId?: string;
+  teamId?: string;
+  department?: string;
+  period?: string;
+  isActive?: boolean;
+  startDate?: Date;
+  endDate?: Date;
+}
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents, webhookEndpoints, webhookDeliveries,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents, webhookEndpoints, webhookDeliveries, performanceTargets, achievements,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -29,6 +39,8 @@ import {
   type Document, type InsertDocument,
   type WebhookEndpoint, type InsertWebhookEndpoint,
   type WebhookDelivery, type InsertWebhookDelivery,
+  type PerformanceTarget, type InsertPerformanceTarget,
+  type Achievement, type InsertAchievement,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -184,6 +196,20 @@ export interface IStorage {
   // Webhook Deliveries
   getWebhookDeliveries(endpointId?: string): Promise<WebhookDelivery[]>;
   createWebhookDelivery(delivery: InsertWebhookDelivery): Promise<WebhookDelivery>;
+  
+  // Performance Targets
+  getPerformanceTargets(filters?: PerformanceTargetFilters): Promise<PerformanceTarget[]>;
+  getPerformanceTarget(id: string): Promise<PerformanceTarget | undefined>;
+  createPerformanceTarget(target: InsertPerformanceTarget): Promise<PerformanceTarget>;
+  updatePerformanceTarget(id: string, updates: Partial<InsertPerformanceTarget>): Promise<PerformanceTarget>;
+  deletePerformanceTarget(id: string): Promise<void>;
+  updateTargetProgress(id: string, incrementValue: number): Promise<PerformanceTarget>;
+  
+  // Achievements
+  getAchievements(agentId?: string): Promise<Achievement[]>;
+  getAchievement(id: string): Promise<Achievement | undefined>;
+  createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+  deleteAchievement(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -980,6 +1006,87 @@ export class DatabaseStorage implements IStorage {
   async createWebhookDelivery(delivery: InsertWebhookDelivery): Promise<WebhookDelivery> {
     const [created] = await db.insert(webhookDeliveries).values(delivery).returning();
     return created;
+  }
+  
+  // Performance Targets
+  async getPerformanceTargets(filters?: PerformanceTargetFilters): Promise<PerformanceTarget[]> {
+    let query = db.select().from(performanceTargets);
+    
+    if (filters) {
+      const conditions = [];
+      if (filters.agentId) conditions.push(eq(performanceTargets.agentId, filters.agentId));
+      if (filters.teamId) conditions.push(eq(performanceTargets.teamId, filters.teamId));
+      if (filters.department) conditions.push(eq(performanceTargets.department, filters.department));
+      if (filters.period) conditions.push(eq(performanceTargets.period, filters.period));
+      if (filters.isActive !== undefined) conditions.push(eq(performanceTargets.isActive, filters.isActive));
+      if (filters.startDate) conditions.push(gte(performanceTargets.endDate, filters.startDate));
+      if (filters.endDate) conditions.push(lte(performanceTargets.startDate, filters.endDate));
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+    }
+    
+    return await query.orderBy(desc(performanceTargets.createdAt));
+  }
+  
+  async getPerformanceTarget(id: string): Promise<PerformanceTarget | undefined> {
+    const [target] = await db.select().from(performanceTargets).where(eq(performanceTargets.id, id));
+    return target || undefined;
+  }
+  
+  async createPerformanceTarget(insertTarget: InsertPerformanceTarget): Promise<PerformanceTarget> {
+    const [target] = await db.insert(performanceTargets).values(insertTarget).returning();
+    return target;
+  }
+  
+  async updatePerformanceTarget(id: string, updates: Partial<InsertPerformanceTarget>): Promise<PerformanceTarget> {
+    const [target] = await db.update(performanceTargets)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(performanceTargets.id, id))
+      .returning();
+    return target;
+  }
+  
+  async deletePerformanceTarget(id: string): Promise<void> {
+    await db.update(performanceTargets)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(performanceTargets.id, id));
+  }
+  
+  async updateTargetProgress(id: string, incrementValue: number): Promise<PerformanceTarget> {
+    const [target] = await db.update(performanceTargets)
+      .set({
+        currentValue: sql`${performanceTargets.currentValue} + ${incrementValue}`,
+        updatedAt: new Date()
+      })
+      .where(eq(performanceTargets.id, id))
+      .returning();
+    return target;
+  }
+  
+  // Achievements
+  async getAchievements(agentId?: string): Promise<Achievement[]> {
+    if (agentId) {
+      return await db.select().from(achievements)
+        .where(eq(achievements.agentId, agentId))
+        .orderBy(desc(achievements.earnedAt));
+    }
+    return await db.select().from(achievements).orderBy(desc(achievements.earnedAt));
+  }
+  
+  async getAchievement(id: string): Promise<Achievement | undefined> {
+    const [achievement] = await db.select().from(achievements).where(eq(achievements.id, id));
+    return achievement || undefined;
+  }
+  
+  async createAchievement(insertAchievement: InsertAchievement): Promise<Achievement> {
+    const [achievement] = await db.insert(achievements).values(insertAchievement).returning();
+    return achievement;
+  }
+  
+  async deleteAchievement(id: string): Promise<void> {
+    await db.delete(achievements).where(eq(achievements.id, id));
   }
 }
 
