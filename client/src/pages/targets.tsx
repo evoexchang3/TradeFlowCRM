@@ -20,7 +20,7 @@ import { insertPerformanceTargetSchema, type PerformanceTarget, type User, type 
 import { format } from 'date-fns';
 
 const createTargetSchema = insertPerformanceTargetSchema.extend({
-  targetValue: z.string().min(1, 'Target value is required'),
+  targetValue: z.coerce.number().positive('Target value must be positive'),
   targetMonth: z.string().min(1, 'Target month is required'),
 }).omit({
   startDate: true,
@@ -60,7 +60,7 @@ export default function Targets() {
     defaultValues: {
       targetType: 'ftd',
       period: 'monthly',
-      targetValue: '',
+      targetValue: 0,
       agentId: undefined,
       teamId: undefined,
       department: undefined,
@@ -123,7 +123,7 @@ export default function Targets() {
     const submitData = {
       targetType: data.targetType,
       period: data.period,
-      targetValue: data.targetValue,
+      targetValue: data.targetValue.toString(),
       agentId: data.agentId,
       teamId: data.teamId,
       department: data.department as any,
@@ -357,7 +357,14 @@ export default function Targets() {
                     <FormItem>
                       <FormLabel>{t('targets.form.target.value')}</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" data-testid="input-target-value" />
+                        <Input 
+                          {...field} 
+                          type="number" 
+                          step="1" 
+                          min="1"
+                          data-testid="input-target-value" 
+                          onChange={(e) => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value))}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
