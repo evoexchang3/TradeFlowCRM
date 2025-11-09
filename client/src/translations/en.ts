@@ -1683,6 +1683,8 @@ export default {
   'targets.filter.team': 'Team',
   'targets.filter.department': 'Department',
   'targets.table.assignment': 'Assignment',
+  'targets.table.team': 'Team',
+  'targets.table.department': 'Department',
   'targets.table.type': 'Type',
   'targets.table.period': 'Period',
   'targets.table.target': 'Target',

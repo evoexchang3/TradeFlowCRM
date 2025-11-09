@@ -46,7 +46,7 @@ import {
   kycQuestions,
   kycResponses
 } from "@shared/schema";
-import { eq, or, and, isNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
+import { eq, or, and, isNull, isNotNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
 
 // Helper to generate account number
 function generateAccountNumber(): string {
@@ -9631,24 +9631,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate date range based on period
       const now = new Date();
       let startDate: Date;
+      let endDate: Date = new Date();
       
       switch (period) {
         case 'daily':
           startDate = new Date(now);
           startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(now);
+          endDate.setHours(23, 59, 59, 999);
           break;
         case 'weekly':
           startDate = new Date(now);
-          startDate.setDate(now.getDate() - 7);
+          startDate.setDate(now.getDate() - now.getDay()); // Start of current week
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(startDate.getDate() + 6); // End of current week
+          endDate.setHours(23, 59, 59, 999);
           break;
         case 'quarterly':
-          startDate = new Date(now);
-          startDate.setMonth(now.getMonth() - 3);
+          const quarterMonth = Math.floor(now.getMonth() / 3) * 3;
+          startDate = new Date(now.getFullYear(), quarterMonth, 1);
+          endDate = new Date(now.getFullYear(), quarterMonth + 3, 0, 23, 59, 59, 999);
           break;
         case 'monthly':
         default:
-          startDate = new Date(now);
-          startDate.setMonth(now.getMonth() - 1);
+          // Current month
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
           break;
       }
 
@@ -9662,17 +9671,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .where(gte(achievements.earnedAt, startDate))
       .groupBy(achievements.agentId);
 
-      // Get targets progress
+      // Get targets progress (targets that overlap with the current period)
       let targetsQuery = db.select({
         agentId: performanceTargets.agentId,
         targetsMet: sql<number>`SUM(CASE WHEN ${performanceTargets.currentValue} >= ${performanceTargets.targetValue} THEN 1 ELSE 0 END)`,
         totalTargets: sql<number>`COUNT(*)`,
+        targetValue: sql<number>`SUM(CAST(${performanceTargets.targetValue} AS NUMERIC))`,
+        currentValue: sql<number>`SUM(CAST(${performanceTargets.currentValue} AS NUMERIC))`,
       })
       .from(performanceTargets)
       .where(and(
-        gte(performanceTargets.startDate, startDate),
+        lte(performanceTargets.startDate, endDate),
+        gte(performanceTargets.endDate, startDate),
         eq(performanceTargets.isActive, true),
-        isNull(performanceTargets.teamId) // Only individual targets
+        isNotNull(performanceTargets.agentId) // Only individual targets
       ))
       .groupBy(performanceTargets.agentId);
 
@@ -9706,7 +9718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         period,
         startDate: startDate.toISOString(),
-        endDate: now.toISOString(),
+        endDate: endDate.toISOString(),
         leaderboard: leaderboardData,
       });
     } catch (error: any) {
@@ -10328,7 +10340,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.query.isActive !== undefined) filters.isActive = req.query.isActive === 'true';
 
       const targets = await storage.getPerformanceTargets(filters);
-      res.json(targets);
+      
+      // Batch fetch unique agents and teams to avoid N+1 queries
+      const uniqueAgentIds = [...new Set(targets.map(t => t.agentId).filter(Boolean))];
+      const uniqueTeamIds = [...new Set(targets.map(t => t.teamId).filter(Boolean))];
+      
+      const [agents, teams] = await Promise.all([
+        uniqueAgentIds.length > 0 ? Promise.all(uniqueAgentIds.map(id => storage.getUser(id!))) : [],
+        uniqueTeamIds.length > 0 ? Promise.all(uniqueTeamIds.map(id => storage.getTeam(id!))) : [],
+      ]);
+      
+      // Create lookup maps
+      const agentsMap = new Map(agents.filter(Boolean).map(a => [a!.id, a]));
+      const teamsMap = new Map(teams.filter(Boolean).map(t => [t!.id, t]));
+      
+      // Enrich with agent and team data
+      const enrichedTargets = targets.map((target) => {
+        let agent = null;
+        let team = null;
+        
+        if (target.agentId && agentsMap.has(target.agentId)) {
+          const agentData = agentsMap.get(target.agentId)!;
+          agent = {
+            id: agentData.id,
+            firstName: agentData.firstName,
+            lastName: agentData.lastName,
+          };
+        }
+        
+        if (target.teamId && teamsMap.has(target.teamId)) {
+          const teamData = teamsMap.get(target.teamId)!;
+          team = {
+            id: teamData.id,
+            name: teamData.name,
+          };
+        }
+        
+        return {
+          ...target,
+          agent,
+          team,
+        };
+      });
+      
+      res.json(enrichedTargets);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

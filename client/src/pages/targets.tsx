@@ -150,19 +150,31 @@ export default function Targets() {
     return Math.min(Math.round((currentNum / targetNum) * 100), 100);
   };
 
-  const getAssignmentLabel = (target: PerformanceTarget) => {
-    if (target.agentId) {
-      const user = users.find(u => u.id === target.agentId);
-      return user ? `${user.firstName} ${user.lastName}` : t('targets.individual');
+  const getAssignmentLabel = (target: any) => {
+    if (target.agent) {
+      return `${target.agent.firstName} ${target.agent.lastName}`;
     }
-    if (target.teamId) {
-      const team = teams.find(t => t.id === target.teamId);
-      return team ? team.name : t('targets.team');
+    if (target.team) {
+      return target.team.name;
     }
     if (target.department) {
       return target.department.charAt(0).toUpperCase() + target.department.slice(1);
     }
     return t('targets.unassigned');
+  };
+
+  const getTeamLabel = (target: any) => {
+    if (target.team) {
+      return target.team.name;
+    }
+    return '-';
+  };
+
+  const getDepartmentLabel = (target: any) => {
+    if (target.department) {
+      return target.department.charAt(0).toUpperCase() + target.department.slice(1);
+    }
+    return '-';
   };
 
   const getTargetTypeLabel = (type: string) => {
@@ -237,6 +249,8 @@ export default function Targets() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('targets.table.assignment')}</TableHead>
+                    <TableHead>{t('targets.table.team')}</TableHead>
+                    <TableHead>{t('targets.table.department')}</TableHead>
                     <TableHead>{t('targets.table.type')}</TableHead>
                     <TableHead>{t('targets.table.period')}</TableHead>
                     <TableHead>{t('targets.table.target')}</TableHead>
@@ -254,6 +268,12 @@ export default function Targets() {
                       <TableRow key={target.id} data-testid={`row-target-${target.id}`}>
                         <TableCell>
                           <div className="font-medium">{getAssignmentLabel(target)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{getTeamLabel(target)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{getDepartmentLabel(target)}</div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{getTargetTypeLabel(target.targetType)}</Badge>
