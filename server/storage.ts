@@ -1012,8 +1012,9 @@ export class DatabaseStorage implements IStorage {
   async getPerformanceTargets(filters?: PerformanceTargetFilters): Promise<PerformanceTarget[]> {
     let query = db.select().from(performanceTargets);
     
+    const conditions = [];
+    
     if (filters) {
-      const conditions = [];
       if (filters.agentId) conditions.push(eq(performanceTargets.agentId, filters.agentId));
       if (filters.teamId) conditions.push(eq(performanceTargets.teamId, filters.teamId));
       if (filters.department) conditions.push(eq(performanceTargets.department, filters.department));
@@ -1021,10 +1022,14 @@ export class DatabaseStorage implements IStorage {
       if (filters.isActive !== undefined) conditions.push(eq(performanceTargets.isActive, filters.isActive));
       if (filters.startDate) conditions.push(gte(performanceTargets.endDate, filters.startDate));
       if (filters.endDate) conditions.push(lte(performanceTargets.startDate, filters.endDate));
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as any;
-      }
+    }
+    
+    if (!filters || filters.isActive === undefined) {
+      conditions.push(eq(performanceTargets.isActive, true));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
     }
     
     return await query.orderBy(desc(performanceTargets.createdAt));

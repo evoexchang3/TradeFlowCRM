@@ -10310,6 +10310,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Performance Targets Routes
+  app.get("/api/performance-targets", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const filters: any = {};
+      if (req.query.agentId) filters.agentId = req.query.agentId as string;
+      if (req.query.teamId) filters.teamId = req.query.teamId as string;
+      if (req.query.department) filters.department = req.query.department as string;
+      if (req.query.period) filters.period = req.query.period as string;
+      if (req.query.isActive !== undefined) filters.isActive = req.query.isActive === 'true';
+
+      const targets = await storage.getPerformanceTargets(filters);
+      res.json(targets);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/performance-targets/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const target = await storage.getPerformanceTarget(req.params.id);
+      if (!target) {
+        return res.status(404).json({ error: 'Target not found' });
+      }
+
+      res.json(target);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/performance-targets", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'targets.create')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing targets.create permission' });
+      }
+
+      const { insertPerformanceTargetSchema } = await import("@shared/schema");
+      const validated = insertPerformanceTargetSchema.parse({
+        ...req.body,
+        createdBy: req.user.id,
+      });
+
+      const target = await storage.createPerformanceTarget(validated);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'target_create',
+        targetType: 'performance_target',
+        targetId: target.id,
+        details: { targetType: target.targetType, targetValue: target.targetValue, period: target.period },
+      });
+
+      res.json(target);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/performance-targets/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'targets.edit')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing targets.edit permission' });
+      }
+
+      const existing = await storage.getPerformanceTarget(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Target not found' });
+      }
+
+      const { z } = await import("zod");
+      const updateSchema = z.object({
+        targetValue: z.string().optional(),
+        startDate: z.string().datetime().optional(),
+        endDate: z.string().datetime().optional(),
+        isActive: z.boolean().optional(),
+      });
+
+      const validated = updateSchema.parse(req.body);
+      const updated = await storage.updatePerformanceTarget(req.params.id, validated as any);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'target_edit',
+        targetType: 'performance_target',
+        targetId: updated.id,
+        details: { changes: validated },
+      });
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/performance-targets/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'targets.delete')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing targets.delete permission' });
+      }
+
+      const existing = await storage.getPerformanceTarget(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Target not found' });
+      }
+
+      await storage.deletePerformanceTarget(req.params.id);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'target_delete',
+        targetType: 'performance_target',
+        targetId: req.params.id,
+        details: { targetType: existing.targetType },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/performance-targets/:id/progress", serviceTokenMiddleware, async (req: AuthRequest, res) => {
+    try {
+      const existing = await storage.getPerformanceTarget(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Target not found' });
+      }
+
+      const { z } = await import("zod");
+      const progressSchema = z.object({
+        incrementValue: z.number(),
+      });
+
+      const { incrementValue } = progressSchema.parse(req.body);
+      const updated = await storage.updateTargetProgress(req.params.id, incrementValue);
+
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Achievements Routes
+  app.get("/api/achievements", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      const agentId = req.query.agentId as string | undefined;
+      const achievements = await storage.getAchievements(agentId);
+      res.json(achievements);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/achievements", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'achievements.award')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing achievements.award permission' });
+      }
+
+      const { insertAchievementSchema } = await import("@shared/schema");
+      const validated = insertAchievementSchema.parse(req.body);
+
+      const achievement = await storage.createAchievement(validated);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'achievement_award',
+        targetType: 'achievement',
+        targetId: achievement.id,
+        details: { agentId: achievement.agentId, name: achievement.name },
+      });
+
+      res.json(achievement);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/achievements/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
+      }
+
+      if (!hasPermission(req.user, 'achievements.delete')) {
+        return res.status(403).json({ error: 'Unauthorized: Missing achievements.delete permission' });
+      }
+
+      const existing = await storage.getAchievement(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Achievement not found' });
+      }
+
+      await storage.deleteAchievement(req.params.id);
+
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'achievement_delete',
+        targetType: 'achievement',
+        targetId: req.params.id,
+        details: { name: existing.name },
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Test webhook endpoint
   app.post("/api/webhooks/:id/test", authMiddleware, async (req: AuthRequest, res) => {
     try {
