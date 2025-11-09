@@ -62,8 +62,11 @@ export interface IStorage {
   
   // Transactions
   getTransactions(filters?: any): Promise<Transaction[]>;
+  getTransaction(id: string): Promise<Transaction | undefined>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: string, updates: Partial<InsertTransaction>): Promise<Transaction>;
+  approveTransaction(id: string, approvedBy: string, reviewNotes?: string): Promise<Transaction>;
+  declineTransaction(id: string, declinedBy: string, declineReason: string, reviewNotes?: string): Promise<Transaction>;
   
   // Internal Transfers
   getInternalTransfers(filters?: any): Promise<InternalTransfer[]>;
@@ -287,7 +290,30 @@ export class DatabaseStorage implements IStorage {
 
   // Transactions
   async getTransactions(filters?: any): Promise<Transaction[]> {
-    return await db.select().from(transactions).orderBy(desc(transactions.createdAt));
+    const conditions = [];
+    
+    if (filters?.accountId) {
+      conditions.push(eq(transactions.accountId, filters.accountId));
+    }
+    if (filters?.type) {
+      conditions.push(eq(transactions.type, filters.type));
+    }
+    if (filters?.status) {
+      conditions.push(eq(transactions.status, filters.status));
+    }
+    
+    let query = db.select().from(transactions);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    return await query.orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransaction(id: string): Promise<Transaction | undefined> {
+    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
+    return transaction;
   }
 
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
@@ -298,6 +324,101 @@ export class DatabaseStorage implements IStorage {
   async updateTransaction(id: string, updates: Partial<InsertTransaction>): Promise<Transaction> {
     const [transaction] = await db.update(transactions).set(updates).where(eq(transactions.id, id)).returning();
     return transaction;
+  }
+
+  async approveTransaction(id: string, approvedBy: string, reviewNotes?: string): Promise<Transaction> {
+    const transaction = await this.getTransaction(id);
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+    if (transaction.status !== 'pending') {
+      throw new Error('Only pending transactions can be approved');
+    }
+
+    // For withdrawals, check sufficient funds before approval
+    if (transaction.type === 'withdrawal') {
+      const account = await this.getAccount(transaction.accountId);
+      if (account) {
+        const balanceField = transaction.fundType === 'real' ? 'realBalance' : 
+                           transaction.fundType === 'demo' ? 'demoBalance' : 'bonusBalance';
+        const currentBalance = parseFloat(account[balanceField] as string);
+        const withdrawalAmount = parseFloat(transaction.amount);
+        
+        if (currentBalance < withdrawalAmount) {
+          throw new Error(`Insufficient ${transaction.fundType} balance for withdrawal. Available: ${currentBalance}, Requested: ${withdrawalAmount}`);
+        }
+      }
+    }
+
+    const updates: Partial<InsertTransaction> = {
+      status: 'approved',
+      approvedBy,
+      approvedAt: new Date(),
+      reviewNotes: reviewNotes || transaction.reviewNotes,
+    };
+
+    // Atomic update: only update if status is still 'pending' to prevent race conditions
+    const [updated] = await db.update(transactions)
+      .set(updates)
+      .where(and(eq(transactions.id, id), eq(transactions.status, 'pending')))
+      .returning();
+    
+    if (!updated) {
+      throw new Error('Transaction is no longer pending or has already been processed');
+    }
+    
+    // Update account balance based on transaction type
+    const account = await this.getAccount(transaction.accountId);
+    if (account) {
+      const balanceField = transaction.fundType === 'real' ? 'realBalance' : 
+                         transaction.fundType === 'demo' ? 'demoBalance' : 'bonusBalance';
+      const currentBalance = parseFloat(account[balanceField] as string);
+      const amount = parseFloat(transaction.amount);
+      
+      // Deposits add to balance, withdrawals subtract from balance
+      const newBalance = transaction.type === 'deposit' 
+        ? currentBalance + amount 
+        : currentBalance - amount;
+      
+      const totalBalanceChange = transaction.type === 'deposit' ? amount : -amount;
+      
+      await this.updateAccount(account.id, {
+        [balanceField]: newBalance.toString(),
+        balance: (parseFloat(account.balance) + totalBalanceChange).toString(),
+      });
+    }
+
+    return updated;
+  }
+
+  async declineTransaction(id: string, declinedBy: string, declineReason: string, reviewNotes?: string): Promise<Transaction> {
+    const transaction = await this.getTransaction(id);
+    if (!transaction) {
+      throw new Error('Transaction not found');
+    }
+    if (transaction.status !== 'pending') {
+      throw new Error('Only pending transactions can be declined');
+    }
+
+    const updates: Partial<InsertTransaction> = {
+      status: 'declined',
+      declinedBy,
+      declinedAt: new Date(),
+      declineReason,
+      reviewNotes: reviewNotes || transaction.reviewNotes,
+    };
+
+    // Atomic update: only update if status is still 'pending' to prevent race conditions
+    const [updated] = await db.update(transactions)
+      .set(updates)
+      .where(and(eq(transactions.id, id), eq(transactions.status, 'pending')))
+      .returning();
+    
+    if (!updated) {
+      throw new Error('Transaction is no longer pending or has already been processed');
+    }
+    
+    return updated;
   }
 
   // Internal Transfers
