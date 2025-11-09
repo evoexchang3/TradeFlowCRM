@@ -1342,6 +1342,7 @@ export default function ClientDetail() {
         <TabsList>
           <TabsTrigger value="positions" data-testid="tab-positions">{t('client.detail.tab.positions')}</TabsTrigger>
           <TabsTrigger value="trade-history" data-testid="tab-trade-history">{t('client.detail.tab.trade.history')}</TabsTrigger>
+          <TabsTrigger value="transactions" data-testid="tab-transactions">{t('transactions.title')}</TabsTrigger>
           <TabsTrigger value="subaccounts" data-testid="tab-subaccounts">{t('client.detail.tab.subaccounts')}</TabsTrigger>
           <TabsTrigger value="transfers" data-testid="tab-transfers">{t('client.detail.tab.transfers')}</TabsTrigger>
           <TabsTrigger value="kyc" data-testid="tab-kyc">{t('client.detail.tab.kyc')}</TabsTrigger>
@@ -1825,6 +1826,10 @@ export default function ClientDetail() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="transactions" className="mt-6">
+          <TransactionsSection clientId={Number(clientId)} />
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-6">
@@ -2638,5 +2643,155 @@ export default function ClientDetail() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Transactions Section Component
+function TransactionsSection({ clientId }: { clientId: number }) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { data: transactions, isLoading, isError, error } = useQuery<any[]>({
+    queryKey: ['/api/transactions', { clientId, status: statusFilter !== "all" ? statusFilter : undefined }],
+    enabled: Boolean(clientId) && !isNaN(clientId) && clientId > 0,
+  });
+
+  // Don't render section if clientId is invalid
+  if (!clientId || isNaN(clientId) || clientId <= 0) {
+    return null;
+  }
+
+  // Show error toast and fallback UI if query fails
+  if (isError) {
+    toast({
+      variant: "destructive",
+      title: t('common.error'),
+      description: t('transactions.empty.description'),
+    });
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex flex-col items-center justify-center text-center">
+            <p className="text-lg font-medium text-destructive">{t('common.error')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('transactions.empty.description')}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle className="text-lg">{t('transactions.title')}</CardTitle>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]" data-testid="select-transaction-status-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t('transactions.filter.all')}</SelectItem>
+              <SelectItem value="pending">{t('transactions.filter.pending')}</SelectItem>
+              <SelectItem value="approved">{t('transactions.filter.approved')}</SelectItem>
+              <SelectItem value="declined">{t('transactions.filter.declined')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : transactions && transactions.length > 0 ? (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('transactions.table.type')}</TableHead>
+                  <TableHead>{t('transactions.table.amount')}</TableHead>
+                  <TableHead>{t('transactions.table.fund.type')}</TableHead>
+                  <TableHead>{t('transactions.table.method')}</TableHead>
+                  <TableHead>{t('transactions.table.status')}</TableHead>
+                  <TableHead>{t('transactions.table.date')}</TableHead>
+                  <TableHead>{t('transactions.table.initiated.by')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((transaction: any) => (
+                  <TableRow key={transaction.id} data-testid={`row-client-transaction-${transaction.id}`}>
+                    <TableCell>
+                      <Badge variant={transaction.type === 'deposit' ? 'default' : 'outline'}>
+                        {t(`transactions.type.${transaction.type}`)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono font-semibold">
+                      ${transaction.amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={
+                          transaction.fundType === 'real'
+                            ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border-green-500/20'
+                            : transaction.fundType === 'demo'
+                            ? 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20'
+                            : 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border-yellow-500/20'
+                        }
+                      >
+                        {t(`transactions.fund.type.${transaction.fundType}`)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {transaction.method ? t(`transactions.method.${transaction.method}`) : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          transaction.status === 'approved' || transaction.status === 'completed'
+                            ? 'default'
+                            : transaction.status === 'declined' || transaction.status === 'rejected'
+                            ? 'destructive'
+                            : transaction.status === 'cancelled'
+                            ? 'secondary'
+                            : 'outline'
+                        }
+                        className={
+                          transaction.status === 'pending'
+                            ? 'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400 border-yellow-500/20'
+                            : transaction.status === 'approved' || transaction.status === 'completed'
+                            ? 'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400 border-green-500/20'
+                            : transaction.status === 'declined' || transaction.status === 'rejected'
+                            ? 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 border-red-500/20'
+                            : 'bg-gray-500/10 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400 border-gray-500/20'
+                        }
+                      >
+                        {t(`transactions.status.${transaction.status}`)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(transaction.createdAt).toLocaleDateString()} {new Date(transaction.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {transaction.initiator?.name || '-'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-lg font-medium text-muted-foreground">
+              {t('transactions.empty.title')}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t('transactions.empty.description')}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
