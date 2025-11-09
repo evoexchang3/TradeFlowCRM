@@ -127,8 +127,8 @@ export default function Targets() {
       agentId: data.agentId,
       teamId: data.teamId,
       department: data.department as any,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+      startDate: startDate,
+      endDate: endDate,
       createdBy: me.user.id,
     };
     
