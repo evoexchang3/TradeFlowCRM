@@ -51,8 +51,12 @@ export default function Targets() {
     defaultValues: {
       targetType: 'ftd',
       period: 'monthly',
-      fundType: 'real',
-      method: 'bank_transfer',
+      targetValue: '',
+      agentId: undefined,
+      teamId: undefined,
+      department: undefined,
+      startDate: '',
+      endDate: '',
     },
   });
 
@@ -100,8 +104,9 @@ export default function Targets() {
       agentId: data.agentId && data.agentId !== 'none' ? data.agentId : undefined,
       teamId: data.teamId && data.teamId !== 'none' ? data.teamId : undefined,
       department: data.department && data.department !== 'none' ? data.department : undefined,
+      targetValue: parseFloat(data.targetValue),
     };
-    createMutation.mutate(submitData as any);
+    createMutation.mutate(submitData);
   };
 
   const filteredTargets = targets.filter((target) => {
@@ -339,7 +344,10 @@ export default function Targets() {
                   render={({ field}) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.agent')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} 
+                        value={field.value || 'none'}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-agent">
                             <SelectValue placeholder={t('targets.form.select.agent')} />
@@ -365,7 +373,10 @@ export default function Targets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.team')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} 
+                        value={field.value || 'none'}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-team">
                             <SelectValue placeholder={t('targets.form.select.team')} />
@@ -391,7 +402,10 @@ export default function Targets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.department')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || 'none'}>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} 
+                        value={field.value || 'none'}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-department">
                             <SelectValue placeholder={t('targets.form.select.department')} />
