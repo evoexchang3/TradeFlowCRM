@@ -60,7 +60,7 @@ export default function Targets() {
     defaultValues: {
       targetType: 'ftd',
       period: 'monthly',
-      targetValue: 0,
+      targetValue: '' as any,
       agentId: undefined,
       teamId: undefined,
       department: undefined,
@@ -358,12 +358,14 @@ export default function Targets() {
                       <FormLabel>{t('targets.form.target.value')}</FormLabel>
                       <FormControl>
                         <Input 
-                          {...field} 
                           type="number" 
                           step="1" 
                           min="1"
+                          value={field.value || ''}
+                          onChange={(e) => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value))}
+                          onBlur={field.onBlur}
+                          name={field.name}
                           data-testid="input-target-value" 
-                          onChange={(e) => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value))}
                         />
                       </FormControl>
                       <FormMessage />

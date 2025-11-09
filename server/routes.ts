@@ -10363,10 +10363,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { insertPerformanceTargetSchema } = await import("@shared/schema");
-      const validated = insertPerformanceTargetSchema.parse({
+      const dataToValidate = {
         ...req.body,
         createdBy: req.user.id,
-      });
+      };
+      console.log('Target creation data received:', JSON.stringify(dataToValidate, null, 2));
+      
+      const validated = insertPerformanceTargetSchema.parse(dataToValidate);
 
       const target = await storage.createPerformanceTarget(validated);
 
@@ -10381,8 +10384,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(target);
     } catch (error: any) {
       if (error.name === 'ZodError') {
+        console.error('Target validation error:', JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ error: 'Validation error', details: error.errors });
       }
+      console.error('Target creation error:', error);
       res.status(500).json({ error: error.message });
     }
   });
