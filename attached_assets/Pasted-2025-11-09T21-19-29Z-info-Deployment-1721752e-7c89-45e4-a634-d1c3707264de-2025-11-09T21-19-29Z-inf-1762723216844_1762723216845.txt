@@ -1,0 +1,60 @@
+2025-11-09T21:19:29Z info: Deployment: 1721752e-7c89-45e4-a634-d1c3707264de
+2025-11-09T21:19:29Z info: Connecting to builder
+2025-11-09T21:19:29Z info: Builder connected
+2025-11-09T21:19:30Z info: Installing packages
+2025-11-09T21:19:31Z info: Starting Build
+
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+
+
+vite v5.4.20 building for production...
+
+transforming...
+
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+
+[plugin:vite:esbuild] [plugin vite:esbuild] client/src/translations/en.ts: Duplicate key "transactions.title" in object literal
+2917|  
+2918|    // Transactions (Deposits/Withdrawals)
+2919|    'transactions.title': 'Transactions',
+   |    ^
+2920|    'transactions.subtitle': 'Manage deposit and withdrawal requests',
+2921|    'transactions.new.button': 'New Transaction',
+
+
+✓ 2054 modules transformed.
+
+x Build failed in 9.94s
+
+error during build:
+[vite:esbuild] Transform failed with 1 error:
+/home/runner/workspace/client/src/translations/es.ts:2696:22: ERROR: Expected ";" but found ":"
+file: /home/runner/workspace/client/src/translations/es.ts:2696:22
+
+Expected ";" but found ":"
+2694|  };
+2695|    // Transactions (Deposits/Withdrawals)
+2696|    'transactions.title': 'Transactions',
+   |                        ^
+2697|    'transactions.subtitle': 'Manage deposit and withdrawal requests',
+2698|    'transactions.new.button': 'New Transaction',
+
+    at failureErrorWithLog (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:1472:15)
+    at /home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:755:50
+    at responseCallbacks.<computed> (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:622:9)
+    at handleIncomingPacket (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:677:12)
+    at Socket.readFromStdout (/home/runner/workspace/node_modules/vite/node_modules/esbuild/lib/main.js:600:7)
+    at Socket.emit (node:events:524:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)
+
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.6.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+npm notice To update run: npm install -g npm@11.6.2
+npm notice
+
