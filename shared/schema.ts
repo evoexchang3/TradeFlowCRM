@@ -1265,6 +1265,9 @@ export const insertPerformanceTargetSchema = createInsertSchema(performanceTarge
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
 });
 
 export type PerformanceTarget = typeof performanceTargets.$inferSelect;
