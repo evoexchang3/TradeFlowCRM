@@ -46,6 +46,10 @@ export default function Targets() {
     queryKey: ['/api/teams'],
   });
 
+  const { data: me } = useQuery<{ user?: { id: string } }>({
+    queryKey: ['/api/me'],
+  });
+
   const form = useForm<CreateTargetFormData>({
     resolver: zodResolver(createTargetSchema),
     defaultValues: {
@@ -99,12 +103,22 @@ export default function Targets() {
   });
 
   const onSubmit = (data: CreateTargetFormData) => {
+    if (!me?.user?.id) {
+      toast({
+        variant: 'destructive',
+        title: t('common.error'),
+        description: 'User not authenticated',
+      });
+      return;
+    }
+
     const submitData = {
       ...data,
       agentId: data.agentId && data.agentId !== 'none' ? data.agentId : undefined,
       teamId: data.teamId && data.teamId !== 'none' ? data.teamId : undefined,
       department: data.department && data.department !== 'none' ? data.department : undefined,
       targetValue: parseFloat(data.targetValue),
+      createdBy: me.user.id,
     };
     createMutation.mutate(submitData);
   };
@@ -355,11 +369,15 @@ export default function Targets() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">{t('targets.form.none')}</SelectItem>
-                          {users.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.firstName} {user.lastName}
-                            </SelectItem>
-                          ))}
+                          {users.length > 0 ? (
+                            users.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-agents" disabled>No agents available</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                       <FormMessage />
