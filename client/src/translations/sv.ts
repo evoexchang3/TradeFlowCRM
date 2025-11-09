@@ -981,6 +981,9 @@ export default {
   'client.detail.followup.date.removed.description': 'Nästa uppföljningsdatum har tagits bort.',
   'client.detail.followup.date.clear.failed': 'Misslyckades med att rensa uppföljningsdatum.',
 
+  // KYC
+  'client.detail.kyc.subtitle': 'Collect and manage client verification information',
+  'client.kyc.access.denied': 'You do not have access to view KYC data',
   // KYC Permissions
   'client.kyc.permission.view.denied': "You don't have permission to view KYC data",
   'client.kyc.permission.fill.denied': "You don't have permission to fill KYC forms",

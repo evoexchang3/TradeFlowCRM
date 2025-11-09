@@ -1762,7 +1762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: 'deposit',
         fundType: validated.fundType,
         amount: amount.toString(),
-        status: 'completed',
+        status: 'approved',
         notes: `FTD: ${validated.notes || 'First Time Deposit'}`,
       });
 

@@ -1012,6 +1012,9 @@ export default {
   'client.detail.followup.date.removed.description': '다음 후속 조치 날짜가 제거되었습니다.',
   'client.detail.followup.date.clear.failed': '후속 날짜를 지우지 못했습니다.',
 
+  // KYC
+  'client.detail.kyc.subtitle': 'Collect and manage client verification information',
+  'client.kyc.access.denied': 'You do not have access to view KYC data',
   // KYC Permissions
   'client.kyc.permission.view.denied': "You don't have permission to view KYC data",
   'client.kyc.permission.fill.denied': "You don't have permission to fill KYC forms",

@@ -28,7 +28,8 @@ export const orderSideEnum = pgEnum('order_side', ['buy', 'sell']);
 export const orderStatusEnum = pgEnum('order_status', ['pending', 'filled', 'partially_filled', 'cancelled', 'rejected']);
 export const positionStatusEnum = pgEnum('position_status', ['open', 'closed']);
 export const transactionTypeEnum = pgEnum('transaction_type', ['deposit', 'withdrawal', 'profit', 'loss']);
-export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'completed', 'rejected']);
+export const transactionStatusEnum = pgEnum('transaction_status', ['pending', 'approved', 'declined', 'cancelled']);
+export const transactionMethodEnum = pgEnum('transaction_method', ['bank_transfer', 'credit_card', 'debit_card', 'crypto', 'e_wallet', 'wire_transfer', 'other']);
 export const transferStatusEnum = pgEnum('transfer_status', ['pending', 'completed', 'rejected']);
 export const auditActionEnum = pgEnum('audit_action', [
   'login', 'logout', 'client_create', 'client_edit', 'client_delete', 'client_ftd_marked', 'client_transferred',
@@ -173,9 +174,17 @@ export const transactions = pgTable("transactions", {
   fundType: fundTypeEnum("fund_type").notNull().default('real'), // Track which type of funds: real, demo, or bonus
   amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
   status: transactionStatusEnum("status").notNull().default('pending'),
-  method: text("method"), // e.g., bank_transfer, credit_card
-  notes: text("notes"),
-  processedBy: varchar("processed_by").references(() => users.id),
+  method: transactionMethodEnum("method"), // Payment method
+  referenceId: text("reference_id"), // External payment reference ID
+  notes: text("notes"), // Client notes or description
+  reviewNotes: text("review_notes"), // Approver/decliner internal notes
+  initiatedBy: varchar("initiated_by").references(() => users.id), // Staff who created the transaction request
+  approvedBy: varchar("approved_by").references(() => users.id), // Staff who approved
+  approvedAt: timestamp("approved_at"), // When it was approved
+  declinedBy: varchar("declined_by").references(() => users.id), // Staff who declined
+  declinedAt: timestamp("declined_at"), // When it was declined
+  declineReason: text("decline_reason"), // Reason for declining
+  processedBy: varchar("processed_by").references(() => users.id), // Legacy field for backward compatibility
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 });
@@ -838,6 +847,9 @@ export const subaccountsRelations = relations(subaccounts, ({ one, many }) => ({
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
   account: one(accounts, { fields: [transactions.accountId], references: [accounts.id] }),
+  initiator: one(users, { fields: [transactions.initiatedBy], references: [users.id] }),
+  approver: one(users, { fields: [transactions.approvedBy], references: [users.id] }),
+  decliner: one(users, { fields: [transactions.declinedBy], references: [users.id] }),
   processor: one(users, { fields: [transactions.processedBy], references: [users.id] }),
 }));
 

@@ -641,18 +641,18 @@ export default function ClientDetail() {
 
   // KYC Permission Helpers
   const canFillKyc = () => {
-    // Sales agents can fill KYC forms
-    return hasAnyPermission(['kyc.fill', 'kyc.manage', '*']);
+    // Everyone can fill KYC forms
+    return true;
   };
 
   const canEditKyc = () => {
-    // Retention agents and managers can edit KYC responses
-    return hasAnyPermission(['kyc.edit', 'kyc.manage', '*']);
+    // Everyone can edit KYC responses
+    return true;
   };
 
   const canViewKyc = () => {
-    // Everyone with KYC permissions can view
-    return hasAnyPermission(['kyc.view', 'kyc.fill', 'kyc.edit', 'kyc.manage', '*']);
+    // Everyone can view KYC data
+    return true;
   };
 
   const canManageKyc = () => {

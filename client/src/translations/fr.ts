@@ -965,6 +965,9 @@ export default {
   'client.detail.followup.date.removed.description': 'La date du prochain suivi a été supprimée.',
   'client.detail.followup.date.clear.failed': 'La date de suivi n\'a pas été fixée.',
 
+  // KYC
+  'client.detail.kyc.subtitle': 'Collect and manage client verification information',
+  'client.kyc.access.denied': 'You do not have access to view KYC data',
   // KYC Permissions
   'client.kyc.permission.view.denied': "You don't have permission to view KYC data",
   'client.kyc.permission.fill.denied': "You don't have permission to fill KYC forms",
