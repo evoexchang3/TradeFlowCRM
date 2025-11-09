@@ -2691,10 +2691,8 @@ export default {
   'smartAssignment.round.robin': 'Round Robin',
   'smartAssignment.table.round.robin': 'Round Robin',
   'smartAssignment.global': 'Global',
-};
-  // Transactions (Deposits/Withdrawals)
-  'transactions.title': 'Transactions',
-  'transactions.subtitle': 'Manage deposit and withdrawal requests',
+
+  // Transactions (Deposits/Withdrawals) - Additional keys
   'transactions.new.button': 'New Transaction',
   'transactions.pending.count': '{{count}} pending',
   'transactions.filter.all': 'All Transactions',
@@ -2714,16 +2712,6 @@ export default {
   'transactions.table.date': 'Date',
   'transactions.table.initiated.by': 'Initiated By',
   'transactions.table.actions': 'Actions',
-  'transactions.type.deposit': 'Deposit',
-  'transactions.type.withdrawal': 'Withdrawal',
-  'transactions.type.profit': 'Profit',
-  'transactions.type.loss': 'Loss',
-  'transactions.status.pending': 'Pending',
-  'transactions.status.approved': 'Approved',
-  'transactions.status.declined': 'Declined',
-  'transactions.status.cancelled': 'Cancelled',
-  'transactions.status.completed': 'Completed',
-  'transactions.status.rejected': 'Rejected',
   'transactions.method.bank_transfer': 'Bank Transfer',
   'transactions.method.credit_card': 'Credit Card',
   'transactions.method.debit_card': 'Debit Card',
@@ -2791,3 +2779,5 @@ export default {
   'transactions.details.notes': 'Notes',
   'transactions.view.details': 'View Details',
   'transactions.action.approve': 'Approve',
+  'transactions.action.decline': 'Decline',
+};
