@@ -21,11 +21,15 @@ import { format } from 'date-fns';
 
 const createTargetSchema = insertPerformanceTargetSchema.extend({
   targetValue: z.string().min(1, 'Target value is required'),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
+  targetMonth: z.string().min(1, 'Target month is required'),
+}).omit({
+  startDate: true,
+  endDate: true,
 });
 
-type CreateTargetFormData = z.infer<typeof createTargetSchema>;
+type CreateTargetFormData = z.infer<typeof createTargetSchema> & {
+  targetMonth: string;
+};
 
 export default function Targets() {
   const { t } = useLanguage();
@@ -59,8 +63,7 @@ export default function Targets() {
       agentId: undefined,
       teamId: undefined,
       department: undefined,
-      startDate: '',
-      endDate: '',
+      targetMonth: '',
     },
   });
 
@@ -112,13 +115,19 @@ export default function Targets() {
       return;
     }
 
+    const [year, month] = data.targetMonth.split('-');
+    const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+
     const submitData = {
-      ...data,
-      agentId: data.agentId && data.agentId !== 'none' ? data.agentId : undefined,
-      teamId: data.teamId && data.teamId !== 'none' ? data.teamId : undefined,
-      department: data.department && data.department !== 'none' ? data.department : undefined,
-      startDate: new Date(data.startDate).toISOString(),
-      endDate: new Date(data.endDate).toISOString(),
+      targetType: data.targetType,
+      period: data.period,
+      targetValue: data.targetValue,
+      agentId: data.agentId,
+      teamId: data.teamId,
+      department: data.department as any,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
       createdBy: me.user.id,
     };
     
@@ -300,7 +309,7 @@ export default function Targets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.type')}</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} onOpenChange={(open) => !open && field.onBlur()}>
                         <FormControl>
                           <SelectTrigger data-testid="select-target-type">
                             <SelectValue />
@@ -324,7 +333,7 @@ export default function Targets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.period')}</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} onOpenChange={(open) => !open && field.onBlur()}>
                         <FormControl>
                           <SelectTrigger data-testid="select-period">
                             <SelectValue />
@@ -361,8 +370,23 @@ export default function Targets() {
                     <FormItem>
                       <FormLabel>{t('targets.form.agent')}</FormLabel>
                       <Select 
-                        onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} 
+                        onValueChange={(value) => {
+                          const agentId = value === 'none' ? undefined : value;
+                          field.onChange(agentId);
+                          
+                          if (agentId) {
+                            const agent = users.find(u => u.id === agentId);
+                            if (agent?.teamId) {
+                              form.setValue('teamId', agent.teamId);
+                              const team = teams.find(t => t.id === agent.teamId);
+                              if (team?.department) {
+                                form.setValue('department', team.department as any);
+                              }
+                            }
+                          }
+                        }} 
                         value={field.value || 'none'}
+                        onOpenChange={(open) => !open && field.onBlur()}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-agent">
@@ -396,6 +420,7 @@ export default function Targets() {
                       <Select 
                         onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} 
                         value={field.value || 'none'}
+                        onOpenChange={(open) => !open && field.onBlur()}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-team">
@@ -425,6 +450,7 @@ export default function Targets() {
                       <Select 
                         onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)} 
                         value={field.value || 'none'}
+                        onOpenChange={(open) => !open && field.onBlur()}
                       >
                         <FormControl>
                           <SelectTrigger data-testid="select-department">
@@ -445,26 +471,12 @@ export default function Targets() {
 
                 <FormField
                   control={form.control}
-                  name="startDate"
+                  name="targetMonth"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('targets.form.start.date')}</FormLabel>
+                    <FormItem className="col-span-2">
+                      <FormLabel>{t('targets.form.target.month')}</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" data-testid="input-start-date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('targets.form.end.date')}</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="date" data-testid="input-end-date" />
+                        <Input {...field} type="month" data-testid="input-target-month" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
