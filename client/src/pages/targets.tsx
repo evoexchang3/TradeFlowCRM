@@ -103,6 +103,9 @@ export default function Targets() {
   });
 
   const onSubmit = (data: CreateTargetFormData) => {
+    console.log('Form submitted with data:', data);
+    console.log('Form errors:', form.formState.errors);
+    
     if (!me?.user?.id) {
       toast({
         variant: 'destructive',
@@ -117,9 +120,10 @@ export default function Targets() {
       agentId: data.agentId && data.agentId !== 'none' ? data.agentId : undefined,
       teamId: data.teamId && data.teamId !== 'none' ? data.teamId : undefined,
       department: data.department && data.department !== 'none' ? data.department : undefined,
-      targetValue: parseFloat(data.targetValue),
       createdBy: me.user.id,
     };
+    
+    console.log('Submitting data:', submitData);
     createMutation.mutate(submitData);
   };
 
