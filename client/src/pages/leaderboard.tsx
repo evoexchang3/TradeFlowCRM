@@ -45,7 +45,7 @@ export default function Leaderboard() {
     if (index === 0) return <Trophy className="h-6 w-6 text-yellow-500" />;
     if (index === 1) return <Medal className="h-6 w-6 text-gray-400" />;
     if (index === 2) return <Medal className="h-6 w-6 text-orange-600" />;
-    return <span className="text-lg font-bold text-muted-foreground">#{index + 1}</span>;
+    return null;
   };
 
   const getRankBadgeColor = (index: number) => {
@@ -53,6 +53,13 @@ export default function Leaderboard() {
     if (index === 1) return "bg-gray-400 text-white";
     if (index === 2) return "bg-orange-600 text-white";
     return "bg-muted text-muted-foreground";
+  };
+
+  const formatTargetValue = (value: number, department: string | null) => {
+    if (department === 'retention') {
+      return `$${value.toLocaleString()}`;
+    }
+    return value.toString();
   };
 
   if (isLoading) {
@@ -155,6 +162,81 @@ export default function Leaderboard() {
         </div>
       )}
 
+      {/* Team Totals Section */}
+      {leaderboardData?.leaderboard && leaderboardData.leaderboard.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('leaderboard.team.totals') || 'Team Totals'}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(() => {
+              // Calculate team totals
+              const teamTotals = new Map<string, any>();
+              
+              leaderboardData.leaderboard.forEach((agent: any) => {
+                if (agent.team) {
+                  if (!teamTotals.has(agent.team)) {
+                    const team = teams.find((t: any) => t.id === agent.team);
+                    teamTotals.set(agent.team, {
+                      teamId: agent.team,
+                      teamName: team?.name || 'Unknown Team',
+                      department: agent.department,
+                      totalPoints: 0,
+                      totalAchievements: 0,
+                      currentValue: 0,
+                      targetValue: 0,
+                      agentCount: 0,
+                    });
+                  }
+                  const totals = teamTotals.get(agent.team)!;
+                  totals.totalPoints += agent.totalPoints;
+                  totals.totalAchievements += agent.achievementCount;
+                  totals.currentValue += agent.currentValue;
+                  totals.targetValue += agent.targetValue;
+                  totals.agentCount += 1;
+                }
+              });
+              
+              const sortedTeams = Array.from(teamTotals.values()).sort((a, b) => b.totalPoints - a.totalPoints);
+              
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sortedTeams.map((team, index) => (
+                    <Card key={team.teamId} className={index === 0 ? "border-primary" : ""}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{team.teamName}</CardTitle>
+                          {index === 0 && <Trophy className="h-5 w-5 text-yellow-500" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{team.agentCount} agents</p>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Total Points</span>
+                          <span className="font-semibold">{team.totalPoints}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Target Progress</span>
+                          <span className="font-semibold">
+                            {formatTargetValue(team.currentValue, team.department)}/{formatTargetValue(team.targetValue, team.department)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Completion</span>
+                          <span className={`font-semibold ${team.targetValue > 0 && (team.currentValue / team.targetValue) >= 0.8 ? 'text-green-600' : ''}`}>
+                            {team.targetValue > 0 ? ((team.currentValue / team.targetValue) * 100).toFixed(1) : '0'}%
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Full Leaderboard Table */}
       <Card>
         <CardHeader>
@@ -203,13 +285,14 @@ export default function Leaderboard() {
                             <TableBody>
                               {agents.map((agent: any, index: number) => {
                                 const globalIndex = leaderboardData.leaderboard.findIndex((a: any) => a.agentId === agent.agentId);
+                                const rankIcon = getRankIcon(globalIndex);
                                 return (
                                   <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex}`}>
                                     <TableCell>
                                       <div className="flex items-center justify-center">
-                                        {globalIndex < 3 ? (
+                                        {rankIcon ? (
                                           <Badge className={getRankBadgeColor(globalIndex)}>
-                                            {getRankIcon(globalIndex)}
+                                            {rankIcon}
                                           </Badge>
                                         ) : (
                                           <span className="text-sm font-medium">#{globalIndex + 1}</span>
@@ -229,7 +312,7 @@ export default function Leaderboard() {
                                     <TableCell className="text-center">
                                       <div className="flex items-center justify-center gap-1">
                                         <Target className="h-4 w-4 text-primary" />
-                                        <span>{agent.currentValue}/{agent.targetValue}</span>
+                                        <span>{formatTargetValue(agent.currentValue, agent.department)}/{formatTargetValue(agent.targetValue, agent.department)}</span>
                                       </div>
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -267,13 +350,14 @@ export default function Leaderboard() {
                           <TableBody>
                             {unassigned.map((agent: any, index: number) => {
                               const globalIndex = leaderboardData.leaderboard.findIndex((a: any) => a.agentId === agent.agentId);
+                              const rankIcon = getRankIcon(globalIndex);
                               return (
                                 <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex}`}>
                                   <TableCell>
                                     <div className="flex items-center justify-center">
-                                      {globalIndex < 3 ? (
+                                      {rankIcon ? (
                                         <Badge className={getRankBadgeColor(globalIndex)}>
-                                          {getRankIcon(globalIndex)}
+                                          {rankIcon}
                                         </Badge>
                                       ) : (
                                         <span className="text-sm font-medium">#{globalIndex + 1}</span>
@@ -293,7 +377,7 @@ export default function Leaderboard() {
                                   <TableCell className="text-center">
                                     <div className="flex items-center justify-center gap-1">
                                       <Target className="h-4 w-4 text-primary" />
-                                      <span>{agent.currentValue}/{agent.targetValue}</span>
+                                      <span>{formatTargetValue(agent.currentValue, agent.department)}/{formatTargetValue(agent.targetValue, agent.department)}</span>
                                     </div>
                                   </TableCell>
                                   <TableCell className="text-center">

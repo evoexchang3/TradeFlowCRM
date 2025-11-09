@@ -9702,16 +9702,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .map(r => r.id)
       );
       
+      // Get teams info for department
+      const teamsData = await storage.getTeams();
+      const teamsMap = new Map(teamsData.map(t => [t.id, t]));
+      
       const leaderboardData = allUsers
         .filter(u => u.isActive && u.roleId && agentRoleIds.has(u.roleId) && (!teamId || u.teamId === teamId))
         .map(user => {
           const userAchievements = achievementsData.find(a => a.agentId === user.id);
           const userTargets = targetsData.find(t => t.agentId === user.id);
+          const team = user.teamId ? teamsMap.get(user.teamId) : null;
 
           return {
             agentId: user.id,
             agentName: user.name,
             team: user.teamId,
+            department: team?.department || null,
             totalPoints: Number(userAchievements?.totalPoints || 0),
             achievementCount: Number(userAchievements?.achievementCount || 0),
             currentValue: Number(userTargets?.currentValue || 0),
