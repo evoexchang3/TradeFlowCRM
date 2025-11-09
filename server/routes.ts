@@ -966,6 +966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ ...client, account, positions, transactions });
     } catch (error: any) {
+      console.error('Error fetching client detail:', error);
       res.status(500).json({ error: error.message });
     }
   });
