@@ -10357,7 +10357,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: User access required' });
       }
 
-      if (!hasPermission(req.user, 'targets.create')) {
+      const hasPermission = await storage.hasPermission(req.user.id, 'targets.create');
+      if (!hasPermission) {
         return res.status(403).json({ error: 'Unauthorized: Missing targets.create permission' });
       }
 
@@ -10392,7 +10393,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: User access required' });
       }
 
-      if (!hasPermission(req.user, 'targets.edit')) {
+      const hasPermission = await storage.hasPermission(req.user.id, 'targets.edit');
+      if (!hasPermission) {
         return res.status(403).json({ error: 'Unauthorized: Missing targets.edit permission' });
       }
 
@@ -10432,7 +10434,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: User access required' });
       }
 
-      if (!hasPermission(req.user, 'targets.delete')) {
+      const hasPermission = await storage.hasPermission(req.user.id, 'targets.delete');
+      if (!hasPermission) {
         return res.status(403).json({ error: 'Unauthorized: Missing targets.delete permission' });
       }
 
