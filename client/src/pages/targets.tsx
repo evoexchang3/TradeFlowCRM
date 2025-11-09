@@ -25,6 +25,7 @@ const createTargetSchema = insertPerformanceTargetSchema.extend({
 }).omit({
   startDate: true,
   endDate: true,
+  createdBy: true,
 });
 
 type CreateTargetFormData = z.infer<typeof createTargetSchema> & {
