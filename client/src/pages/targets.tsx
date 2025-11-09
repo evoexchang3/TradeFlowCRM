@@ -97,9 +97,9 @@ export default function Targets() {
   const onSubmit = (data: CreateTargetFormData) => {
     const submitData = {
       ...data,
-      agentId: data.agentId || undefined,
-      teamId: data.teamId || undefined,
-      department: data.department || undefined,
+      agentId: data.agentId && data.agentId !== 'none' ? data.agentId : undefined,
+      teamId: data.teamId && data.teamId !== 'none' ? data.teamId : undefined,
+      department: data.department && data.department !== 'none' ? data.department : undefined,
     };
     createMutation.mutate(submitData as any);
   };
@@ -339,14 +339,14 @@ export default function Targets() {
                   render={({ field}) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.agent')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value || 'none'}>
                         <FormControl>
                           <SelectTrigger data-testid="select-agent">
                             <SelectValue placeholder={t('targets.form.select.agent')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">{t('targets.form.none')}</SelectItem>
+                          <SelectItem value="none">{t('targets.form.none')}</SelectItem>
                           {users.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.firstName} {user.lastName}
@@ -365,14 +365,14 @@ export default function Targets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.team')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value || 'none'}>
                         <FormControl>
                           <SelectTrigger data-testid="select-team">
                             <SelectValue placeholder={t('targets.form.select.team')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">{t('targets.form.none')}</SelectItem>
+                          <SelectItem value="none">{t('targets.form.none')}</SelectItem>
                           {teams.map((team) => (
                             <SelectItem key={team.id} value={team.id}>
                               {team.name}
@@ -391,14 +391,14 @@ export default function Targets() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('targets.form.department')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ''}>
+                      <Select onValueChange={field.onChange} value={field.value || 'none'}>
                         <FormControl>
                           <SelectTrigger data-testid="select-department">
                             <SelectValue placeholder={t('targets.form.select.department')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">{t('targets.form.none')}</SelectItem>
+                          <SelectItem value="none">{t('targets.form.none')}</SelectItem>
                           <SelectItem value="sales">{t('targets.department.sales')}</SelectItem>
                           <SelectItem value="retention">{t('targets.department.retention')}</SelectItem>
                           <SelectItem value="support">{t('targets.department.support')}</SelectItem>
