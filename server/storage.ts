@@ -210,6 +210,9 @@ export interface IStorage {
   getAchievement(id: string): Promise<Achievement | undefined>;
   createAchievement(achievement: InsertAchievement): Promise<Achievement>;
   deleteAchievement(id: string): Promise<void>;
+  
+  // Permissions
+  hasPermission(userId: string, permission: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1104,6 +1107,27 @@ export class DatabaseStorage implements IStorage {
   
   async deleteAchievement(id: string): Promise<void> {
     await db.delete(achievements).where(eq(achievements.id, id));
+  }
+  
+  // Permissions
+  async hasPermission(userId: string, permission: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user || !user.roleId) {
+      return false;
+    }
+    
+    const [role] = await db.select().from(roles).where(eq(roles.id, user.roleId));
+    if (!role) {
+      return false;
+    }
+    
+    // Admin role has all permissions
+    if (role.name?.toLowerCase() === 'administrator') {
+      return true;
+    }
+    
+    const permissions = (role.permissions as string[]) || [];
+    return permissions.includes(permission);
   }
 }
 
