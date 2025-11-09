@@ -9695,7 +9695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allUsers = await storage.getUsers();
       
       const leaderboardData = allUsers
-        .filter(u => u.type === 'user' && (!teamId || u.teamId === teamId))
+        .filter(u => u.isActive && (!teamId || u.teamId === teamId))
         .map(user => {
           const userAchievements = achievementsData.find(a => a.agentId === user.id);
           const userTargets = targetsData.find(t => t.agentId === user.id);
