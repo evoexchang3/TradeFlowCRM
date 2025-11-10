@@ -5320,11 +5320,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      // Generate SSO URL using the local /sso/consume endpoint
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-        : 'http://localhost:5000';
-      const ssoUrl = `${baseUrl}/sso/consume?token=${ssoToken}`;
+      // Generate SSO URL pointing to the external trading platform
+      const tradingPlatformUrl = process.env.TRADING_PLATFORM_URL || 'https://evo-trading-demo.com';
+      const ssoUrl = `${tradingPlatformUrl}/sso/consume?token=${ssoToken}`;
 
       res.json({ 
         ssoToken, 
