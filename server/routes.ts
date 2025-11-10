@@ -4473,9 +4473,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: { reason, impersonatedBy: admin.email },
       });
 
+      // Generate SSO URL for consumption
+      const ssoUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/sso/consume?token=${impersonationToken}`;
+
       res.json({ 
         success: true, 
         token: impersonationToken,
+        ssoUrl,
         expiresIn: 120 // seconds
       });
     } catch (error: any) {
