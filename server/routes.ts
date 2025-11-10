@@ -5310,7 +5310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log impersonation in audit log
       await storage.createAuditLog({
         userId: requestingUser.id,
-        action: 'client_impersonate',
+        action: 'impersonation',
         targetType: 'client',
         targetId: client.id,
         details: { 
