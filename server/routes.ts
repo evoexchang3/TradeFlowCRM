@@ -10,7 +10,7 @@ import { db } from "./db";
 import { storage } from "./storage";
 import { twelveDataService } from "./services/twelve-data";
 import { tradingEngine } from "./services/trading-engine";
-import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenMiddleware, type AuthRequest } from "./middleware/auth";
+import { authMiddleware, optionalAuth, generateToken, verifyToken, serviceTokenMiddleware, crmServiceTokenMiddleware, type AuthRequest } from "./middleware/auth";
 import * as performanceMetrics from "./services/performance-metrics";
 import { expandEventsList } from "./services/calendar-expansion";
 import { previewImport, executeImport } from "./import";
@@ -4543,6 +4543,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid impersonation token' });
       }
       console.error('SSO consume error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== CRM SSO ENDPOINTS =====
+  // POST /api/crm/sso-token - Generate SSO token for client impersonation (protected by CRM_SERVICE_TOKEN)
+  app.post("/api/crm/sso-token", crmServiceTokenMiddleware, async (req, res) => {
+    try {
+      const { clientId, adminId, reason } = req.body;
+
+      if (!clientId || !adminId) {
+        return res.status(400).json({ error: 'Missing required fields: clientId, adminId' });
+      }
+
+      // Verify client exists
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Generate secure random token (32 bytes = 64 hex characters)
+      const tokenValue = crypto.randomBytes(32).toString('hex');
+
+      // Token expires in 10 minutes
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+      // Get IP address from request
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip;
+
+      // Create SSO token in database
+      await storage.createSsoToken({
+        token: tokenValue,
+        clientId,
+        adminId,
+        reason: reason || 'CRM impersonation',
+        expiresAt,
+        ipAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
+      // Log the SSO token generation
+      await storage.createAuditLog({
+        action: 'sso_token_generated',
+        targetType: 'client',
+        targetId: clientId,
+        details: { adminId, reason, expiresAt },
+        ipAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
+      // Generate login URL
+      const loginUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/api/crm/sso-login?token=${tokenValue}`;
+
+      res.json({
+        success: true,
+        ssoToken: tokenValue,
+        expiresAt: expiresAt.toISOString(),
+        expiresIn: 600, // seconds
+        loginUrl,
+      });
+    } catch (error: any) {
+      console.error('CRM SSO token generation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/crm/sso-login?token=xxx - Consume SSO token and redirect with JWT
+  app.get("/api/crm/sso-login", async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ error: 'Missing or invalid token' });
+      }
+
+      // Get SSO token from database
+      const ssoToken = await storage.getSsoTokenByToken(token);
+
+      if (!ssoToken) {
+        return res.status(404).json({ error: 'SSO token not found' });
+      }
+
+      // Check if token is already used
+      if (ssoToken.used) {
+        return res.status(401).json({ error: 'SSO token already used' });
+      }
+
+      // Check if token is expired
+      if (new Date() > new Date(ssoToken.expiresAt)) {
+        return res.status(401).json({ error: 'SSO token expired' });
+      }
+
+      // Get client
+      const client = await storage.getClient(ssoToken.clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Get IP address from request
+      const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.ip;
+
+      // Mark token as used
+      await storage.markSsoTokenAsUsed(token, ipAddress, req.headers['user-agent']);
+
+      // Generate regular JWT token for client session
+      const sessionToken = generateToken({
+        id: client.id,
+        email: client.email,
+        type: 'client',
+      });
+
+      // Log the impersonation
+      await storage.createAuditLog({
+        action: 'sso_impersonate_consumed',
+        targetType: 'client',
+        targetId: client.id,
+        details: { 
+          adminId: ssoToken.adminId,
+          reason: ssoToken.reason,
+          consumedAt: new Date().toISOString(),
+        },
+        ipAddress,
+        userAgent: req.headers['user-agent'],
+      });
+
+      // Redirect to dashboard with JWT token in URL (client app will extract and store it)
+      const redirectUrl = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/dashboard?token=${sessionToken}`;
+      res.redirect(redirectUrl);
+    } catch (error: any) {
+      console.error('CRM SSO login error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/crm/clients/:clientId - Get client info (protected by CRM_SERVICE_TOKEN)
+  app.get("/api/crm/clients/:clientId", crmServiceTokenMiddleware, async (req, res) => {
+    try {
+      const { clientId } = req.params;
+
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Return client info without sensitive data
+      const clientInfo = {
+        id: client.id,
+        email: client.email,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        phone: client.phone,
+        country: client.country,
+        status: client.status,
+        kycStatus: client.kycStatus,
+        leadSource: client.leadSource,
+        assignedAgent: client.assignedAgent,
+        createdAt: client.createdAt,
+        updatedAt: client.updatedAt,
+      };
+
+      res.json({ success: true, client: clientInfo });
+    } catch (error: any) {
+      console.error('CRM get client error:', error);
       res.status(500).json({ error: error.message });
     }
   });

@@ -12,7 +12,7 @@ interface PerformanceTargetFilters {
   endDate?: Date;
 }
 import {
-  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents, webhookEndpoints, webhookDeliveries, performanceTargets, achievements,
+  users, clients, accounts, subaccounts, transactions, internalTransfers, orders, positions, positionTags, positionTagAssignments, roles, teams, auditLogs, ssoTokens, callLogs, clientComments, marketData, candles, apiKeys, tradingRobots, robotClientAssignments, systemSettings, smtpSettings, emailTemplates, documents, webhookEndpoints, webhookDeliveries, performanceTargets, achievements,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Account, type InsertAccount,
@@ -25,6 +25,7 @@ import {
   type Role, type InsertRole,
   type Team, type InsertTeam,
   type AuditLog, type InsertAuditLog,
+  type SsoToken, type InsertSsoToken,
   type CallLog, type InsertCallLog,
   type ClientComment, type InsertClientComment,
   type ApiKey, type InsertApiKey,
@@ -123,6 +124,11 @@ export interface IStorage {
   // Audit Logs
   getAuditLogs(filters?: any): Promise<AuditLog[]>;
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  
+  // SSO Tokens
+  createSsoToken(token: InsertSsoToken): Promise<SsoToken>;
+  getSsoTokenByToken(token: string): Promise<SsoToken | undefined>;
+  markSsoTokenAsUsed(token: string, ipAddress?: string, userAgent?: string): Promise<SsoToken>;
   
   // Call Logs
   createCallLog(log: InsertCallLog): Promise<CallLog>;
@@ -702,6 +708,30 @@ export class DatabaseStorage implements IStorage {
   async createAuditLog(insertLog: InsertAuditLog): Promise<AuditLog> {
     const [log] = await db.insert(auditLogs).values(insertLog).returning();
     return log;
+  }
+
+  // SSO Tokens
+  async createSsoToken(insertToken: InsertSsoToken): Promise<SsoToken> {
+    const [token] = await db.insert(ssoTokens).values(insertToken).returning();
+    return token;
+  }
+
+  async getSsoTokenByToken(tokenValue: string): Promise<SsoToken | undefined> {
+    const [token] = await db.select().from(ssoTokens).where(eq(ssoTokens.token, tokenValue));
+    return token;
+  }
+
+  async markSsoTokenAsUsed(tokenValue: string, ipAddress?: string, userAgent?: string): Promise<SsoToken> {
+    const [token] = await db.update(ssoTokens)
+      .set({ 
+        used: true, 
+        usedAt: new Date(),
+        ...(ipAddress && { ipAddress }),
+        ...(userAgent && { userAgent })
+      })
+      .where(eq(ssoTokens.token, tokenValue))
+      .returning();
+    return token;
   }
 
   // Call Logs

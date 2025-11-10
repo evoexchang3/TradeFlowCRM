@@ -81,3 +81,26 @@ export function serviceTokenMiddleware(req: Request, res: Response, next: NextFu
 
   next();
 }
+
+// CRM Service authentication for SSO integration
+export function crmServiceTokenMiddleware(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  const crmServiceToken = process.env.CRM_SERVICE_TOKEN;
+  
+  if (!crmServiceToken) {
+    console.error('[CRM Service] CRM_SERVICE_TOKEN not configured');
+    return res.status(500).json({ error: 'CRM Service not configured' });
+  }
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No CRM service token provided' });
+  }
+
+  const token = authHeader.substring(7);
+
+  if (token !== crmServiceToken) {
+    return res.status(401).json({ error: 'Invalid CRM service token' });
+  }
+
+  next();
+}

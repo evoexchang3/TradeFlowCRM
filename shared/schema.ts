@@ -1112,6 +1112,9 @@ export type Candle = typeof candles.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
+export type SsoToken = typeof ssoTokens.$inferSelect;
+export type InsertSsoToken = z.infer<typeof insertSsoTokenSchema>;
+
 export type CallLog = typeof callLogs.$inferSelect;
 export type InsertCallLog = z.infer<typeof insertCallLogSchema>;
 
