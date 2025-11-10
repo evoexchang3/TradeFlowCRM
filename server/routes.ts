@@ -5279,8 +5279,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Forbidden' });
       }
 
-      const user = await storage.getUserById(requestingUser.id);
-      const role = user?.roleId ? await storage.getRoleById(user.roleId) : null;
+      const user = await storage.getUser(requestingUser.id);
+      const role = user?.roleId ? await storage.getRole(user.roleId) : null;
       const isAdmin = role?.name.toLowerCase() === 'administrator';
 
       if (!isAdmin) {
@@ -5288,7 +5288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get client
-      const client = await storage.getClientById(clientId);
+      const client = await storage.getClient(clientId);
       if (!client) {
         return res.status(404).json({ error: 'Client not found' });
       }
