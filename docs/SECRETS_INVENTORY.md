@@ -12,6 +12,7 @@ Complete map of all secrets, webhooks, and their storage locations.
 | `JWT_SECRET` | Stateful | 32 bytes (64 hex chars) | `.env` | `bootstrap`, `rotate-secrets` |
 | `WEBHOOK_SECRET` | Stateless | 32 bytes (64 hex chars) | `.env` | `bootstrap`, `rotate-secrets` |
 | `SERVICE_API_TOKEN` | Stateless | 32 bytes (64 hex chars) | `.env` | `bootstrap`, `rotate-secrets` |
+| `CRM_SERVICE_TOKEN` | Stateless | 32 bytes (64 hex chars) | `.env` | `bootstrap`, `rotate-secrets` |
 | `SSO_IMPERSONATION_SECRET` | Stateless | 32 bytes (64 hex chars) | `.env` | `bootstrap`, `rotate-secrets` |
 
 ### Database Secrets
@@ -167,6 +168,7 @@ If webhook management is added, would use:
 |--------|--------|------------------|
 | `WEBHOOK_SECRET` | Incoming webhooks fail until external system updated | Update Trading Platform config |
 | `SERVICE_API_TOKEN` | API calls from Trading Platform fail | Update Trading Platform config |
+| `CRM_SERVICE_TOKEN` | External CRM SSO calls fail | Update external CRM config |
 | `SSO_IMPERSONATION_SECRET` | SSO tokens invalid | Users re-login via SSO |
 
 ### Stateful Secrets (User Impact)

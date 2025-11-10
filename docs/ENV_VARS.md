@@ -36,6 +36,7 @@ Complete list of environment variables used by the CRM system.
 | `JWT_SECRET` | JWT token signing | Yes | Generated | Yes (stateful) | App |
 | `WEBHOOK_SECRET` | HMAC webhook verification | Yes | Generated | Yes (stateless) | App, External |
 | `SERVICE_API_TOKEN` | Trading Platform API auth | Yes | Generated | Yes (stateless) | App, External |
+| `CRM_SERVICE_TOKEN` | External CRM SSO integration auth | Yes | Generated | Yes (stateless) | App, External |
 | `SSO_IMPERSONATION_SECRET` | SSO token signing | Yes | Generated | Yes (stateless) | App |
 
 ## External Services
@@ -60,6 +61,7 @@ Complete list of environment variables used by the CRM system.
 ### Stateless Secrets (Safe to Rotate Anytime)
 - `WEBHOOK_SECRET` - External systems must be updated with new value
 - `SERVICE_API_TOKEN` - Trading Platform must be updated
+- `CRM_SERVICE_TOKEN` - External CRM systems must be updated
 - `SSO_IMPERSONATION_SECRET` - SSO tokens will be invalidated
 
 ### Stateful Secrets (Invalidates Sessions/Tokens)
