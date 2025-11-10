@@ -5320,9 +5320,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
 
-      // Return SSO URL (Trading Platform will validate this token)
-      const tradingPlatformUrl = process.env.TRADING_PLATFORM_URL || 'https://trading-platform.example.com';
-      const ssoUrl = `${tradingPlatformUrl}/sso/impersonate?token=${ssoToken}`;
+      // Generate SSO URL using the local /sso/consume endpoint
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+      const ssoUrl = `${baseUrl}/sso/consume?token=${ssoToken}`;
 
       res.json({ 
         ssoToken, 
