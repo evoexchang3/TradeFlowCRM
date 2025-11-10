@@ -399,6 +399,21 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// SSO Tokens (for CRM impersonation)
+export const ssoTokens = pgTable("sso_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: text("token").notNull().unique(),
+  clientId: varchar("client_id").notNull().references(() => clients.id),
+  adminId: text("admin_id").notNull(), // CRM admin ID (not FK to users)
+  reason: text("reason"),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: boolean("used").notNull().default(false),
+  usedAt: timestamp("used_at"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Call Logs
 export const callLogs = pgTable("call_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -885,6 +900,10 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
 }));
 
+export const ssoTokensRelations = relations(ssoTokens, ({ one }) => ({
+  client: one(clients, { fields: [ssoTokens.clientId], references: [clients.id] }),
+}));
+
 export const callLogsRelations = relations(callLogs, ({ one }) => ({
   client: one(clients, { fields: [callLogs.clientId], references: [clients.id] }),
   agent: one(users, { fields: [callLogs.agentId], references: [users.id] }),
@@ -1010,6 +1029,13 @@ export const modifyPositionSchema = z.object({
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertSsoTokenSchema = createInsertSchema(ssoTokens).omit({
+  id: true,
+  createdAt: true,
+  used: true,
+  usedAt: true,
 });
 
 export const insertCallLogSchema = createInsertSchema(callLogs).omit({
