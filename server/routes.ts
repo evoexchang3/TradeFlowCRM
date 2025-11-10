@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import express from "express";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import multer from "multer";
 import { z } from "zod";
 import crypto from "crypto";
