@@ -45,7 +45,8 @@ import {
   customStatuses,
   insertTradingRobotSchema,
   kycQuestions,
-  kycResponses
+  kycResponses,
+  notifications
 } from "@shared/schema";
 import { eq, or, and, isNull, isNotNull, sql, desc, gte, lte, inArray } from "drizzle-orm";
 
