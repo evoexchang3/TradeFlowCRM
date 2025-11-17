@@ -41,18 +41,11 @@ export default function AgentDashboard() {
   const { data: metrics, isLoading } = useQuery<PerformanceMetrics>({
     queryKey: ['/api/dashboard/my-performance', startDate?.toISOString(), endDate?.toISOString()],
     queryFn: async () => {
-      const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      
       const params = new URLSearchParams();
       if (startDate) params.append('startDate', startDate.toISOString());
       if (endDate) params.append('endDate', endDate.toISOString());
       const query = params.toString() ? `?${params.toString()}` : '';
       const response = await fetch(`/api/dashboard/my-performance${query}`, {
-        headers,
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch performance metrics');
