@@ -54,6 +54,34 @@ function generateAccountNumber(): string {
   return 'ACC' + Date.now() + Math.floor(Math.random() * 1000);
 }
 
+// Helper to parse permissions from role
+function parsePermissions(role: any): string[] {
+  if (!role || !role.permissions) return [];
+  
+  // If permissions is already an array, return it
+  if (Array.isArray(role.permissions)) {
+    return role.permissions;
+  }
+  
+  // If permissions is a string (JSON), parse it
+  if (typeof role.permissions === 'string') {
+    try {
+      const parsed = JSON.parse(role.permissions);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  
+  return [];
+}
+
+// Helper to check if user has permission (includes wildcard support)
+function hasPermission(role: any, permission: string): boolean {
+  const permissions = parsePermissions(role);
+  return permissions.includes('*') || permissions.includes(permission);
+}
+
 // Helper functions for role checks
 function isAgentRole(roleName: string | undefined): boolean {
   if (!roleName) return false;
@@ -5606,13 +5634,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Adjust account balance (Admin only)
+  // Adjust account balance (Requires 'balance.adjust' permission)
   app.post("/api/accounts/:id/adjust-balance", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const accountId = req.params.id;
       const { amount, fundType, notes } = req.body;
 
-      // Admin-only access check
+      // Permission check: User access required
       if (req.user?.type !== 'user') {
         await storage.createAuditLog({
           action: 'balance_adjust',
@@ -5624,25 +5652,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             attemptedByType: req.user?.type
           },
         });
-        return res.status(403).json({ error: 'Unauthorized: Admin access required' });
+        return res.status(403).json({ error: 'Unauthorized: User access required' });
       }
 
       const user = await storage.getUser(req.user.id);
       const role = user?.roleId ? await storage.getRole(user.roleId) : null;
       
-      if (role?.name?.toLowerCase() !== 'administrator') {
+      // Check for 'balance.adjust' permission (includes wildcard support)
+      if (!hasPermission(role, 'balance.adjust')) {
         await storage.createAuditLog({
           userId: req.user.id,
           action: 'balance_adjust',
           targetType: 'account',
           targetId: accountId,
           details: { 
-            error: 'Unauthorized: Administrator role required',
+            error: 'Unauthorized: balance.adjust permission required',
             attemptedByRole: role?.name,
             attemptedByUser: user?.name
           },
         });
-        return res.status(403).json({ error: 'Unauthorized: Administrator role required' });
+        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
       }
 
       // Validate input

@@ -36,7 +36,7 @@ async function seed() {
     
     const departmentRoles = [
       { name: 'Administrator', description: 'Full system access with all permissions', permissions: ['*'] },
-      { name: 'CRM Manager', description: 'Manages CRM operations across all departments', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.delete', 'client.mark_ftd', 'trade.view', 'trade.create', 'trade.edit', 'trade.delete', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage', 'user.view', 'role.view'] },
+      { name: 'CRM Manager', description: 'Manages CRM operations across all departments', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.delete', 'client.mark_ftd', 'trade.view', 'trade.create', 'trade.edit', 'trade.delete', 'balance.adjust', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage', 'user.view', 'role.view'] },
       { name: 'Sales Manager', description: 'Manages sales department and teams', permissions: ['client.view', 'client.view_all', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage'] },
       { name: 'Retention Manager', description: 'Manages retention department and teams', permissions: ['client.view', 'client.view_all', 'client.edit', 'trade.view', 'trade.create', 'team.view', 'team.manage', 'kyc.view', 'kyc.edit', 'kyc.manage'] },
       { name: 'Sales Agent', description: 'Handles sales leads and new client acquisition', permissions: ['client.view', 'client.create', 'client.edit', 'client.mark_ftd', 'trade.view', 'trade.create', 'kyc.view', 'kyc.fill'] },
