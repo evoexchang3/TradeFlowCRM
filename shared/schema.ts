@@ -96,7 +96,7 @@ export const teams = pgTable("teams", {
   name: text("name").notNull().unique(),
   parentTeamId: varchar("parent_team_id").references((): any => teams.id),
   level: text("level").notNull().default('team'), // region, country, team
-  leaderId: varchar("leader_id").references(() => users.id),
+  leaderId: varchar("leader_id").references(() => users.id, { onDelete: 'set null' }),
   commissionSplit: decimal("commission_split", { precision: 5, scale: 2 }),
   languageCode: varchar("language_code", { length: 10 }), // ISO language code: en, de, fr, es, etc.
   department: departmentEnum("department"), // sales, retention, support
@@ -120,7 +120,7 @@ export const clients = pgTable("clients", {
   status: clientStatusEnum("status").notNull().default('new'),
   statusId: varchar("status_id").references(() => customStatuses.id), // Custom status reference
   nextFollowUpDate: timestamp("next_follow_up_date"),
-  assignedAgentId: varchar("assigned_agent_id").references(() => users.id),
+  assignedAgentId: varchar("assigned_agent_id").references(() => users.id, { onDelete: 'set null' }),
   teamId: varchar("team_id").references(() => teams.id),
   hasFTD: boolean("has_ftd").notNull().default(false),
   ftdDate: timestamp("ftd_date"),
@@ -179,13 +179,13 @@ export const transactions = pgTable("transactions", {
   referenceId: text("reference_id"), // External payment reference ID
   notes: text("notes"), // Client notes or description
   reviewNotes: text("review_notes"), // Approver/decliner internal notes
-  initiatedBy: varchar("initiated_by").references(() => users.id), // Staff who created the transaction request
-  approvedBy: varchar("approved_by").references(() => users.id), // Staff who approved
+  initiatedBy: varchar("initiated_by").references(() => users.id, { onDelete: 'set null' }), // Staff who created the transaction request
+  approvedBy: varchar("approved_by").references(() => users.id, { onDelete: 'set null' }), // Staff who approved
   approvedAt: timestamp("approved_at"), // When it was approved
-  declinedBy: varchar("declined_by").references(() => users.id), // Staff who declined
+  declinedBy: varchar("declined_by").references(() => users.id, { onDelete: 'set null' }), // Staff who declined
   declinedAt: timestamp("declined_at"), // When it was declined
   declineReason: text("decline_reason"), // Reason for declining
-  processedBy: varchar("processed_by").references(() => users.id), // Legacy field for backward compatibility
+  processedBy: varchar("processed_by").references(() => users.id, { onDelete: 'set null' }), // Legacy field for backward compatibility
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 });
@@ -198,7 +198,7 @@ export const internalTransfers = pgTable("internal_transfers", {
   amount: decimal("amount", { precision: 18, scale: 2 }).notNull(),
   status: transferStatusEnum("status").notNull().default('pending'),
   notes: text("notes"),
-  userId: varchar("user_id").notNull().references(() => users.id), // Staff who initiated transfer
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }), // Staff who initiated transfer
   createdAt: timestamp("created_at").notNull().defaultNow(),
   completedAt: timestamp("completed_at"),
 });
@@ -357,7 +357,7 @@ export const tradingRobots = pgTable("trading_robots", {
   tradeWindowStart: text("trade_window_start").notNull().default('01:00'), // Historical window start (HH:MM)
   tradeWindowEnd: text("trade_window_end").notNull().default('04:00'), // Historical window end (HH:MM)
   minAccountBalance: decimal("min_account_balance", { precision: 18, scale: 2 }).default('100'), // Min balance required to run
-  createdBy: varchar("created_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   lastRunAt: timestamp("last_run_at"),
@@ -381,7 +381,7 @@ export const systemSettings = pgTable("system_settings", {
   key: text("key").notNull().unique(), // e.g., 'timezone', 'business_hours', 'maintenance_mode'
   value: text("value").notNull(), // e.g., 'America/New_York', '09:00-17:00', 'false'
   description: text("description"), // Human-readable description of the setting
-  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -389,7 +389,7 @@ export const systemSettings = pgTable("system_settings", {
 // Audit Logs
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
   action: auditActionEnum("action").notNull(),
   targetType: text("target_type"), // 'client', 'trade', 'role', etc.
   targetId: varchar("target_id"),
@@ -418,7 +418,7 @@ export const ssoTokens = pgTable("sso_tokens", {
 export const callLogs = pgTable("call_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id),
-  agentId: varchar("agent_id").notNull().references(() => users.id),
+  agentId: varchar("agent_id").references(() => users.id, { onDelete: 'set null' }),
   duration: integer("duration"), // in seconds
   status: text("status"), // completed, failed, missed
   recordingUrl: text("recording_url"),
@@ -430,7 +430,7 @@ export const callLogs = pgTable("call_logs", {
 export const clientComments = pgTable("client_comments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   clientId: varchar("client_id").notNull().references(() => clients.id),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
   comment: text("comment").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -442,7 +442,7 @@ export const calendarEvents = pgTable("calendar_events", {
   title: text("title").notNull(),
   description: text("description"),
   eventType: text("event_type").notNull(), // meeting, call, follow_up, demo, kyc_review
-  userId: varchar("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
   clientId: varchar("client_id").references(() => clients.id),
   startTime: timestamp("start_time").notNull(),
   endTime: timestamp("end_time").notNull(),
@@ -470,7 +470,7 @@ export const calendarEventTemplates = pgTable("calendar_event_templates", {
   defaultLocation: text("default_location"), // Default meeting location/URL
   isRecurring: boolean("is_recurring").default(false),
   recurrencePattern: jsonb("recurrence_pattern"), // Default recurrence settings
-  createdBy: varchar("created_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -484,7 +484,7 @@ export const emailTemplates = pgTable("email_templates", {
   category: text("category"), // welcome, verification, follow_up, promotion, kyc, deposit
   variables: jsonb("variables").default('[]'), // Available {{variables}} like {{client_name}}, {{balance}}
   isActive: boolean("is_active").notNull().default(true),
-  createdBy: varchar("created_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -494,9 +494,9 @@ export const chatRooms = pgTable("chat_rooms", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   type: text("type").notNull(), // 'internal', 'client_support', 'direct'
   clientId: varchar("client_id").references(() => clients.id),
-  participantId: varchar("participant_id").references(() => users.id), // For direct messages  
+  participantId: varchar("participant_id").references(() => users.id, { onDelete: 'cascade' }), // For direct messages  
   name: text("name"),
-  createdBy: varchar("created_by").references(() => users.id), // User who created the room
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }), // User who created the room
   lastMessageAt: timestamp("last_message_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -516,7 +516,7 @@ export const chatMessages = pgTable("chat_messages", {
 // Notifications
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: text("type").notNull(), // 'client_assigned', 'ftd_achieved', 'comment_added', 'status_changed', 'balance_adjusted', 'system'
   title: text("title").notNull(),
   message: text("message").notNull(),
@@ -530,7 +530,7 @@ export const notifications = pgTable("notifications", {
 // Saved Search Filters
 export const savedFilters = pgTable("saved_filters", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   filters: jsonb("filters").notNull(), // { searchQuery, teamId, agentId, statusId, kycStatus, hasFTD, language, dateFrom, dateTo }
   isDefault: boolean("is_default").notNull().default(false), // Auto-apply on page load
@@ -571,7 +571,7 @@ export const apiKeys = pgTable("api_keys", {
   keyPrefix: text("key_prefix").notNull(), // First 8 chars for display (e.g., "sk_live_")
   scope: apiKeyScopeEnum("scope").notNull().default('read'),
   ipWhitelist: text("ip_whitelist").array(), // Array of allowed IPs
-  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
   status: apiKeyStatusEnum("status").notNull().default('active'),
   expiresAt: timestamp("expires_at"), // Optional expiration
   lastUsedAt: timestamp("last_used_at"),
@@ -682,7 +682,7 @@ export const smartAssignmentSettings = pgTable("smart_assignment_settings", {
 // Agent Performance Metrics
 export const agentPerformanceMetrics = pgTable("agent_performance_metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  agentId: varchar("agent_id").notNull().references(() => users.id),
+  agentId: varchar("agent_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   teamId: varchar("team_id").references(() => teams.id),
   department: departmentEnum("department"), // sales or retention
   periodStart: timestamp("period_start").notNull(),
@@ -724,14 +724,14 @@ export const performanceTargets = pgTable("performance_targets", {
   targetType: text("target_type").notNull(), // ftd, std, calls, revenue
   period: targetPeriodEnum("period").notNull(),
   targetValue: decimal("target_value", { precision: 18, scale: 2 }).notNull(),
-  agentId: varchar("agent_id").references(() => users.id), // Individual target
+  agentId: varchar("agent_id").references(() => users.id, { onDelete: 'cascade' }), // Individual target
   teamId: varchar("team_id").references(() => teams.id), // Team target
   department: departmentEnum("department"), // Department-wide target
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
   currentValue: decimal("current_value", { precision: 18, scale: 2 }).notNull().default('0'),
   isActive: boolean("is_active").notNull().default(true),
-  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -739,7 +739,7 @@ export const performanceTargets = pgTable("performance_targets", {
 // Achievements
 export const achievements = pgTable("achievements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  agentId: varchar("agent_id").notNull().references(() => users.id),
+  agentId: varchar("agent_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   achievementType: achievementTypeEnum("achievement_type").notNull(),
   name: text("name").notNull(), // "First FTD", "5 Day Streak", "Top Performer"
   description: text("description"),
@@ -761,9 +761,9 @@ export const documents = pgTable("documents", {
   category: documentCategoryEnum("category").notNull(),
   description: text("description"),
   filePath: text("file_path").notNull(), // Storage path
-  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  uploadedBy: varchar("uploaded_by").references(() => users.id, { onDelete: 'set null' }),
   isVerified: boolean("is_verified").notNull().default(false),
-  verifiedBy: varchar("verified_by").references(() => users.id),
+  verifiedBy: varchar("verified_by").references(() => users.id, { onDelete: 'set null' }),
   verifiedAt: timestamp("verified_at"),
   expiryDate: timestamp("expiry_date"), // For documents with expiration
   metadata: jsonb("metadata").default('{}'), // Additional document info
@@ -785,7 +785,7 @@ export const webhookEndpoints = pgTable("webhook_endpoints", {
   retryDelay: integer("retry_delay").notNull().default(60), // seconds
   lastDeliveryAt: timestamp("last_delivery_at"),
   lastDeliveryStatus: text("last_delivery_status"), // 'success' or 'failed'
-  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
