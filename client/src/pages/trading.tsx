@@ -789,7 +789,7 @@ export default function Trading() {
               {currentQuote && (() => {
                 const now = Date.now();
                 const quoteAge = now - currentQuote.timestamp;
-                const isLive = quoteAge < 5000;
+                const isLive = quoteAge < 30000; // 30 seconds threshold for live market data
                 
                 return (
                   <div className="p-3 bg-accent/50 rounded-lg">
@@ -819,7 +819,7 @@ export default function Trading() {
                 disabled={
                   placeOrderMutation.isPending || 
                   !selectedAccount || 
-                  (currentQuote && (Date.now() - currentQuote.timestamp > 5000))
+                  (currentQuote && (Date.now() - currentQuote.timestamp > 30000)) // 30 seconds threshold
                 }
                 data-testid="button-place-order"
               >

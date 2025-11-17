@@ -1672,7 +1672,6 @@ export default {
   'leaderboard.all.rankings': 'All Rankings',
   'leaderboard.badges': 'Badges',
   'leaderboard.top.3': 'Top 3 Performers',
-  'leaderboard.all.rankings': 'All Rankings',
   'leaderboard.no.data': 'No leaderboard data available',
   'leaderboard.period.info': 'Showing data for {{period}} period from {{startDate}} to {{endDate}}',
 
