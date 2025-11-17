@@ -1761,6 +1761,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== SEND EMAIL TO CLIENT =====
+  app.post("/api/clients/:id/send-email", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff only' });
+      }
+
+      const clientId = req.params.id;
+      const { smtpSettingId, subject, body, templateId, cc, bcc } = req.body;
+
+      // Validate required fields
+      if (!subject || !subject.trim()) {
+        return res.status(400).json({ error: 'Subject is required' });
+      }
+      if (!body || !body.trim()) {
+        return res.status(400).json({ error: 'Email body is required' });
+      }
+
+      // Get client details
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ error: 'Client not found' });
+      }
+      if (!client.email) {
+        return res.status(400).json({ error: 'Client has no email address' });
+      }
+
+      // Prepare email content
+      let emailBody = body;
+      let emailSubject = subject;
+
+      // If using a template, fetch and apply it
+      if (templateId) {
+        const templates = await storage.getEmailTemplates();
+        const template = templates.find(t => t.id === templateId);
+        
+        if (template) {
+          // Replace template variables with client data
+          const variables: Record<string, string> = {
+            client_name: `${client.firstName} ${client.lastName}`,
+            client_first_name: client.firstName,
+            client_last_name: client.lastName,
+            client_email: client.email,
+            client_phone: client.phone || '',
+            client_country: client.country || '',
+          };
+
+          emailSubject = template.subject;
+          emailBody = template.body;
+
+          for (const [key, value] of Object.entries(variables)) {
+            const placeholder = `{{${key}}}`;
+            emailSubject = emailSubject.replace(new RegExp(placeholder, 'g'), value);
+            emailBody = emailBody.replace(new RegExp(placeholder, 'g'), value);
+          }
+        }
+      }
+
+      // Send email using email service
+      const success = await emailService.sendEmail({
+        to: client.email,
+        subject: emailSubject,
+        html: emailBody,
+        cc,
+        bcc,
+      });
+
+      if (!success) {
+        return res.status(500).json({ 
+          error: 'Failed to send email. Please check SMTP configuration.' 
+        });
+      }
+
+      // Create audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'email_sent',
+        targetType: 'client',
+        targetId: clientId,
+        details: {
+          to: client.email,
+          subject: emailSubject,
+          templateId: templateId || null,
+          smtpSettingId: smtpSettingId || null,
+          hasCc: !!cc,
+          hasBcc: !!bcc,
+        },
+      });
+
+      // Add a comment about the email
+      await storage.createClientComment({
+        clientId,
+        userId: req.user.id,
+        comment: `Email sent: ${emailSubject}`,
+      });
+
+      res.json({ success: true, message: 'Email sent successfully' });
+    } catch (error: any) {
+      console.error('[Send Email Error]:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/clients/:id/mark-ftd", authMiddleware, async (req: AuthRequest, res) => {
     try {
       if (req.user?.type !== 'user') {
