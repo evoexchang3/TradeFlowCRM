@@ -11,12 +11,36 @@ export default function Dashboard() {
   const { isAuthenticated } = useAuth();
   const { t } = useLanguage();
 
+  // Fetch user data to determine their role
+  const { data: userData } = useQuery({
+    queryKey: ['/api/me'],
+    enabled: isAuthenticated,
+  });
+
   // Redirect to landing page if not authenticated
   useEffect(() => {
     if (!isAuthenticated) {
       setLocation('/');
     }
   }, [isAuthenticated, setLocation]);
+
+  // Redirect to role-specific dashboard
+  useEffect(() => {
+    if (userData?.user?.role?.name) {
+      const roleName = userData.user.role.name.toLowerCase();
+      
+      if (roleName === 'administrator') {
+        setLocation('/admin');
+      } else if (roleName === 'crm manager') {
+        setLocation('/crm');
+      } else if (roleName === 'sales team leader' || roleName === 'retention team leader') {
+        setLocation('/team');
+      } else if (roleName === 'sales agent' || roleName === 'retention agent') {
+        setLocation('/agent');
+      }
+      // If no match, stay on generic dashboard
+    }
+  }, [userData, setLocation]);
 
   const { data: stats } = useQuery({
     queryKey: ['/api/dashboard/stats'],

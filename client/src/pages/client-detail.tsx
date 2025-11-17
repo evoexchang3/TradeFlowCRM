@@ -780,16 +780,22 @@ export default function ClientDetail() {
             <Plus className="h-4 w-4 mr-2" />
             {t('client.detail.add.comment')}
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setCalendarEventDialogOpen(true)}
-            data-testid="button-schedule-event" 
-            className="hover-elevate active-elevate-2"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            {t('client.detail.schedule.event')}
-          </Button>
+          {/* Only Admin, CRM Manager, and Team Leaders can schedule events */}
+          {(user?.role?.name?.toLowerCase() === 'administrator' || 
+            user?.role?.name?.toLowerCase() === 'crm manager' ||
+            user?.role?.name?.toLowerCase() === 'sales team leader' ||
+            user?.role?.name?.toLowerCase() === 'retention team leader') && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setCalendarEventDialogOpen(true)}
+              data-testid="button-schedule-event" 
+              className="hover-elevate active-elevate-2"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              {t('client.detail.schedule.event')}
+            </Button>
+          )}
           <Button 
             variant="outline" 
             size="sm" 
@@ -800,16 +806,22 @@ export default function ClientDetail() {
           >
             {impersonateMutation.isPending ? t('client.detail.generating') : t('client.detail.login.as.client')}
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setClientTransferDialogOpen(true)}
-            data-testid="button-transfer-client" 
-            className="hover-elevate active-elevate-2"
-          >
-            <ArrowRightLeft className="h-4 w-4 mr-2" />
-            {t('client.detail.transfer.client')}
-          </Button>
+          {/* Only Admin, CRM Manager, and Team Leaders can transfer clients */}
+          {(user?.role?.name?.toLowerCase() === 'administrator' || 
+            user?.role?.name?.toLowerCase() === 'crm manager' ||
+            user?.role?.name?.toLowerCase() === 'sales team leader' ||
+            user?.role?.name?.toLowerCase() === 'retention team leader') && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setClientTransferDialogOpen(true)}
+              data-testid="button-transfer-client" 
+              className="hover-elevate active-elevate-2"
+            >
+              <ArrowRightLeft className="h-4 w-4 mr-2" />
+              {t('client.detail.transfer.client')}
+            </Button>
+          )}
           <Button size="sm" asChild data-testid="button-edit-client" className="hover-elevate active-elevate-2">
             <Link href={`/clients/${client.id}/edit`}>{t('client.detail.edit.client')}</Link>
           </Button>
@@ -908,50 +920,58 @@ export default function ClientDetail() {
                 {client.isActive ? t('common.active') : t('common.inactive')}
               </Badge>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{t('client.detail.assigned.agent')}</span>
-              <Select
-                value={client.assignedAgentId || 'none'}
-                onValueChange={(value) => assignMutation.mutate({
-                  assignedAgentId: value === 'none' ? null : value
-                })}
-                disabled={assignMutation.isPending}
-              >
-                <SelectTrigger className="w-[160px]" data-testid="select-assigned-agent">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('client.detail.unassigned')}</SelectItem>
-                  {agents.map((agent: any) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      {agent.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{t('client.detail.assigned.team')}</span>
-              <Select
-                value={client.teamId || 'none'}
-                onValueChange={(value) => assignMutation.mutate({
-                  teamId: value === 'none' ? null : value
-                })}
-                disabled={assignMutation.isPending}
-              >
-                <SelectTrigger className="w-[160px]" data-testid="select-assigned-team">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('common.no.team')}</SelectItem>
-                  {teams.map((team: any) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Only Admin, CRM Manager, and Team Leaders can assign clients */}
+            {(user?.role?.name?.toLowerCase() === 'administrator' || 
+              user?.role?.name?.toLowerCase() === 'crm manager' ||
+              user?.role?.name?.toLowerCase() === 'sales team leader' ||
+              user?.role?.name?.toLowerCase() === 'retention team leader') && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{t('client.detail.assigned.agent')}</span>
+                  <Select
+                    value={client.assignedAgentId || 'none'}
+                    onValueChange={(value) => assignMutation.mutate({
+                      assignedAgentId: value === 'none' ? null : value
+                    })}
+                    disabled={assignMutation.isPending}
+                  >
+                    <SelectTrigger className="w-[160px]" data-testid="select-assigned-agent">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('client.detail.unassigned')}</SelectItem>
+                      {agents.map((agent: any) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{t('client.detail.assigned.team')}</span>
+                  <Select
+                    value={client.teamId || 'none'}
+                    onValueChange={(value) => assignMutation.mutate({
+                      teamId: value === 'none' ? null : value
+                    })}
+                    disabled={assignMutation.isPending}
+                  >
+                    <SelectTrigger className="w-[160px]" data-testid="select-assigned-team">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('common.no.team')}</SelectItem>
+                      {teams.map((team: any) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Next Follow-up</span>

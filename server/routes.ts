@@ -747,12 +747,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let allClients = await storage.getClients();
       let salesClients = allClients.filter(c => !c.hasFTD);
       
-      // Apply role-based filtering
+      // Apply role-based filtering with unassigned client visibility rules
       if (user.roleId) {
         if (isAgentRole(roleName)) {
+          // Agents see ONLY their assigned clients
           salesClients = salesClients.filter(c => c.assignedAgentId === user.id);
-        } else if (isTeamLeaderRole(roleName) && user.teamId) {
+        } else if (isTeamLeaderRole(roleName)) {
+          // Team leaders see ONLY clients in their team (not unassigned clients)
           salesClients = salesClients.filter(c => c.teamId === user.teamId);
+        } else if (roleName === 'administrator' || roleName === 'crm manager') {
+          // Admin and CRM Manager see all clients including unassigned
+          // No filtering needed
+        } else {
+          // Unknown roles see only assigned clients
+          salesClients = salesClients.filter(c => c.assignedAgentId === user.id);
         }
       }
 
@@ -844,12 +852,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let allClients = await storage.getClients();
       let retentionClients = allClients.filter(c => c.hasFTD);
       
-      // Apply role-based filtering
+      // Apply role-based filtering with unassigned client visibility rules
       if (user.roleId) {
         if (isAgentRole(roleName)) {
+          // Agents see ONLY their assigned clients
           retentionClients = retentionClients.filter(c => c.assignedAgentId === user.id);
-        } else if (isTeamLeaderRole(roleName) && user.teamId) {
+        } else if (isTeamLeaderRole(roleName)) {
+          // Team leaders see ONLY clients in their team (not unassigned clients)
           retentionClients = retentionClients.filter(c => c.teamId === user.teamId);
+        } else if (roleName === 'administrator' || roleName === 'crm manager') {
+          // Admin and CRM Manager see all clients including unassigned
+          // No filtering needed
+        } else {
+          // Unknown roles see only assigned clients
+          retentionClients = retentionClients.filter(c => c.assignedAgentId === user.id);
         }
       }
 
@@ -1399,7 +1415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== CLIENT ASSIGNMENT =====
   app.patch("/api/clients/:id/assign", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      // Only admin and CRM Manager can assign clients
+      // Only Admin, CRM Manager, and Team Leaders can assign clients
       if (req.user?.type !== 'user') {
         return res.status(403).json({ error: 'Unauthorized: User access required' });
       }
@@ -1410,10 +1426,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const role = await storage.getRole(user.roleId);
-      const permissions = (role?.permissions as string[]) || [];
+      const roleName = role?.name?.toLowerCase();
       
-      if (!permissions.includes('client.edit') && role?.name?.toLowerCase() !== 'administrator') {
-        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      // Only allow Admin, CRM Manager, and Team Leaders
+      const allowedRoles = ['administrator', 'crm manager', 'sales team leader', 'retention team leader'];
+      if (!allowedRoles.includes(roleName || '')) {
+        return res.status(403).json({ error: 'Unauthorized: Only Admin, CRM Manager, and Team Leaders can assign clients' });
       }
 
       const { assignedAgentId, teamId } = req.body;
@@ -1511,7 +1529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== CLIENT TRANSFER =====
   app.post("/api/clients/:id/transfer", authMiddleware, async (req: AuthRequest, res) => {
     try {
-      // Only staff can transfer clients
+      // Only Admin, CRM Manager, and Team Leaders can transfer clients
       if (req.user?.type !== 'user') {
         return res.status(403).json({ error: 'Unauthorized: User access required' });
       }
@@ -1522,11 +1540,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const role = await storage.getRole(user.roleId);
-      const permissions = (role?.permissions as string[]) || [];
+      const roleName = role?.name?.toLowerCase();
       
-      // Require client.edit permission or administrator role
-      if (!permissions.includes('client.edit') && role?.name?.toLowerCase() !== 'administrator') {
-        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions to transfer clients' });
+      // Only allow Admin, CRM Manager, and Team Leaders
+      const allowedRoles = ['administrator', 'crm manager', 'sales team leader', 'retention team leader'];
+      if (!allowedRoles.includes(roleName || '')) {
+        return res.status(403).json({ error: 'Unauthorized: Only Admin, CRM Manager, and Team Leaders can transfer clients' });
       }
 
       const { newAgentId, newTeamId, transferReason } = req.body;
@@ -1613,10 +1632,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: Only staff can add comments' });
       }
 
+      // Validate comment field
+      if (!req.body.comment || req.body.comment.trim() === '') {
+        return res.status(400).json({ error: 'Comment cannot be empty' });
+      }
+
       const comment = await storage.createClientComment({
         clientId: req.params.id,
         userId: req.user.id,
-        comment: req.body.comment,
+        comment: req.body.comment.trim(),
       });
 
       // Create notification for assigned agent if comment is from someone else
@@ -1691,89 +1715,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteClientComment(req.params.id);
       res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // ===== SALES & RETENTION ENDPOINTS =====
-  app.get("/api/clients/sales", authMiddleware, async (req: AuthRequest, res) => {
-    try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
-      }
-
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.roleId) {
-        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
-      }
-
-      const role = await storage.getRole(user.roleId);
-      const permissions = (role?.permissions as string[]) || [];
-      
-      if (!permissions.includes('client.view_sales') && role?.name?.toLowerCase() !== 'administrator') {
-        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
-      }
-
-      const db = storage.db;
-      
-      // Role-based filtering with FTD filter
-      const roleName = role?.name?.toLowerCase();
-      const ftdFilter = or(eq(clients.hasFTD, false), isNull(clients.hasFTD));
-      
-      let salesClients;
-      if (isAgentRole(roleName) && user.teamId) {
-        salesClients = await db.select().from(clients)
-          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
-      } else if (isTeamLeaderRole(roleName) && user.teamId) {
-        salesClients = await db.select().from(clients)
-          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
-      } else {
-        salesClients = await db.select().from(clients)
-          .where(ftdFilter);
-      }
-      res.json(salesClients);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/clients/retention", authMiddleware, async (req: AuthRequest, res) => {
-    try {
-      if (req.user?.type !== 'user') {
-        return res.status(403).json({ error: 'Unauthorized: Staff only' });
-      }
-
-      const user = await storage.getUser(req.user.id);
-      if (!user || !user.roleId) {
-        return res.status(403).json({ error: 'Unauthorized: No role assigned' });
-      }
-
-      const role = await storage.getRole(user.roleId);
-      const permissions = (role?.permissions as string[]) || [];
-      
-      if (!permissions.includes('client.view_retention') && role?.name?.toLowerCase() !== 'administrator') {
-        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
-      }
-
-      const db = storage.db;
-      
-      // Role-based filtering with FTD filter
-      const roleName = role?.name?.toLowerCase();
-      const ftdFilter = eq(clients.hasFTD, true);
-      
-      let retentionClients;
-      if (isAgentRole(roleName) && user.teamId) {
-        retentionClients = await db.select().from(clients)
-          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
-      } else if (isTeamLeaderRole(roleName) && user.teamId) {
-        retentionClients = await db.select().from(clients)
-          .where(and(ftdFilter, eq(clients.teamId, user.teamId)));
-      } else {
-        retentionClients = await db.select().from(clients)
-          .where(ftdFilter);
-      }
-      res.json(retentionClients);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -6050,10 +5991,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const role = await storage.getRole(user.roleId);
-      const permissions = (role?.permissions as string[]) || [];
+      const roleName = role?.name?.toLowerCase();
       
-      if (!permissions.includes('calendar.manage') && role?.name?.toLowerCase() !== 'administrator') {
-        return res.status(403).json({ error: 'Unauthorized: Insufficient permissions' });
+      // Only Admin, CRM Manager, and Team Leaders can create calendar events
+      const allowedRoles = ['administrator', 'crm manager', 'sales team leader', 'retention team leader'];
+      if (!allowedRoles.includes(roleName || '')) {
+        return res.status(403).json({ error: 'Unauthorized: Only Admin, CRM Manager, and Team Leaders can create calendar events' });
       }
 
       // Transform recurrence data if event is recurring
