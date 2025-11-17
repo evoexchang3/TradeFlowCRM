@@ -543,6 +543,8 @@ export default {
   'clients.retention.real.fund.ftds': 'FTD-ji realnih skladov',
   'clients.retention.demo.fund.ftds': 'Demo skladi FTD',
   'clients.retention.total.ftd.value': 'Skupna vrednost FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Iščite po imenu ali e-pošti...',
   'clients.retention.all.teams': 'Vse ekipe',
   'clients.retention.all.agents': 'Vsi zastopniki',

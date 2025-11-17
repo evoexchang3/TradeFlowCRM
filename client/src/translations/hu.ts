@@ -550,6 +550,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Valódi alap FTD-k',
   'clients.retention.demo.fund.ftds': 'Demo Alap FTD-k',
   'clients.retention.total.ftd.value': 'Teljes FTD érték',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Keresés név vagy e-mail cím alapján...',
   'clients.retention.all.teams': 'Minden csapat',
   'clients.retention.all.agents': 'Minden ügynök',

@@ -549,6 +549,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Real Fund FTD',
   'clients.retention.demo.fund.ftds': 'Demo fonda FTD',
   'clients.retention.total.ftd.value': 'FTD kopējā vērtība',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Meklēt pēc vārda vai e-pasta...',
   'clients.retention.all.teams': 'Visas komandas',
   'clients.retention.all.agents': 'Visi aģenti',

@@ -895,6 +895,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New endpoint for retention metrics (STD value, FTDs received, etc.)
+  app.get("/api/retention/metrics", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type === 'client') {
+        return res.status(403).json({ error: 'Unauthorized: Client access not allowed' });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
+
+      // Check user's role and department
+      const role = user.roleId ? await storage.getRole(user.roleId) : null;
+      const roleName = role?.name?.toLowerCase();
+
+      // Department-based access control
+      if (roleName !== 'administrator' && roleName !== 'crm manager') {
+        if (!isRetentionRole(roleName)) {
+          return res.status(403).json({ error: 'Unauthorized: Retention department access required' });
+        }
+      }
+
+      // Import the retention metrics helpers
+      const { aggregateRetentionMetrics } = await import('./services/retention-metrics');
+
+      // Determine which agents' data to aggregate based on role
+      let agentIds: string[] = [];
+
+      if (isAgentRole(roleName)) {
+        // Agents see only their own data
+        agentIds = [user.id];
+      } else if (isTeamLeaderRole(roleName)) {
+        // Team leaders see their entire team's data
+        if (!user.teamId) {
+          return res.status(400).json({ error: 'Team leader must be assigned to a team' });
+        }
+        
+        // Get all users in this team who are retention agents
+        const allUsers = await storage.getUsers();
+        const teamUsers = allUsers.filter(u => u.teamId === user.teamId);
+        agentIds = teamUsers.map(u => u.id);
+      } else if (roleName === 'administrator' || roleName === 'crm manager') {
+        // Admin/CRM Manager see all retention department data
+        const allUsers = await storage.getUsers();
+        const allTeams = await storage.getTeams();
+        const retentionTeams = allTeams.filter(t => t.department === 'retention');
+        const retentionTeamIds = retentionTeams.map(t => t.id);
+        const retentionUsers = allUsers.filter(u => u.teamId && retentionTeamIds.includes(u.teamId));
+        agentIds = retentionUsers.map(u => u.id);
+      }
+
+      // Get optional date filters from query params
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      // Calculate aggregated metrics
+      const metrics = await aggregateRetentionMetrics(agentIds, startDate, endDate);
+
+      res.json(metrics);
+    } catch (error: any) {
+      console.error('Error fetching retention metrics:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/clients/:id/mark-ftd", authMiddleware, async (req: AuthRequest, res) => {
     try {
       if (req.user?.type === 'client') {

@@ -548,6 +548,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Skutečné fondy FTD',
   'clients.retention.demo.fund.ftds': 'Demo fond FTD',
   'clients.retention.total.ftd.value': 'Celková hodnota FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Vyhledávání podle jména nebo e-mailu...',
   'clients.retention.all.teams': 'Všechny týmy',
   'clients.retention.all.agents': 'Všichni agenti',

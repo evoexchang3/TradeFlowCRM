@@ -535,6 +535,8 @@ export default {
   'clients.retention.real.fund.ftds': 'FTD\'er for rigtige fonde',
   'clients.retention.demo.fund.ftds': 'Demo Fund FTD\'er',
   'clients.retention.total.ftd.value': 'Samlet FTD-værdi',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Søg på navn eller e-mail...',
   'clients.retention.all.teams': 'Alle hold',
   'clients.retention.all.agents': 'Alle agenter',

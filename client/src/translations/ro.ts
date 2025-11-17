@@ -536,6 +536,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Fondul real FTD',
   'clients.retention.demo.fund.ftds': 'Fondul Demo FTD',
   'clients.retention.total.ftd.value': 'Valoarea totală FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Căutați după nume sau e-mail...',
   'clients.retention.all.teams': 'Toate echipele',
   'clients.retention.all.agents': 'Toți agenții',

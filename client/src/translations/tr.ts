@@ -549,6 +549,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Reel Fon FTD\'leri',
   'clients.retention.demo.fund.ftds': 'Demo Fon FTD\'leri',
   'clients.retention.total.ftd.value': 'Toplam FTD Değeri',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'İsim veya e-posta ile arama yapın...',
   'clients.retention.all.teams': 'Tüm Takımlar',
   'clients.retention.all.agents': 'Tüm Acenteler',

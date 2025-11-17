@@ -547,6 +547,8 @@ export default {
   'clients.retention.real.fund.ftds': 'FTD на реалните фондове',
   'clients.retention.demo.fund.ftds': 'FTD на демофондовете',
   'clients.retention.total.ftd.value': 'Обща стойност на FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Търсене по име или имейл...',
   'clients.retention.all.teams': 'Всички отбори',
   'clients.retention.all.agents': 'Всички агенти',

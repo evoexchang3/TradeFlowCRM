@@ -548,6 +548,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Reaalfondi FTDd',
   'clients.retention.demo.fund.ftds': 'Demofondi FTD-d',
   'clients.retention.total.ftd.value': 'FTD koguväärtus',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Otsi nime või e-posti järgi...',
   'clients.retention.all.teams': 'Kõik meeskonnad',
   'clients.retention.all.agents': 'Kõik agendid',

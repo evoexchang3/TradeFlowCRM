@@ -538,6 +538,8 @@ export default {
   'clients.retention.total.clients': 'Σύνολο πελατών',
   'clients.retention.real.fund.ftds': 'Πραγματικά κεφάλαια FTD',
   'clients.retention.total.ftd.value': 'Συνολική αξία FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Αναζήτηση με όνομα ή email...',
   'clients.retention.all.teams': 'Όλες οι ομάδες',
   'clients.retention.all.agents': 'Όλοι οι πράκτορες',

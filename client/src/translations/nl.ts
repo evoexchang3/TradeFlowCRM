@@ -538,6 +538,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Echte FTD\'s',
   'clients.retention.demo.fund.ftds': 'Demo fonds FTD\'s',
   'clients.retention.total.ftd.value': 'Totale FTD-waarde',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Zoeken op naam of e-mail...',
   'clients.retention.all.teams': 'Alle teams',
   'clients.retention.all.agents': 'Alle agenten',

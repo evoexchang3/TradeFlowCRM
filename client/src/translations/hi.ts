@@ -1182,6 +1182,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Real Fund FTDs',
   'clients.retention.demo.fund.ftds': 'Demo Fund FTDs',
   'clients.retention.total.ftd.value': 'Total FTD Value',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Search by name or email...',
   'clients.retention.all.teams': 'All Teams',
   'clients.retention.all.agents': 'All Agents',

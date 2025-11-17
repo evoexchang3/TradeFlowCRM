@@ -534,6 +534,8 @@ export default {
   'clients.retention.total.clients': 'Kunden insgesamt',
   'clients.retention.demo.fund.ftds': 'Demo-Fonds FTDs',
   'clients.retention.total.ftd.value': 'FTD-Gesamtwert',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Suche nach Name oder E-Mail...',
   'clients.retention.all.teams': 'Alle Teams',
   'clients.retention.all.agents': 'Alle Agenten',

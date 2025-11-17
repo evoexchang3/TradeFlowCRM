@@ -555,6 +555,8 @@ export default {
   'clients.retention.real.fund.ftds': '实际基金信托基金',
   'clients.retention.demo.fund.ftds': '示范基金',
   'clients.retention.total.ftd.value': '外贸发展总值',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': '按姓名或电子邮件搜索...',
   'clients.retention.all.teams': '所有团队',
   'clients.retention.all.agents': '所有代理',

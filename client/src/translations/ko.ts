@@ -554,6 +554,8 @@ export default {
   'clients.retention.real.fund.ftds': '실제 펀드 FTD',
   'clients.retention.demo.fund.ftds': '데모 펀드 FTD',
   'clients.retention.total.ftd.value': '총 FTD 값',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': '이름 또는 이메일로 검색...',
   'clients.retention.all.teams': '모든 팀',
   'clients.retention.all.agents': '모든 상담원',

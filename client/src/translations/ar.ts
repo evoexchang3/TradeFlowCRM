@@ -556,6 +556,8 @@ export default {
   'clients.retention.real.fund.ftds': 'الصندوق الحقيقي للصندوق الحقيقي',
   'clients.retention.demo.fund.ftds': 'صندوق التمويل التجريبي',
   'clients.retention.total.ftd.value': 'إجمالي قيمة FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'البحث بالاسم أو البريد الإلكتروني...',
   'clients.retention.all.teams': 'جميع الفرق',
   'clients.retention.all.agents': 'جميع الوكلاء',

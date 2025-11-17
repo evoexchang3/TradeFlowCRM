@@ -69,6 +69,10 @@ export default function RetentionClients() {
     queryKey: ['/api/clients/retention'],
   });
 
+  const { data: retentionMetrics, isLoading: isLoadingMetrics } = useQuery({
+    queryKey: ['/api/retention/metrics'],
+  });
+
   const { data: teams = [] } = useQuery({
     queryKey: ['/api/teams'],
   });
@@ -254,7 +258,7 @@ export default function RetentionClients() {
     return <Badge variant={config.variant} data-testid={`badge-fund-type-${fundType}`}>{config.label}</Badge>;
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingMetrics) {
     return (
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-center h-64">
@@ -280,27 +284,33 @@ export default function RetentionClients() {
           <CardTitle data-testid="text-stats-title">{t('clients.retention.overview.title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">{t('clients.retention.total.clients')}</p>
-              <p className="text-2xl font-bold" data-testid="text-total-clients">{clients?.length || 0}</p>
+              <p className="text-2xl font-bold" data-testid="text-total-clients">{retentionMetrics?.totalClients || 0}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t('clients.retention.real.fund.ftds')}</p>
               <p className="text-2xl font-bold" data-testid="text-real-ftds">
-                {clients?.filter((c: any) => c.ftdFundType === 'real').length || 0}
+                {retentionMetrics?.totalRealFTDs || 0}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">{t('clients.retention.demo.fund.ftds')}</p>
               <p className="text-2xl font-bold" data-testid="text-demo-ftds">
-                {clients?.filter((c: any) => c.ftdFundType === 'demo').length || 0}
+                {retentionMetrics?.totalDemoFTDs || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">{t('clients.retention.total.ftd.value')}</p>
-              <p className="text-2xl font-bold" data-testid="text-total-ftd-value">
-                ${clients?.reduce((sum: number, c: any) => sum + (parseFloat(c.ftdAmount || '0')), 0).toFixed(2)}
+              <p className="text-sm text-muted-foreground">{t('clients.retention.total.std.value')}</p>
+              <p className="text-2xl font-bold" data-testid="text-total-std-value">
+                ${retentionMetrics?.totalStdValue?.toFixed(2) || '0.00'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t('clients.retention.ftds.received')}</p>
+              <p className="text-2xl font-bold" data-testid="text-ftds-received">
+                {retentionMetrics?.ftdsReceived || 0}
               </p>
             </div>
           </div>

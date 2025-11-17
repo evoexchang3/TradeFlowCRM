@@ -541,6 +541,8 @@ export default {
   'clients.retention.real.fund.ftds': 'Todellinen rahasto FTD',
   'clients.retention.demo.fund.ftds': 'Demorahastojen FTD:t',
   'clients.retention.total.ftd.value': 'FTD:n kokonaisarvo',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Etsi nimellä tai sähköpostilla...',
   'clients.retention.all.teams': 'Kaikki joukkueet',
   'clients.retention.all.agents': 'Kaikki asiamiehet',

@@ -547,6 +547,8 @@ export default {
   'clients.retention.real.fund.ftds': 'FTD funduszy rzeczywistych',
   'clients.retention.demo.fund.ftds': 'FTD funduszu demonstracyjnego',
   'clients.retention.total.ftd.value': 'Całkowita wartość FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Szukaj według nazwiska lub adresu e-mail...',
   'clients.retention.all.teams': 'Wszystkie zespoły',
   'clients.retention.all.agents': 'Wszyscy agenci',

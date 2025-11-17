@@ -560,6 +560,8 @@ export default {
   'clients.retention.real.fund.ftds': 'リアル・ファンドFTD',
   'clients.retention.demo.fund.ftds': 'デモ・ファンドFTD',
   'clients.retention.total.ftd.value': 'FTDの総額',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': '名前またはEメールで検索...',
   'clients.retention.all.teams': '全チーム',
   'clients.retention.all.agents': '全代理店',

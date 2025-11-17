@@ -543,6 +543,8 @@ export default {
   'clients.retention.real.fund.ftds': 'FTD Dana Riil',
   'clients.retention.demo.fund.ftds': 'Dana Demo FTD',
   'clients.retention.total.ftd.value': 'Total Nilai FTD',
+  'clients.retention.total.std.value': 'Total STD Value',
+  'clients.retention.ftds.received': 'FTDs Received',
   'clients.retention.search.placeholder': 'Cari berdasarkan nama atau email...',
   'clients.retention.all.teams': 'Semua Tim',
   'clients.retention.all.agents': 'Semua Agen',
