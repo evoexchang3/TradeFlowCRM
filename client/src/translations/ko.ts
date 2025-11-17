@@ -255,6 +255,7 @@ export default {
   'agent.dashboard.end.date': '종료 날짜',
   'agent.dashboard.performance.score': '전체 성과 점수',
   'agent.dashboard.performance.score.description': 'FTD 전환, 활동 및 응답 시간을 기준으로 한 성과 평가',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD 성과',
   'agent.dashboard.total.clients': '총 고객 수',
   'agent.dashboard.ftd.count': 'FTD 수',

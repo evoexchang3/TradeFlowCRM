@@ -250,6 +250,7 @@ export default {
   'agent.dashboard.end.date': 'Data di fine',
   'agent.dashboard.performance.score': 'Punteggio complessivo delle prestazioni',
   'agent.dashboard.performance.score.description': 'Valutazione delle prestazioni in base alla conversione FTD, all\'attività e ai tempi di risposta',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Performance FTD',
   'agent.dashboard.total.clients': 'Totale clienti',
   'agent.dashboard.ftd.count': 'Conteggio FTD',

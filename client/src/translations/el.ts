@@ -250,6 +250,7 @@ export default {
   'agent.dashboard.end.date': 'Ημερομηνία λήξης',
   'agent.dashboard.performance.score': 'Συνολική βαθμολογία επιδόσεων',
   'agent.dashboard.performance.score.description': 'Βαθμολόγηση της απόδοσής σας με βάση τη μετατροπή FTD, τη δραστηριότητα και το χρόνο απόκρισης',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Απόδοση FTD',
   'agent.dashboard.total.clients': 'Σύνολο πελατών',
   'agent.dashboard.conversion.rate': 'Ποσοστό μετατροπής',

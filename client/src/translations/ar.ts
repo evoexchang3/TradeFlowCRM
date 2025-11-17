@@ -255,6 +255,7 @@ export default {
   'agent.dashboard.end.date': 'تاريخ الانتهاء',
   'agent.dashboard.performance.score': 'درجة الأداء الإجمالي',
   'agent.dashboard.performance.score.description': 'تقييم الأداء الخاص بك بناءً على تحويل FTD، والنشاط، ووقت الاستجابة',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'أداء الإيداعات الأولى',
   'agent.dashboard.total.clients': 'إجمالي العملاء',
   'agent.dashboard.ftd.count': 'عدد مراتب FTD',

@@ -180,7 +180,10 @@ export default function AgentDashboard() {
             {t('agent.dashboard.performance.score')}
           </CardTitle>
           <CardDescription>
-            {t('agent.dashboard.performance.score.description')}
+            {metrics.department === 'retention' 
+              ? t('agent.dashboard.performance.score.description.retention')
+              : t('agent.dashboard.performance.score.description')
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>

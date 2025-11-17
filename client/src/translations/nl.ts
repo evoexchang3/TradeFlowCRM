@@ -249,6 +249,7 @@ export default {
   'agent.dashboard.end.date': 'Einddatum',
   'agent.dashboard.performance.score': 'Totale prestatiescore',
   'agent.dashboard.performance.score.description': 'Je prestatiebeoordeling op basis van FTD-conversie, activiteit en reactietijd',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD Prestaties',
   'agent.dashboard.total.clients': 'Totaal klanten',
   'agent.dashboard.ftd.count': 'FTD-telling',

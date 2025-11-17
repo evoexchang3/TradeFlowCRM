@@ -251,6 +251,7 @@ export default {
   'agent.dashboard.end.date': 'Sluttdato',
   'agent.dashboard.performance.score': 'Samlet prestasjonsscore',
   'agent.dashboard.performance.score.description': 'Din prestasjonsvurdering basert på FTD-konvertering, aktivitet og responstid',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD-ytelse',
   'agent.dashboard.total.clients': 'Totalt antall kunder',
   'agent.dashboard.ftd.count': 'FTD-telling',

@@ -252,6 +252,7 @@ export default {
   'agent.dashboard.end.date': 'Крайна дата',
   'agent.dashboard.performance.score': 'Общ резултат за изпълнение',
   'agent.dashboard.performance.score.description': 'Оценка на ефективността ви въз основа на преобразуването на FTD, активността и времето за реакция',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Изпълнение на FTD',
   'agent.dashboard.total.clients': 'Общо клиенти',
   'agent.dashboard.ftd.count': 'Брой на FTD',

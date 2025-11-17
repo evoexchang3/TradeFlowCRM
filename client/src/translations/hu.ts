@@ -252,6 +252,7 @@ export default {
   'agent.dashboard.end.date': 'Végdátum',
   'agent.dashboard.performance.score': 'Általános teljesítmény pontszám',
   'agent.dashboard.performance.score.description': 'Az Ön teljesítményének értékelése az FTD konverzió, az aktivitás és a válaszidő alapján',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD teljesítmény',
   'agent.dashboard.total.clients': 'Összes ügyfél',
   'agent.dashboard.ftd.count': 'FTD számolás',

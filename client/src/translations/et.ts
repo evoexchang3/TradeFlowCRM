@@ -252,6 +252,7 @@ export default {
   'agent.dashboard.end.date': 'Lõppkuupäev',
   'agent.dashboard.performance.score': 'Üldine tulemus',
   'agent.dashboard.performance.score.description': 'Teie tulemuslikkuse hinnang, mis põhineb FTD konversioonil, aktiivsusel ja reageerimisaegadel',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD jõudlus',
   'agent.dashboard.total.clients': 'Kliendid kokku',
   'agent.dashboard.ftd.count': 'FTD arv',

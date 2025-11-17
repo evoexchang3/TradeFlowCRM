@@ -248,6 +248,7 @@ export default {
   'agent.dashboard.end.date': 'Data de încheiere',
   'agent.dashboard.performance.score': 'Scorul general de performanță',
   'agent.dashboard.performance.score.description': 'Ratingul dvs. de performanță bazat pe conversia FTD, activitate și timp de răspuns',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Performanță FTD',
   'agent.dashboard.total.clients': 'Total clienți',
   'agent.dashboard.ftd.count': 'Număr FTD',

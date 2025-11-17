@@ -248,6 +248,7 @@ export default {
   'agent.dashboard.end.date': 'Tanggal Akhir',
   'agent.dashboard.performance.score': 'Skor Kinerja Keseluruhan',
   'agent.dashboard.performance.score.description': 'Peringkat performa Anda berdasarkan konversi FTD, aktivitas, dan waktu respons',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Kinerja FTD',
   'agent.dashboard.total.clients': 'Total Klien',
   'agent.dashboard.ftd.count': 'Hitungan FTD',

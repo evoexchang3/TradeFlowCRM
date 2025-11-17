@@ -252,6 +252,7 @@ export default {
   'agent.dashboard.end.date': 'Končni datum',
   'agent.dashboard.performance.score': 'Skupna ocena uspešnosti',
   'agent.dashboard.performance.score.description': 'Vaša ocena uspešnosti na podlagi pretvorbe FTD, dejavnosti in odzivnega časa',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Uspešnost FTD',
   'agent.dashboard.total.clients': 'Skupno število strank',
   'agent.dashboard.ftd.count': 'Število FTD',

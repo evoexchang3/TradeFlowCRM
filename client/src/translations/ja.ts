@@ -258,6 +258,7 @@ export default {
   'agent.dashboard.end.date': '終了日',
   'agent.dashboard.performance.score': '総合パフォーマンススコア',
   'agent.dashboard.performance.score.description': 'FTDコンバージョン、アクティビティ、レスポンスタイムに基づくパフォーマンス評価',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTDパフォーマンス',
   'agent.dashboard.total.clients': '総顧客数',
   'agent.dashboard.ftd.count': 'FTD回数',

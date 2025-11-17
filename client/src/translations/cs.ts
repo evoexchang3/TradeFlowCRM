@@ -252,6 +252,7 @@ export default {
   'agent.dashboard.end.date': 'Datum ukončení',
   'agent.dashboard.performance.score': 'Celkové skóre výkonu',
   'agent.dashboard.performance.score.description': 'Hodnocení vašeho výkonu na základě konverze FTD, aktivity a doby odezvy',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Výkonnost FTD',
   'agent.dashboard.total.clients': 'Celkový počet klientů',
   'agent.dashboard.ftd.count': 'Počet FTD',

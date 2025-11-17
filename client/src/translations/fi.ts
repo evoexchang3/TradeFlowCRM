@@ -252,6 +252,7 @@ export default {
   'agent.dashboard.end.date': 'Loppupäivä',
   'agent.dashboard.performance.score': 'Kokonaissuorituskyky Pisteet',
   'agent.dashboard.performance.score.description': 'FTD-muunnokseen, aktiivisuuteen ja vastausaikaan perustuva suoritusluokituksesi',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD Suorituskyky',
   'agent.dashboard.total.clients': 'Asiakkaita yhteensä',
   'agent.dashboard.conversion.rate': 'Muuntokurssi',

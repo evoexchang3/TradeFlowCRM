@@ -253,6 +253,7 @@ export default {
   'agent.dashboard.end.date': 'Дата окончания',
   'agent.dashboard.performance.score': 'Общий балл эффективности',
   'agent.dashboard.performance.score.description': 'Ваш рейтинг эффективности на основе конверсии FTD, активности и времени отклика',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Производительность FTD',
   'agent.dashboard.total.clients': 'Всего клиентов',
   'agent.dashboard.conversion.rate': 'Коэффициент конверсии',

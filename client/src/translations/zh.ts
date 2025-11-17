@@ -256,6 +256,7 @@ export default {
   'agent.dashboard.end.date': '结束日期',
   'agent.dashboard.performance.score': '总体绩效得分',
   'agent.dashboard.performance.score.description': '根据 FTD 转换、活动和响应时间对您进行绩效评级',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': '首存绩效',
   'agent.dashboard.total.clients': '客户总数',
   'agent.dashboard.ftd.count': 'FTD 计数',

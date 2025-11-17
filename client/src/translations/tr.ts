@@ -254,6 +254,7 @@ export default {
   'agent.dashboard.end.date': 'Bitiş Tarihi',
   'agent.dashboard.performance.score': 'Genel Performans Puanı',
   'agent.dashboard.performance.score.description': 'FTD dönüşümü, etkinlik ve yanıt süresine dayalı performans derecelendirmeniz',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'İlk Para Yatırma Performansı',
   'agent.dashboard.total.clients': 'Toplam Müşteriler',
   'agent.dashboard.ftd.count': 'FTD Sayısı',

@@ -255,6 +255,7 @@ export default {
   'agent.dashboard.end.date': 'Data zakończenia',
   'agent.dashboard.performance.score': 'Ogólny wynik wydajności',
   'agent.dashboard.performance.score.description': 'Ocena wydajności na podstawie konwersji FTD, aktywności i czasu reakcji',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'Wydajność FTD',
   'agent.dashboard.total.clients': 'Klienci ogółem',
   'agent.dashboard.conversion.rate': 'Współczynnik konwersji',

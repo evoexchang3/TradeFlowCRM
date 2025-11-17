@@ -257,6 +257,7 @@ export default {
   'agent.dashboard.end.date': 'Pabaigos data',
   'agent.dashboard.performance.score': 'Bendras veiklos rezultatas',
   'agent.dashboard.performance.score.description': 'Jūsų veiklos įvertinimas pagal FTD konversiją, aktyvumą ir reakcijos laiką',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD našumas',
   'agent.dashboard.total.clients': 'Iš viso klientų',
   'agent.dashboard.ftd.count': 'FTD skaičius',

@@ -254,6 +254,7 @@ export default {
   'agent.dashboard.end.date': 'Beigu datums',
   'agent.dashboard.performance.score': 'Kopējais snieguma rādītājs',
   'agent.dashboard.performance.score.description': 'Jūsu snieguma novērtējums, pamatojoties uz FTD konversiju, aktivitāti un reakcijas laiku',
+  'agent.dashboard.performance.score.description.retention': 'Your performance rating based on deposit retention, activity, and response time',
   'agent.dashboard.ftd.performance': 'FTD veiktspēja',
   'agent.dashboard.total.clients': 'Klienti kopā',
   'agent.dashboard.ftd.count': 'FTD skaits',
