@@ -3,6 +3,7 @@ export default {
   'common.loading': 'Loading...',
   'common.error': 'Error',
   'common.success': 'Success',
+  'common.unauthorized': 'You do not have permission to perform this action.',
   'common.cancel': 'Cancel',
   'common.save': 'Save',
   'common.delete': 'Delete',

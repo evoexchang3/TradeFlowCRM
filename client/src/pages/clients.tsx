@@ -220,7 +220,11 @@ export default function Clients() {
   const canAssignAgents = () => {
     if (!currentUser || !currentUser.role) return false;
     const roleName = currentUser.role.name?.toLowerCase();
-    return roleName === 'administrator' || roleName === 'crm manager' || roleName === 'team leader';
+    // Exclude agents from bulk assignment
+    const isAgent = roleName?.includes('agent');
+    if (isAgent) return false;
+    // Allow administrators, CRM managers, and team leaders
+    return roleName === 'administrator' || roleName === 'crm manager' || roleName?.includes('team leader');
   };
 
   const handleToggleClient = (clientId: string) => {
@@ -242,6 +246,16 @@ export default function Clients() {
   };
 
   const handleBulkAssign = () => {
+    // Prevent agents from bulk assigning
+    if (!canAssignAgents()) {
+      toast({
+        title: t('common.error'),
+        description: t('common.unauthorized'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     const data: any = { clientIds: Array.from(selectedClients) };
     if (bulkAssignAgentId) {
       data.assignedAgentId = bulkAssignAgentId === 'none' ? null : bulkAssignAgentId;
@@ -642,7 +656,11 @@ export default function Clients() {
         </CardContent>
       </Card>
 
-      <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
+      <Dialog open={bulkAssignOpen} onOpenChange={(open) => {
+        // Prevent agents from opening bulk assign dialog
+        if (open && !canAssignAgents()) return;
+        setBulkAssignOpen(open);
+      }}>
         <DialogContent data-testid="dialog-bulk-assign">
           <DialogHeader>
             <DialogTitle>{t('clients.all.bulk.assign.title')}</DialogTitle>
