@@ -41,6 +41,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Client, Team, User, CustomStatus, Role } from "@shared/schema";
+import { EmailComposeDialog } from "@/components/email-compose-dialog";
 
 interface UserWithRole extends User {
   role?: Role;
@@ -59,6 +60,8 @@ export default function Clients() {
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [selectedClientForComment, setSelectedClientForComment] = useState<any>(null);
   const [commentText, setCommentText] = useState('');
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedClientForEmail, setSelectedClientForEmail] = useState<any>(null);
   const { toast } = useToast();
   
   const { data: currentUser } = useQuery<UserWithRole>({
@@ -602,12 +605,13 @@ export default function Clients() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          asChild
+                          onClick={() => {
+                            setSelectedClientForEmail(client);
+                            setEmailDialogOpen(true);
+                          }}
                           data-testid={`button-email-${client.id}`}
                         >
-                          <a href={`mailto:${client.email}`}>
-                            <Mail className="h-3 w-3" />
-                          </a>
+                          <Mail className="h-3 w-3" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -782,6 +786,22 @@ export default function Clients() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Email Compose Dialog */}
+      {selectedClientForEmail && (
+        <EmailComposeDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          client={{
+            id: selectedClientForEmail.id,
+            email: selectedClientForEmail.email,
+            firstName: selectedClientForEmail.firstName,
+            lastName: selectedClientForEmail.lastName,
+            phone: selectedClientForEmail.phone,
+            country: selectedClientForEmail.country,
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -40,6 +40,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { EmailComposeDialog } from "@/components/email-compose-dialog";
 
 type CustomStatus = {
   id: string;
@@ -63,7 +64,9 @@ export default function RetentionClients() {
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [selectedClientForComment, setSelectedClientForComment] = useState<any>(null);
-  const { toast } = useToast();
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [selectedClientForEmail, setSelectedClientForEmail] = useState<any>(null);
+  const { toast} = useToast();
   
   const { data: retentionClients, isLoading } = useQuery({
     queryKey: ['/api/clients/retention'],
@@ -585,12 +588,13 @@ export default function RetentionClients() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            asChild
+                            onClick={() => {
+                              setSelectedClientForEmail(client);
+                              setEmailDialogOpen(true);
+                            }}
                             data-testid={`button-email-${client.id}`}
                           >
-                            <a href={`mailto:${client.email}`}>
-                              <Mail className="h-3 w-3" />
-                            </a>
+                            <Mail className="h-3 w-3" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -762,6 +766,22 @@ export default function RetentionClients() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Email Compose Dialog */}
+      {selectedClientForEmail && (
+        <EmailComposeDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          client={{
+            id: selectedClientForEmail.id,
+            email: selectedClientForEmail.email,
+            firstName: selectedClientForEmail.firstName || selectedClientForEmail.name?.split(' ')[0] || '',
+            lastName: selectedClientForEmail.lastName || selectedClientForEmail.name?.split(' ')[1] || '',
+            phone: selectedClientForEmail.phone,
+            country: selectedClientForEmail.country,
+          }}
+        />
+      )}
     </div>
   );
 }
