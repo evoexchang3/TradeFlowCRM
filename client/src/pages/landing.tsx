@@ -25,8 +25,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const roleRoutes: Record<string, string> = {
   'administrator': '/admin',
   'crm manager': '/crm',
-  'team leader': '/team',
-  'agent': '/agent',
+  'sales manager': '/dashboard', // No dedicated dashboard for managers yet
+  'retention manager': '/dashboard', // No dedicated dashboard for managers yet
+  'sales team leader': '/team',
+  'retention team leader': '/team',
+  'sales agent': '/agent',
+  'retention agent': '/agent',
 };
 
 export default function Landing() {

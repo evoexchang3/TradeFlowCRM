@@ -187,7 +187,8 @@ export async function calculateAgentMetrics(
   const callData = callMetrics[0];
   const commentData = commentMetrics[0];
   const loginData = loginMetrics[0];
-  const avgResponseTime = Number(responseTimeQuery.rows[0]?.avg_response_time || 0);
+  const avgResponseTimeRaw = responseTimeQuery.rows[0]?.avg_response_time;
+  const avgResponseTime = avgResponseTimeRaw != null ? Number(avgResponseTimeRaw) : null;
 
   const totalClients = Number(clientData?.totalClients || 0);
   const ftdCount = Number(clientData?.ftdCount || 0);
@@ -202,9 +203,9 @@ export async function calculateAgentMetrics(
     ((Number(commentData?.totalComments || 0) / Math.max(totalClients, 1)) * 15),
     30
   ); // Max 30 points
-  const responseTimeScore = avgResponseTime > 0 
+  const responseTimeScore = avgResponseTime !== null
     ? Math.max(30 - (avgResponseTime / 3600), 0) // Deduct points for slow response (1 hour = 1 point)
-    : 30; // Max 30 points if no data
+    : 0; // 0 points if no data (no clients contacted yet)
 
   // For retention agents, calculate deposit metrics (excluding FTD)
   let totalDeposits = 0;
@@ -292,7 +293,7 @@ export async function calculateAgentMetrics(
     totalComments: Number(commentData?.totalComments || 0),
     totalLogins: Number(loginData?.totalLogins || 0),
     
-    avgResponseTime: Number(avgResponseTime),
+    avgResponseTime: avgResponseTime !== null ? Number(avgResponseTime) : 0,
     performanceScore,
   };
 }
