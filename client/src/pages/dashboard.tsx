@@ -44,7 +44,7 @@ export default function Dashboard() {
 
   const { data: stats } = useQuery({
     queryKey: ['/api/dashboard/stats'],
-    enabled: !isLoadingUser && !userData?.user?.role?.name, // Only load stats if not redirecting
+    enabled: !isLoadingUser, // Load stats once user data is loaded
   });
 
   // Show loading state while determining redirect
