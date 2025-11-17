@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasAnyPermission = (permissions: string[]): boolean => {
     if (!user || user.type === 'client') return false;
-    if (!user.role || !user.role.permissions) return false;
+    if (!user.role?.permissions) return false;
     if (user.role.permissions.includes('*')) return true;
     return permissions.some(p => user.role.permissions.includes(p));
   };

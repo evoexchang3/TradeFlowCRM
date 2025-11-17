@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Role, User } from "@shared/schema";
 
 interface RouteGuardProps {
@@ -11,9 +11,12 @@ interface RouteGuardProps {
 
 export function RouteGuard({ children, allowedRoles, requireAuth = true }: RouteGuardProps) {
   const [, setLocation] = useLocation();
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
   
-  const { data: meData, isLoading: userLoading } = useQuery<{ user?: User; client?: any }>({
+  // Always try to fetch user if auth is required (supports both localStorage and cookie-based auth)
+  const { data: meData, isLoading: userLoading, error: userError } = useQuery<{ user?: User; client?: any }>({
     queryKey: ['/api/me'],
+    enabled: requireAuth,
     retry: false,
   });
 
@@ -23,20 +26,32 @@ export function RouteGuard({ children, allowedRoles, requireAuth = true }: Route
   const { data: role, isLoading: roleLoading } = useQuery<Role>({
     queryKey: [`/api/roles/${user?.roleId}`],
     enabled: !!user?.roleId,
+    retry: false,
   });
 
-  const isLoading = userLoading || (!!user?.roleId && roleLoading);
+  const isLoading = requireAuth && (userLoading || (!!user?.roleId && roleLoading));
 
   useEffect(() => {
-    if (isLoading) return;
-
-    // If auth is required but no user, redirect to login
-    if (requireAuth && !user) {
-      setLocation('/');
+    // Handle 401 errors - clear invalid token and redirect to login
+    if (userError && !hasCheckedAuth) {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      setHasCheckedAuth(true);
+      if (requireAuth) {
+        setLocation('/login');
+      }
       return;
     }
 
-    // If user exists and allowedRoles specified, check permissions
+    if (isLoading) return;
+
+    // If auth is required but API call failed to return user, redirect to login
+    if (requireAuth && !userLoading && !user) {
+      setLocation('/login');
+      return;
+    }
+
+    // If user exists and allowedRoles specified, check permissions (case-insensitive)
     if (user && allowedRoles && allowedRoles.length > 0 && role) {
       const userRole = role.name.toLowerCase();
       const hasAccess = allowedRoles.some(r => r.toLowerCase() === userRole);
@@ -50,18 +65,20 @@ export function RouteGuard({ children, allowedRoles, requireAuth = true }: Route
           case 'crm manager':
             setLocation('/crm');
             break;
-          case 'team leader':
+          case 'sales team leader':
+          case 'retention team leader':
             setLocation('/team');
             break;
-          case 'agent':
+          case 'sales agent':
+          case 'retention agent':
             setLocation('/agent');
             break;
           default:
-            setLocation('/');
+            setLocation('/dashboard');
         }
       }
     }
-  }, [user, role, isLoading, allowedRoles, requireAuth, setLocation]);
+  }, [user, role, isLoading, allowedRoles, requireAuth, setLocation, userLoading, userError, hasCheckedAuth]);
 
   if (isLoading) {
     return (

@@ -102,12 +102,12 @@ function Router() {
         </RouteGuard>
       </Route>
       <Route path="/team">
-        <RouteGuard allowedRoles={['Team Leader']}>
+        <RouteGuard allowedRoles={['Sales Team Leader', 'Retention Team Leader']}>
           <TeamDashboard />
         </RouteGuard>
       </Route>
       <Route path="/agent">
-        <RouteGuard allowedRoles={['Agent']}>
+        <RouteGuard allowedRoles={['Sales Agent', 'Retention Agent']}>
           <AgentDashboard />
         </RouteGuard>
       </Route>
@@ -131,17 +131,17 @@ function Router() {
 
       {/* Client management - all staff roles */}
       <Route path="/clients/sales">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent']}>
           <SalesClients />
         </RouteGuard>
       </Route>
       <Route path="/clients/retention">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader', 'Retention Agent']}>
           <RetentionClients />
         </RouteGuard>
       </Route>
       <Route path="/clients">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent', 'Retention Team Leader', 'Retention Agent']}>
           <Clients />
         </RouteGuard>
       </Route>
@@ -151,7 +151,7 @@ function Router() {
         </RouteGuard>
       </Route>
       <Route path="/clients/:id">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent', 'Retention Team Leader', 'Retention Agent']}>
           <ClientDetail />
         </RouteGuard>
       </Route>
@@ -161,12 +161,12 @@ function Router() {
         </RouteGuard>
       </Route>
       <Route path="/search/global">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent', 'Retention Team Leader', 'Retention Agent']}>
           <GlobalSearch />
         </RouteGuard>
       </Route>
 
-      {/* Trading - all staff roles */}
+      {/* Trading - RETENTION ONLY (no sales department) */}
       <Route path="/trading/symbols">
         <RouteGuard allowedRoles={['Administrator', 'CRM Manager']}>
           <TradingSymbols />
@@ -178,61 +178,61 @@ function Router() {
         </RouteGuard>
       </Route>
       <Route path="/trading/cfd-accounts">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader']}>
           <CFDAccounts />
         </RouteGuard>
       </Route>
       <Route path="/trading/open-positions">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader', 'Retention Agent']}>
           <GlobalOpenPositions />
         </RouteGuard>
       </Route>
       <Route path="/trading/closed-positions">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader', 'Retention Agent']}>
           <GlobalClosedPositions />
         </RouteGuard>
       </Route>
       <Route path="/trading/analytics">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader']}>
           <TradingAnalytics />
         </RouteGuard>
       </Route>
       <Route path="/trading">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader', 'Retention Agent']}>
           <Trading />
         </RouteGuard>
       </Route>
 
-      {/* Transactions - all staff roles */}
+      {/* Transactions - RETENTION ONLY */}
       <Route path="/transactions">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader', 'Retention Agent']}>
           <Transactions />
         </RouteGuard>
       </Route>
 
       {/* Calendar - all staff roles */}
       <Route path="/calendar">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent', 'Retention Team Leader', 'Retention Agent']}>
           <Calendar />
         </RouteGuard>
       </Route>
 
       <Route path="/chat">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent', 'Retention Team Leader', 'Retention Agent']}>
           <Chat />
         </RouteGuard>
       </Route>
 
       {/* Leaderboard - all staff roles */}
       <Route path="/leaderboard">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader', 'Agent']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Sales Agent', 'Retention Team Leader', 'Retention Agent']}>
           <Leaderboard />
         </RouteGuard>
       </Route>
 
       {/* Performance Targets - admin and managers */}
       <Route path="/targets">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Retention Team Leader']}>
           <Targets />
         </RouteGuard>
       </Route>
@@ -253,12 +253,12 @@ function Router() {
 
       {/* Teams - admin, CRM manager, team leader */}
       <Route path="/teams/:id">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Retention Team Leader']}>
           <TeamDetail />
         </RouteGuard>
       </Route>
       <Route path="/teams">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Retention Team Leader']}>
           <Teams />
         </RouteGuard>
       </Route>
@@ -390,19 +390,19 @@ function Router() {
       </Route>
 
       <Route path="/reports/sales">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader']}>
           <SalesDashboard />
         </RouteGuard>
       </Route>
 
       <Route path="/reports/retention">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Retention Team Leader']}>
           <RetentionDashboard />
         </RouteGuard>
       </Route>
 
       <Route path="/activity-feed">
-        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Team Leader']}>
+        <RouteGuard allowedRoles={['Administrator', 'CRM Manager', 'Sales Team Leader', 'Retention Team Leader']}>
           <ActivityFeed />
         </RouteGuard>
       </Route>

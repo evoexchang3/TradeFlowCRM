@@ -74,25 +74,25 @@ const menuItems: MenuItem[] = [
     titleKey: "nav.sales.clients",
     url: "/clients/sales",
     icon: UserPlus,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'sales team leader', 'sales agent'],
   },
   {
     titleKey: "nav.retention.clients",
     url: "/clients/retention",
     icon: UserCheck,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.all.clients",
     url: "/clients",
     icon: Users,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'sales team leader', 'sales agent', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.global.search",
     url: "/search/global",
     icon: Search,
-    roles: ['administrator', 'crm manager', 'team leader', 'agent'],
+    roles: ['administrator', 'crm manager', 'sales team leader', 'sales agent', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.trading.symbols",
@@ -110,36 +110,37 @@ const menuItems: MenuItem[] = [
     titleKey: "nav.cfd.accounts",
     url: "/trading/cfd-accounts",
     icon: Wallet,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader'],
   },
   {
     titleKey: "nav.open.positions",
     url: "/trading/open-positions",
     icon: TrendingUp,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.closed.positions",
     url: "/trading/closed-positions",
     icon: TrendingDown,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.trading.analytics",
     url: "/trading/analytics",
     icon: BarChart3,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader'],
   },
   {
     titleKey: "nav.trading",
     url: "/trading",
     icon: TrendingUp,
+    roles: ['administrator', 'crm manager', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.transactions",
     url: "/transactions",
     icon: DollarSign,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader', 'retention agent'],
   },
   {
     titleKey: "nav.calendar",
@@ -150,19 +151,19 @@ const menuItems: MenuItem[] = [
     titleKey: "nav.sales.dashboard",
     url: "/reports/sales",
     icon: BarChart3,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'sales team leader'],
   },
   {
     titleKey: "nav.retention.dashboard",
     url: "/reports/retention",
     icon: TrendingUp,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'retention team leader'],
   },
   {
     titleKey: "nav.activity.feed",
     url: "/activity-feed",
     icon: Activity,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'sales team leader', 'retention team leader'],
   },
   {
     titleKey: "nav.affiliates",
@@ -184,7 +185,7 @@ const menuItems: MenuItem[] = [
     titleKey: "nav.targets",
     url: "/targets",
     icon: Target,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'sales team leader', 'retention team leader'],
   },
 ];
 
@@ -205,7 +206,7 @@ const managementItems: MenuItem[] = [
     titleKey: "nav.teams",
     url: "/teams",
     icon: UsersRound,
-    roles: ['administrator', 'crm manager', 'team leader'],
+    roles: ['administrator', 'crm manager', 'sales team leader', 'retention team leader'],
   },
   {
     titleKey: "nav.api.keys",
@@ -339,6 +340,15 @@ export function AppSidebar() {
     setLocation('/');
   };
 
+  // Helper functions to check role types
+  const isSalesRole = (role: string) => {
+    return role === 'sales agent' || role === 'sales team leader';
+  };
+
+  const isRetentionRole = (role: string) => {
+    return role === 'retention agent' || role === 'retention team leader';
+  };
+
   // Filter menu items based on role and department
   const filterByRoleAndDepartment = (item: MenuItem) => {
     // Check role restriction first
@@ -346,20 +356,37 @@ export function AppSidebar() {
       return false; // Role not allowed
     }
 
-    // Department-specific filtering for CRM Managers
+    // Department-specific filtering
+    const isSales = isSalesRole(roleName);
+    const isRetention = isRetentionRole(roleName);
+
+    // Sales staff cannot access retention clients or trading
+    if (isSales) {
+      if (item.titleKey === 'nav.retention.clients') return false;
+      if (item.titleKey === 'nav.retention.dashboard') return false;
+      if (item.url.startsWith('/trading')) return false;
+      if (item.titleKey === 'nav.transactions') return false;
+    }
+
+    // Retention staff cannot access sales clients
+    if (isRetention) {
+      if (item.titleKey === 'nav.sales.clients') return false;
+      if (item.titleKey === 'nav.sales.dashboard') return false;
+    }
+
+    // CRM Manager department-specific filtering
     if (roleName === 'crm manager' && department) {
-      // Sales CRM Managers only see Sales Clients
-      if (item.titleKey === 'nav.sales.clients' && department !== 'sales') {
-        return false;
+      // Sales CRM Managers: no retention or trading access
+      if (department === 'sales') {
+        if (item.titleKey === 'nav.retention.clients') return false;
+        if (item.titleKey === 'nav.retention.dashboard') return false;
+        if (item.url.startsWith('/trading')) return false;
+        if (item.titleKey === 'nav.transactions') return false;
       }
-      // Retention CRM Managers only see Retention Clients
-      if (item.titleKey === 'nav.retention.clients' && department !== 'retention') {
-        return false;
-      }
-      // If CRM Manager has a specific department, hide the "All Clients" aggregated view
-      // They should use their department-specific view
-      if (item.titleKey === 'nav.all.clients' && (department === 'sales' || department === 'retention')) {
-        return false;
+      // Retention CRM Managers: no sales access
+      if (department === 'retention') {
+        if (item.titleKey === 'nav.sales.clients') return false;
+        if (item.titleKey === 'nav.sales.dashboard') return false;
       }
     }
 
@@ -373,13 +400,13 @@ export function AppSidebar() {
   // Determine dashboard URL based on role and department
   const getDashboardUrl = () => {
     if (roleName === 'administrator') return '/admin';
-    if (roleName === 'agent') return '/dashboard/agent';
-    if (roleName === 'team leader') return '/dashboard/team';
+    if (roleName === 'sales agent' || roleName === 'retention agent') return '/agent';
+    if (roleName === 'sales team leader' || roleName === 'retention team leader') return '/team';
     if (roleName === 'crm manager') {
       // CRM Manager dashboard varies by department
       if (department === 'sales') return '/dashboard/sales-manager';
       if (department === 'retention') return '/dashboard/retention-manager';
-      return '/dashboard/crm'; // Unified dashboard for other departments or no department
+      return '/crm'; // Unified dashboard for other departments or no department
     }
     return '/dashboard';
   };

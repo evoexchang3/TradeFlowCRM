@@ -67,6 +67,30 @@ function isTeamLeaderRole(roleName: string | undefined): boolean {
   return normalized === 'team leader' || normalized === 'sales team leader' || normalized === 'retention team leader';
 }
 
+function isSalesRole(roleName: string | undefined): boolean {
+  if (!roleName) return false;
+  const normalized = roleName.toLowerCase();
+  return normalized === 'sales agent' || normalized === 'sales team leader' || normalized === 'sales manager';
+}
+
+function isRetentionRole(roleName: string | undefined): boolean {
+  if (!roleName) return false;
+  const normalized = roleName.toLowerCase();
+  return normalized === 'retention agent' || normalized === 'retention team leader' || normalized === 'retention manager';
+}
+
+async function getUserDepartment(userId: string): Promise<'sales' | 'retention' | 'support' | null> {
+  try {
+    const user = await storage.getUser(userId);
+    if (!user?.teamId) return null;
+    
+    const team = await storage.getTeam(user.teamId);
+    return team?.department || null;
+  } catch {
+    return null;
+  }
+}
+
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
@@ -585,18 +609,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (user.roleId) {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
+        const userDepartment = await getUserDepartment(user.id);
 
-        // Administrator and CRM Manager see all clients
-        if (roleName === 'administrator' || roleName === 'crm manager') {
+        // Administrator and CRM Manager see all clients (CRM managers see department-filtered)
+        if (roleName === 'administrator') {
           // No filtering needed
+        }
+        else if (roleName === 'crm manager') {
+          // CRM Manager MUST have a department to access clients
+          if (!userDepartment) {
+            return res.status(403).json({ error: 'Unauthorized: CRM Manager must be assigned to a team with a department' });
+          }
+          // CRM Manager sees clients from their department only
+          if (userDepartment === 'sales') {
+            clients = clients.filter(c => !c.hasFTD); // Sales clients only
+          } else if (userDepartment === 'retention') {
+            clients = clients.filter(c => c.hasFTD); // Retention clients only
+          } else {
+            // Support or other departments get no client access for now
+            clients = [];
+          }
         }
         // Team Leader sees only clients in their team
         else if (isTeamLeaderRole(roleName)) {
           clients = clients.filter(c => c.teamId === user.teamId);
+          // Additionally filter by department
+          if (isSalesRole(roleName)) {
+            clients = clients.filter(c => !c.hasFTD); // Sales team leader sees only sales clients
+          } else if (isRetentionRole(roleName)) {
+            clients = clients.filter(c => c.hasFTD); // Retention team leader sees only retention clients
+          }
         }
         // Agent sees only clients assigned to them
         else if (isAgentRole(roleName)) {
           clients = clients.filter(c => c.assignedAgentId === user.id);
+          // Additionally filter by department
+          if (isSalesRole(roleName)) {
+            clients = clients.filter(c => !c.hasFTD); // Sales agent sees only sales clients
+          } else if (isRetentionRole(roleName)) {
+            clients = clients.filter(c => c.hasFTD); // Retention agent sees only retention clients
+          }
         }
         // Default: if role doesn't match known roles, show only assigned clients
         else {
@@ -669,15 +721,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'User not found' });
       }
 
+      // Check user's role and department
+      const role = user.roleId ? await storage.getRole(user.roleId) : null;
+      const roleName = role?.name?.toLowerCase();
+      const userDepartment = await getUserDepartment(user.id);
+
+      // Department-based access control - check actual department, not just role name
+      // Administrators always have access
+      if (roleName !== 'administrator') {
+        // For all other roles, verify department access
+        if (isSalesRole(roleName)) {
+          // Sales role is fine
+        } else if (roleName === 'crm manager') {
+          // CRM Manager must be in sales department
+          if (userDepartment !== 'sales') {
+            return res.status(403).json({ error: 'Unauthorized: Sales department access required' });
+          }
+        } else {
+          // All other roles (retention, support, etc.) are not allowed
+          return res.status(403).json({ error: 'Unauthorized: Sales department access required' });
+        }
+      }
+
       // Get all clients and filter
       let allClients = await storage.getClients();
       let salesClients = allClients.filter(c => !c.hasFTD);
       
       // Apply role-based filtering
       if (user.roleId) {
-        const role = await storage.getRole(user.roleId);
-        const roleName = role?.name?.toLowerCase();
-
         if (isAgentRole(roleName)) {
           salesClients = salesClients.filter(c => c.assignedAgentId === user.id);
         } else if (isTeamLeaderRole(roleName) && user.teamId) {
@@ -747,15 +818,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'User not found' });
       }
 
+      // Check user's role and department
+      const role = user.roleId ? await storage.getRole(user.roleId) : null;
+      const roleName = role?.name?.toLowerCase();
+      const userDepartment = await getUserDepartment(user.id);
+
+      // Department-based access control - check actual department, not just role name
+      // Administrators always have access
+      if (roleName !== 'administrator') {
+        // For all other roles, verify department access
+        if (isRetentionRole(roleName)) {
+          // Retention role is fine
+        } else if (roleName === 'crm manager') {
+          // CRM Manager must be in retention department
+          if (userDepartment !== 'retention') {
+            return res.status(403).json({ error: 'Unauthorized: Retention department access required' });
+          }
+        } else {
+          // All other roles (sales, support, etc.) are not allowed
+          return res.status(403).json({ error: 'Unauthorized: Retention department access required' });
+        }
+      }
+
       // Get all clients and filter
       let allClients = await storage.getClients();
       let retentionClients = allClients.filter(c => c.hasFTD);
       
       // Apply role-based filtering
       if (user.roleId) {
-        const role = await storage.getRole(user.roleId);
-        const roleName = role?.name?.toLowerCase();
-
         if (isAgentRole(roleName)) {
           retentionClients = retentionClients.filter(c => c.assignedAgentId === user.id);
         } else if (isTeamLeaderRole(roleName) && user.teamId) {
