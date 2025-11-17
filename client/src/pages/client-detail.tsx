@@ -2664,6 +2664,22 @@ export default function ClientDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Email Compose Dialog */}
+      {client && (
+        <EmailComposeDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          client={{
+            id: client.id,
+            email: client.email,
+            firstName: client.firstName,
+            lastName: client.lastName,
+            phone: client.phone,
+            country: client.country,
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2832,22 +2848,5 @@ function TransactionsSection({ clientId }: { clientId: number }) {
         )}
       </CardContent>
     </Card>
-
-    {/* Email Compose Dialog */}
-    {client && (
-      <EmailComposeDialog
-        open={emailDialogOpen}
-        onOpenChange={setEmailDialogOpen}
-        client={{
-          id: client.id,
-          email: client.email,
-          firstName: client.firstName,
-          lastName: client.lastName,
-          phone: client.phone,
-          country: client.country,
-        }}
-      />
-    )}
-  </div>
   );
 }

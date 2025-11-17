@@ -9,6 +9,7 @@ export interface EmailOptions {
   html?: string;
   cc?: string | string[];
   bcc?: string | string[];
+  smtpSettingId?: string; // Optional SMTP account to use
 }
 
 class EmailService {
@@ -68,34 +69,57 @@ class EmailService {
    */
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
-      const transporter = await this.initializeTransporter();
+      // Step 1: Get the SMTP config to use
+      let smtpConfig: any;
       
-      if (!transporter) {
-        console.error('[Email Service] No transporter available, cannot send email');
-        return false;
+      if (options.smtpSettingId) {
+        // Use the specific SMTP account requested by the user
+        console.log(`[Email Service] Using specific SMTP account ID: ${options.smtpSettingId}`);
+        const allSmtpSettings = await storage.getSmtpSettings();
+        smtpConfig = allSmtpSettings.find((s: any) => s.id === options.smtpSettingId);
+        
+        if (!smtpConfig) {
+          console.error(`[Email Service] SMTP account not found: ${options.smtpSettingId}`);
+          return false;
+        }
+        console.log(`[Email Service] Selected SMTP: ${smtpConfig.fromName} <${smtpConfig.fromEmail}>`);
+      } else {
+        // Use the default (first active) SMTP account
+        console.log('[Email Service] Using default SMTP account');
+        const allSmtpSettings = await storage.getSmtpSettings();
+        if (!allSmtpSettings || allSmtpSettings.length === 0) {
+          console.error('[Email Service] No SMTP accounts configured');
+          return false;
+        }
+        smtpConfig = allSmtpSettings[0];
+        console.log(`[Email Service] Default SMTP: ${smtpConfig.fromName} <${smtpConfig.fromEmail}>`);
       }
 
-      // Get SMTP settings for from address
-      const smtpSettings = await storage.getSmtpSettings();
-      if (!smtpSettings || smtpSettings.length === 0) {
-        console.error('[Email Service] No SMTP settings found');
-        return false;
-      }
+      // Step 2: Create transporter for the selected SMTP config
+      const transporter = nodemailer.createTransport({
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.useTLS,
+        auth: {
+          user: smtpConfig.username,
+          pass: smtpConfig.password,
+        },
+      });
 
-      const config = smtpSettings[0];
-
+      // Step 3: Prepare email options
       const mailOptions = {
-        from: `"${config.fromName}" <${config.fromEmail}>`,
+        from: `"${smtpConfig.fromName}" <${smtpConfig.fromEmail}>`,
         to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         subject: options.subject,
         text: options.text,
-        html: options.html || options.text, // Use text as fallback if no HTML
+        html: options.html || options.text,
         cc: options.cc ? (Array.isArray(options.cc) ? options.cc.join(', ') : options.cc) : undefined,
         bcc: options.bcc ? (Array.isArray(options.bcc) ? options.bcc.join(', ') : options.bcc) : undefined,
       };
 
+      // Step 4: Send the email
       const info = await transporter.sendMail(mailOptions);
-      console.log('[Email Service] Email sent successfully:', info.messageId);
+      console.log(`[Email Service] ✓ Email sent from ${smtpConfig.fromEmail} - Message ID: ${info.messageId}`);
       
       return true;
     } catch (error: any) {

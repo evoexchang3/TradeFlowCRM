@@ -1826,6 +1826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         html: emailBody,
         cc,
         bcc,
+        smtpSettingId, // Pass the selected SMTP account
       });
 
       if (!success) {
