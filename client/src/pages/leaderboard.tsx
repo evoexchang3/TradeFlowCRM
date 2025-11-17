@@ -290,12 +290,12 @@ export default function Leaderboard() {
                                   <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex >= 0 ? globalIndex : index}`}>
                                     <TableCell>
                                       <div className="flex items-center justify-center">
-                                        {rankIcon && globalIndex >= 0 ? (
+                                        {globalIndex >= 0 && globalIndex < 3 ? (
                                           <Badge className={getRankBadgeColor(globalIndex)}>
-                                            {rankIcon}
+                                            {globalIndex + 1}
                                           </Badge>
                                         ) : (
-                                          <span className="text-sm font-medium">#{globalIndex >= 0 ? globalIndex + 1 : index + 1}</span>
+                                          <span className="text-sm font-medium">{globalIndex >= 0 ? globalIndex + 1 : index + 1}</span>
                                         )}
                                       </div>
                                     </TableCell>
@@ -355,12 +355,12 @@ export default function Leaderboard() {
                                 <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex >= 0 ? globalIndex : index}`}>
                                   <TableCell>
                                     <div className="flex items-center justify-center">
-                                      {rankIcon && globalIndex >= 0 ? (
+                                      {globalIndex >= 0 && globalIndex < 3 ? (
                                         <Badge className={getRankBadgeColor(globalIndex)}>
-                                          {rankIcon}
+                                          {globalIndex + 1}
                                         </Badge>
                                       ) : (
-                                        <span className="text-sm font-medium">#{globalIndex >= 0 ? globalIndex + 1 : index + 1}</span>
+                                        <span className="text-sm font-medium">{globalIndex >= 0 ? globalIndex + 1 : index + 1}</span>
                                       )}
                                     </div>
                                   </TableCell>
