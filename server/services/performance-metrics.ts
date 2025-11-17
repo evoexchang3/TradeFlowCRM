@@ -253,7 +253,7 @@ export async function calculateAgentMetrics(
               ) as assignment_date
             FROM clients c
             WHERE c.assigned_agent_id = ${agentId}
-              AND c.id = ANY(${sql.array(clientIds, 'uuid')})
+              AND c.id IN (${sql.join(clientIds.map(id => sql`${id}`), sql`, `)})
           )
           SELECT 
             c.id as client_id,
@@ -270,7 +270,7 @@ export async function calculateAgentMetrics(
             AND t.type = 'deposit'
             AND t.fund_type = 'real'
             AND t.status = 'completed'
-            AND a.id = ANY(${sql.array(accountIds, 'uuid')})
+            AND a.id IN (${sql.join(accountIds.map(id => sql`${id}`), sql`, `)})
             AND t.completed_at >= ca.assignment_date
             AND (
               c.ftd_date IS NULL 
