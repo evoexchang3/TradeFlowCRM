@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { users, clients, teams, auditLogs, callLogs, clientComments } from "@shared/schema";
-import { eq, and, sql, gte, lte, desc, count, avg, sum } from "drizzle-orm";
+import { users, clients, teams, auditLogs, callLogs, clientComments, transactions, accounts } from "@shared/schema";
+import { eq, and, sql, gte, lte, desc, count, avg, sum, inArray } from "drizzle-orm";
 
 export interface PerformanceMetrics {
   // Agent identification
@@ -10,12 +10,18 @@ export interface PerformanceMetrics {
   teamName?: string;
   department?: string;
   
-  // FTD metrics
+  // FTD metrics (for sales agents)
   totalClients: number;
   ftdCount: number;
   ftdConversionRate: number; // percentage
   totalFtdVolume: number; // sum of FTD amounts
   avgFtdAmount: number;
+  
+  // Deposit metrics (for retention agents) - only deposits made while agent had the client
+  totalDeposits: number; // count of real deposits (excluding FTD)
+  totalDepositVolume: number; // sum of real deposit amounts (excluding FTD)
+  avgDepositAmount: number;
+  depositRate: number; // deposits per client
   
   // Activity metrics
   totalCalls: number;
@@ -198,6 +204,73 @@ export async function calculateAgentMetrics(
     ? Math.max(30 - (avgResponseTime / 3600), 0) // Deduct points for slow response (1 hour = 1 point)
     : 30; // Max 30 points if no data
 
+  // For retention agents, calculate deposit metrics (excluding FTD)
+  let totalDeposits = 0;
+  let totalDepositVolume = 0;
+  let avgDepositAmount = 0;
+  let depositRate = 0;
+  
+  const isRetentionAgent = agent.team?.department === 'retention';
+  
+  if (isRetentionAgent) {
+    // Get all clients assigned to this agent
+    const agentClients = await db.query.clients.findMany({
+      where: and(
+        eq(clients.assignedAgentId, agentId),
+        ...dateFilters
+      ),
+    });
+    
+    if (agentClients.length > 0) {
+      const clientIds = agentClients.map(c => c.id);
+      
+      // Get all accounts for these clients
+      const clientAccounts = await db.query.accounts.findMany({
+        where: inArray(accounts.clientId, clientIds),
+      });
+      
+      const accountIds = clientAccounts.map(a => a.id);
+      
+      if (accountIds.length > 0) {
+        // For each client, we need to find when they were assigned to this agent
+        // Then count only deposits made AFTER that assignment (and excluding FTD)
+        const depositsByClient = await db.execute(sql`
+          SELECT 
+            c.id as client_id,
+            c.created_at as client_created_at,
+            c.ftd_date,
+            COUNT(t.id) as deposit_count,
+            COALESCE(SUM(t.amount), 0) as deposit_volume
+          FROM clients c
+          INNER JOIN accounts a ON a.client_id = c.id
+          INNER JOIN transactions t ON t.account_id = a.id
+          WHERE c.assigned_agent_id = ${agentId}
+            AND t.type = 'deposit'
+            AND t.fund_type = 'real'
+            AND t.status = 'completed'
+            AND c.id = ANY(${clientIds})
+            ${accountIds.length > 0 ? sql`AND a.id = ANY(${accountIds})` : sql``}
+            AND (
+              c.ftd_date IS NULL 
+              OR t.completed_at > c.ftd_date
+            )
+            ${startDate ? sql`AND c.created_at >= ${startDate}` : sql``}
+            ${endDate ? sql`AND c.created_at <= ${endDate}` : sql``}
+          GROUP BY c.id, c.created_at, c.ftd_date
+        `);
+        
+        totalDeposits = depositsByClient.rows.reduce((sum: number, row: any) => 
+          sum + Number(row.deposit_count || 0), 0
+        );
+        totalDepositVolume = depositsByClient.rows.reduce((sum: number, row: any) => 
+          sum + Number(row.deposit_volume || 0), 0
+        );
+        avgDepositAmount = totalDeposits > 0 ? totalDepositVolume / totalDeposits : 0;
+        depositRate = totalClients > 0 ? totalDeposits / totalClients : 0;
+      }
+    }
+  }
+
   const performanceScore = Number((ftdScore + activityScore + responseTimeScore).toFixed(2));
 
   return {
@@ -212,6 +285,11 @@ export async function calculateAgentMetrics(
     ftdConversionRate: Number(ftdConversionRate.toFixed(2)),
     totalFtdVolume: Number(clientData?.totalFtdVolume || 0),
     avgFtdAmount: Number(clientData?.avgFtdAmount || 0),
+    
+    totalDeposits,
+    totalDepositVolume: Number(totalDepositVolume.toFixed(2)),
+    avgDepositAmount: Number(avgDepositAmount.toFixed(2)),
+    depositRate: Number(depositRate.toFixed(2)),
     
     totalCalls: Number(callData?.totalCalls || 0),
     totalCallDuration: Number(callData?.totalCallDuration || 0),
