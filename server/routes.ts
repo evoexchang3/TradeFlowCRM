@@ -611,24 +611,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const roleName = role?.name?.toLowerCase();
         const userDepartment = await getUserDepartment(user.id);
 
-        // Administrator and CRM Manager see all clients (CRM managers see department-filtered)
-        if (roleName === 'administrator') {
-          // No filtering needed
-        }
-        else if (roleName === 'crm manager') {
-          // CRM Manager MUST have a department to access clients
-          if (!userDepartment) {
-            return res.status(403).json({ error: 'Unauthorized: CRM Manager must be assigned to a team with a department' });
-          }
-          // CRM Manager sees clients from their department only
-          if (userDepartment === 'sales') {
-            clients = clients.filter(c => !c.hasFTD); // Sales clients only
-          } else if (userDepartment === 'retention') {
-            clients = clients.filter(c => c.hasFTD); // Retention clients only
-          } else {
-            // Support or other departments get no client access for now
-            clients = [];
-          }
+        // Administrator and CRM Manager see all clients regardless of department
+        if (roleName === 'administrator' || roleName === 'crm manager') {
+          // No filtering needed - see all clients
         }
         // Team Leader sees only clients in their team
         else if (isTeamLeaderRole(roleName)) {
@@ -3631,6 +3616,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(metrics);
     } catch (error: any) {
       console.error('Error fetching global metrics:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get cross-department comparison metrics (for CRM Dashboard)
+  app.get("/api/dashboard/cross-department", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      // Get user's role to check authorization
+      const user = await storage.getUser(req.user!.id);
+      if (!user?.roleId) {
+        return res.status(403).json({ error: 'Unauthorized: Role required' });
+      }
+
+      const role = await storage.getRole(user.roleId);
+      const roleName = role?.name?.toLowerCase();
+
+      // Only administrators and CRM managers can access cross-department metrics
+      if (roleName !== 'administrator' && roleName !== 'crm manager') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator or CRM Manager access required' });
+      }
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      // Get all data
+      const allClients = await storage.getClients();
+      const teams = await storage.getTeams();
+      const users = await storage.getUsers();
+
+      // Separate clients by department (hasFTD = retention, !hasFTD = sales)
+      const salesClients = allClients.filter(c => !c.hasFTD);
+      const retentionClients = allClients.filter(c => c.hasFTD);
+
+      // Helper function to calculate metrics for a department
+      const calculateDepartmentMetrics = (clients: any[]) => {
+        const ftdClients = clients.filter(c => c.hasFTD);
+        const ftdVolume = ftdClients.reduce((sum, c) => sum + (c.ftdAmount || 0), 0);
+        
+        return {
+          totalClients: clients.length,
+          activeAgents: new Set(clients.map(c => c.assignedAgentId).filter(Boolean)).size,
+          ftdCount: ftdClients.length,
+          conversionRate: clients.length > 0 ? (ftdClients.length / clients.length) * 100 : 0,
+          totalFtdVolume: ftdVolume,
+          avgFtdAmount: ftdClients.length > 0 ? ftdVolume / ftdClients.length : 0,
+          totalCalls: 0, // TODO: Implement when call tracking is added
+          totalCallDuration: 0,
+          avgCallDuration: 0,
+          totalComments: 0, // TODO: Implement when comment tracking is added
+          avgResponseTime: 0,
+          performanceScore: 75, // TODO: Calculate actual performance score
+        };
+      };
+
+      const salesMetrics = calculateDepartmentMetrics(salesClients);
+      const retentionMetrics = calculateDepartmentMetrics(retentionClients);
+
+      // Calculate global totals
+      const globalTotals = {
+        totalTeams: teams.length,
+        totalAgents: users.filter(u => u.roleId).length,
+        totalClients: allClients.length,
+        ftdCount: allClients.filter(c => c.hasFTD).length,
+        totalFtdVolume: allClients.reduce((sum, c) => sum + (c.ftdAmount || 0), 0),
+        totalCalls: 0,
+        totalComments: 0,
+      };
+
+      res.json({
+        salesMetrics,
+        retentionMetrics,
+        globalTotals,
+      });
+    } catch (error: any) {
+      console.error('Error fetching cross-department metrics:', error);
       res.status(500).json({ error: error.message });
     }
   });
