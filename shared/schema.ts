@@ -34,6 +34,7 @@ export const transferStatusEnum = pgEnum('transfer_status', ['pending', 'complet
 export const auditActionEnum = pgEnum('audit_action', [
   'login', 'logout', 'client_create', 'client_edit', 'client_delete', 'client_ftd_marked', 'client_transferred',
   'trade_create', 'trade_edit', 'trade_close', 'trade_delete', 'balance_adjust',
+  'user_create', 'user_edit', 'user_delete',
   'role_create', 'role_edit', 'role_delete', 'permission_change',
   'import', 'export', 'impersonation', 'api_key_create', 'api_key_revoke', 'api_key_use',
   'symbol_create', 'symbol_edit', 'symbol_delete', 'symbol_group_create', 'symbol_group_edit', 'symbol_group_delete',
