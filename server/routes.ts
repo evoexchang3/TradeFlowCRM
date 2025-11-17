@@ -727,16 +727,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userDepartment = await getUserDepartment(user.id);
 
       // Department-based access control - check actual department, not just role name
-      // Administrators always have access
-      if (roleName !== 'administrator') {
+      // Administrators and CRM Managers always have access regardless of department
+      if (roleName !== 'administrator' && roleName !== 'crm manager') {
         // For all other roles, verify department access
         if (isSalesRole(roleName)) {
           // Sales role is fine
-        } else if (roleName === 'crm manager') {
-          // CRM Manager must be in sales department
-          if (userDepartment !== 'sales') {
-            return res.status(403).json({ error: 'Unauthorized: Sales department access required' });
-          }
         } else {
           // All other roles (retention, support, etc.) are not allowed
           return res.status(403).json({ error: 'Unauthorized: Sales department access required' });
@@ -832,16 +827,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userDepartment = await getUserDepartment(user.id);
 
       // Department-based access control - check actual department, not just role name
-      // Administrators always have access
-      if (roleName !== 'administrator') {
+      // Administrators and CRM Managers always have access regardless of department
+      if (roleName !== 'administrator' && roleName !== 'crm manager') {
         // For all other roles, verify department access
         if (isRetentionRole(roleName)) {
           // Retention role is fine
-        } else if (roleName === 'crm manager') {
-          // CRM Manager must be in retention department
-          if (userDepartment !== 'retention') {
-            return res.status(403).json({ error: 'Unauthorized: Retention department access required' });
-          }
         } else {
           // All other roles (sales, support, etc.) are not allowed
           return res.status(403).json({ error: 'Unauthorized: Retention department access required' });
