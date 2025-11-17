@@ -29,16 +29,23 @@ export default function Dashboard() {
     if (userData?.user?.role?.name) {
       const roleName = userData.user.role.name.toLowerCase();
       
+      console.log('[DASHBOARD REDIRECT] Role detected:', roleName);
+      
       if (roleName === 'administrator') {
+        console.log('[DASHBOARD REDIRECT] Redirecting to /admin');
         setLocation('/admin');
       } else if (roleName === 'crm manager') {
+        console.log('[DASHBOARD REDIRECT] Redirecting to /crm');
         setLocation('/crm');
       } else if (roleName === 'sales team leader' || roleName === 'retention team leader') {
+        console.log('[DASHBOARD REDIRECT] Redirecting to /team');
         setLocation('/team');
       } else if (roleName === 'sales agent' || roleName === 'retention agent') {
+        console.log('[DASHBOARD REDIRECT] Redirecting to /agent');
         setLocation('/agent');
+      } else {
+        console.log('[DASHBOARD REDIRECT] No matching role, staying on generic dashboard');
       }
-      // If no match, stay on generic dashboard
     }
   }, [userData, setLocation]);
 
