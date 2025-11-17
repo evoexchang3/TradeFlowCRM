@@ -6006,15 +6006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Unauthorized: No role assigned' });
       }
 
-      const role = await storage.getRole(user.roleId);
-      const roleName = role?.name?.toLowerCase();
-      
-      // Only Admin, CRM Manager, and Team Leaders can create calendar events
-      const allowedRoles = ['administrator', 'crm manager', 'sales team leader', 'retention team leader'];
-      if (!allowedRoles.includes(roleName || '')) {
-        return res.status(403).json({ error: 'Unauthorized: Only Admin, CRM Manager, and Team Leaders can create calendar events' });
-      }
-
+      // All users can create calendar events
       // Transform recurrence data if event is recurring
       let recurrencePattern = null;
       if (req.body.isRecurring && req.body.recurrenceFrequency) {

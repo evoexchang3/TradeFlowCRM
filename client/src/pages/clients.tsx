@@ -387,7 +387,7 @@ export default function Clients() {
             )}
           </div>
 
-          {selectedClients.size > 0 && (
+          {selectedClients.size > 0 && canAssignAgents() && (
             <div className="flex items-center justify-between p-3 mb-4 bg-primary/10 rounded-md border border-primary/20">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" />
@@ -428,13 +428,15 @@ export default function Clients() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50px]">
-                    <Checkbox
-                      checked={selectedClients.size === clients?.length && clients?.length > 0}
-                      onCheckedChange={handleToggleAll}
-                      data-testid="checkbox-select-all"
-                    />
-                  </TableHead>
+                  {canAssignAgents() && (
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectedClients.size === clients?.length && clients?.length > 0}
+                        onCheckedChange={handleToggleAll}
+                        data-testid="checkbox-select-all"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>{t('clients.all.table.client')}</TableHead>
                   <TableHead>{t('clients.all.table.contact')}</TableHead>
                   <TableHead>{t('clients.all.table.account')}</TableHead>
@@ -449,13 +451,15 @@ export default function Clients() {
               <TableBody>
                 {clients?.map((client: any) => (
                   <TableRow key={client.id} className="hover-elevate">
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedClients.has(client.id)}
-                        onCheckedChange={() => handleToggleClient(client.id)}
-                        data-testid={`checkbox-client-${client.id}`}
-                      />
-                    </TableCell>
+                    {canAssignAgents() && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedClients.has(client.id)}
+                          onCheckedChange={() => handleToggleClient(client.id)}
+                          data-testid={`checkbox-client-${client.id}`}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">

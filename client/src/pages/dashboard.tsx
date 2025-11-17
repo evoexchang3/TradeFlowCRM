@@ -12,7 +12,7 @@ export default function Dashboard() {
   const { t } = useLanguage();
 
   // Fetch user data to determine their role
-  const { data: userData } = useQuery({
+  const { data: userData, isLoading: isLoadingUser } = useQuery({
     queryKey: ['/api/me'],
     enabled: isAuthenticated,
   });
@@ -44,7 +44,17 @@ export default function Dashboard() {
 
   const { data: stats } = useQuery({
     queryKey: ['/api/dashboard/stats'],
+    enabled: !isLoadingUser && !userData?.user?.role?.name, // Only load stats if not redirecting
   });
+
+  // Show loading state while determining redirect
+  if (isLoadingUser) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const statCards = [
     {

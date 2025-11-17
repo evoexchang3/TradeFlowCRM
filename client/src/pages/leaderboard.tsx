@@ -287,15 +287,15 @@ export default function Leaderboard() {
                                 const globalIndex = leaderboardData.leaderboard.findIndex((a: any) => a.agentId === agent.agentId);
                                 const rankIcon = getRankIcon(globalIndex);
                                 return (
-                                  <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex}`}>
+                                  <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex >= 0 ? globalIndex : index}`}>
                                     <TableCell>
                                       <div className="flex items-center justify-center">
-                                        {rankIcon ? (
+                                        {rankIcon && globalIndex >= 0 ? (
                                           <Badge className={getRankBadgeColor(globalIndex)}>
                                             {rankIcon}
                                           </Badge>
                                         ) : (
-                                          <span className="text-sm font-medium">#{globalIndex + 1}</span>
+                                          <span className="text-sm font-medium">#{globalIndex >= 0 ? globalIndex + 1 : index + 1}</span>
                                         )}
                                       </div>
                                     </TableCell>
@@ -352,15 +352,15 @@ export default function Leaderboard() {
                               const globalIndex = leaderboardData.leaderboard.findIndex((a: any) => a.agentId === agent.agentId);
                               const rankIcon = getRankIcon(globalIndex);
                               return (
-                                <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex}`}>
+                                <TableRow key={agent.agentId} data-testid={`row-agent-${globalIndex >= 0 ? globalIndex : index}`}>
                                   <TableCell>
                                     <div className="flex items-center justify-center">
-                                      {rankIcon ? (
+                                      {rankIcon && globalIndex >= 0 ? (
                                         <Badge className={getRankBadgeColor(globalIndex)}>
                                           {rankIcon}
                                         </Badge>
                                       ) : (
-                                        <span className="text-sm font-medium">#{globalIndex + 1}</span>
+                                        <span className="text-sm font-medium">#{globalIndex >= 0 ? globalIndex + 1 : index + 1}</span>
                                       )}
                                     </div>
                                   </TableCell>
