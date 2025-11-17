@@ -374,21 +374,8 @@ export function AppSidebar() {
       if (item.titleKey === 'nav.sales.dashboard') return false;
     }
 
-    // CRM Manager department-specific filtering
-    if (roleName === 'crm manager' && department) {
-      // Sales CRM Managers: no retention or trading access
-      if (department === 'sales') {
-        if (item.titleKey === 'nav.retention.clients') return false;
-        if (item.titleKey === 'nav.retention.dashboard') return false;
-        if (item.url.startsWith('/trading')) return false;
-        if (item.titleKey === 'nav.transactions') return false;
-      }
-      // Retention CRM Managers: no sales access
-      if (department === 'retention') {
-        if (item.titleKey === 'nav.sales.clients') return false;
-        if (item.titleKey === 'nav.sales.dashboard') return false;
-      }
-    }
+    // CRM Managers have full access to both sales and retention regardless of department
+    // No department-based filtering for CRM Managers
 
     return true; // All other cases pass through
   };

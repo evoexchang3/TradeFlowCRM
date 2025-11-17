@@ -1580,7 +1580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create audit log with transfer details
       await storage.createAuditLog({
         userId: req.user.id,
-        action: 'client_transfer',
+        action: 'client_transferred',
         targetType: 'client',
         targetId: updatedClient.id,
         details: {

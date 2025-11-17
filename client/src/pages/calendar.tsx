@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, Fragment, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -521,9 +521,22 @@ export default function Calendar() {
     queryKey: [`/api/calendar/events${calendarView !== "default" ? `?view=${calendarView}` : ""}`],
   });
   
+  // Determine if users should be loaded reactively based on role AND calendar view
+  // Users list is needed when viewing team/all calendars and user has appropriate role
+  const shouldLoadUsers = useMemo(() => {
+    if (!user?.role?.name) return false;
+    const roleName = user.role.name.toLowerCase();
+    const hasPermission = roleName === 'administrator' || 
+                          roleName === 'crm manager' || 
+                          roleName?.includes('team leader');
+    // Load users if user has permissions AND viewing team/all calendars
+    return hasPermission && (calendarView === 'team' || calendarView === 'all');
+  }, [user?.role?.name, calendarView]);
+  
+  // Load all users for the filter dropdown
   const { data: allUsers = [] } = useQuery<any[]>({
     queryKey: ['/api/users'],
-    enabled: calendarView === "team" || calendarView === "all",
+    enabled: shouldLoadUsers,
   });
 
   const createMutation = useMutation({

@@ -896,6 +896,8 @@ export default {
   'client.detail.transfer.client.reason': 'Transfer Reason',
   'client.detail.transfer.client.reason.placeholder': 'Explain why this client is being transferred',
   'client.detail.transfer.client.reason.note': 'This will be logged in the audit trail',
+  'client.detail.transfer.client.button': 'Transfer Client',
+  'client.detail.transfer.client.transferring': 'Transferring...',
   'client.detail.modify.position.dialog.title': 'Modify Position',
   'client.detail.modify.position.dialog.description': 'Edit position details and P/L manually.',
   'client.detail.modify.position.placeholder.quantity': '1.00',
