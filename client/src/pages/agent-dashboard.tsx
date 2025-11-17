@@ -295,31 +295,36 @@ export default function AgentDashboard() {
       {/* Activity Metrics */}
       <div>
         <h2 className="text-xl font-semibold mb-4">{t('agent.dashboard.activity.metrics')}</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card data-testid="card-total-calls">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.calls')}</CardTitle>
-              <Phone className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-calls">{metrics.totalCalls}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('agent.dashboard.avg.duration')} {formatDuration(metrics.avgCallDuration)}
-              </p>
-            </CardContent>
-          </Card>
+        <div className={`grid gap-4 md:grid-cols-2 ${metrics.department === 'retention' ? 'lg:grid-cols-2' : 'lg:grid-cols-4'}`}>
+          {/* Hide call metrics for retention agents */}
+          {metrics.department !== 'retention' && (
+            <>
+              <Card data-testid="card-total-calls">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.calls')}</CardTitle>
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-total-calls">{metrics.totalCalls}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('agent.dashboard.avg.duration')} {formatDuration(metrics.avgCallDuration)}
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card data-testid="card-call-duration">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.call.time')}</CardTitle>
-              <Phone className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-call-duration">
-                {formatDuration(metrics.totalCallDuration)}
-              </div>
-            </CardContent>
-          </Card>
+              <Card data-testid="card-call-duration">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.call.time')}</CardTitle>
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-call-duration">
+                    {formatDuration(metrics.totalCallDuration)}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           <Card data-testid="card-total-comments">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

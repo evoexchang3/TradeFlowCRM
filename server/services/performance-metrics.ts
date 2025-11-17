@@ -193,7 +193,8 @@ export async function calculateAgentMetrics(
   const ftdConversionRate = totalClients > 0 ? (ftdCount / totalClients) * 100 : 0;
 
   // Calculate performance score (0-100 scale)
-  // Formula: (FTD Rate * 40) + (Activity Score * 30) + (Response Time Score * 30)
+  // For Sales agents: (FTD Rate * 40) + (Activity Score * 30) + (Response Time Score * 30)
+  // For Retention agents: (Deposit Rate * 40) + (Activity Score * 30) + (Response Time Score * 30)
   const ftdScore = Math.min(ftdConversionRate * 2, 40); // Max 40 points
   const activityScore = Math.min(
     ((Number(callData?.totalCalls || 0) / Math.max(totalClients, 1)) * 15) + 
@@ -293,7 +294,22 @@ export async function calculateAgentMetrics(
     }
   }
 
-  const performanceScore = Number((ftdScore + activityScore + responseTimeScore).toFixed(2));
+  // Calculate performance score based on department
+  let performanceScore: number;
+  if (isRetentionAgent) {
+    // For retention agents: Use deposit rate instead of FTD rate
+    // Deposit Score: 2 deposits per client = 40 points (max)
+    const depositScore = Math.min(depositRate * 20, 40); // Max 40 points
+    // Activity Score: Only comments count for retention (not calls)
+    const retentionActivityScore = Math.min(
+      (Number(commentData?.totalComments || 0) / Math.max(totalClients, 1)) * 30,
+      30
+    ); // Max 30 points
+    performanceScore = Number((depositScore + retentionActivityScore + responseTimeScore).toFixed(2));
+  } else {
+    // For sales agents: Use FTD rate
+    performanceScore = Number((ftdScore + activityScore + responseTimeScore).toFixed(2));
+  }
 
   return {
     agentId: agent.id,

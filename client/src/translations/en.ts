@@ -310,6 +310,11 @@ export default {
   'agent.dashboard.conversion': 'Conversion Rate',
   'agent.dashboard.calls.made': 'Calls Made',
   'agent.dashboard.emails.sent': 'Emails Sent',
+  'agent.dashboard.deposit.performance': 'Deposit Performance',
+  'agent.dashboard.deposit.count': 'Deposit Count',
+  'agent.dashboard.deposit.rate': 'Deposit Rate',
+  'agent.dashboard.deposits.per.client': 'Deposits per client',
+  'agent.dashboard.total.deposit.volume': 'Total Deposit Volume',
 
   // Sales Manager Dashboard
   'sales.manager.title': 'Sales Department Performance',
