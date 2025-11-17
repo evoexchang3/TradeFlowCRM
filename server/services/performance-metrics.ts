@@ -234,29 +234,51 @@ export async function calculateAgentMetrics(
       if (accountIds.length > 0) {
         // For each client, we need to find when they were assigned to this agent
         // Then count only deposits made AFTER that assignment (and excluding FTD)
+        // We use audit logs to track assignment dates
         const depositsByClient = await db.execute(sql`
+          WITH client_assignments AS (
+            SELECT 
+              c.id as client_id,
+              COALESCE(
+                (
+                  SELECT al.created_at 
+                  FROM audit_logs al 
+                  WHERE al.action = 'client_transferred' 
+                    AND al.target_id = c.id 
+                    AND (al.details->>'newAgentId')::text = ${agentId}
+                  ORDER BY al.created_at DESC 
+                  LIMIT 1
+                ),
+                c.created_at
+              ) as assignment_date
+            FROM clients c
+            WHERE c.assigned_agent_id = ${agentId}
+              AND c.id = ANY(${sql.array(clientIds, 'uuid')})
+          )
           SELECT 
             c.id as client_id,
             c.created_at as client_created_at,
             c.ftd_date,
+            ca.assignment_date,
             COUNT(t.id) as deposit_count,
             COALESCE(SUM(t.amount), 0) as deposit_volume
           FROM clients c
+          INNER JOIN client_assignments ca ON ca.client_id = c.id
           INNER JOIN accounts a ON a.client_id = c.id
           INNER JOIN transactions t ON t.account_id = a.id
           WHERE c.assigned_agent_id = ${agentId}
             AND t.type = 'deposit'
             AND t.fund_type = 'real'
             AND t.status = 'completed'
-            AND c.id = ANY(${clientIds})
-            ${accountIds.length > 0 ? sql`AND a.id = ANY(${accountIds})` : sql``}
+            AND a.id = ANY(${sql.array(accountIds, 'uuid')})
+            AND t.completed_at >= ca.assignment_date
             AND (
               c.ftd_date IS NULL 
               OR t.completed_at > c.ftd_date
             )
             ${startDate ? sql`AND c.created_at >= ${startDate}` : sql``}
             ${endDate ? sql`AND c.created_at <= ${endDate}` : sql``}
-          GROUP BY c.id, c.created_at, c.ftd_date
+          GROUP BY c.id, c.created_at, c.ftd_date, ca.assignment_date
         `);
         
         totalDeposits = depositsByClient.rows.reduce((sum: number, row: any) => 
