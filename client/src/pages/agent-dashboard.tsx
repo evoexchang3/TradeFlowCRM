@@ -23,6 +23,11 @@ interface PerformanceMetrics {
   totalFtdVolume: number;
   avgFtdAmount: number;
   
+  totalDeposits: number;
+  totalDepositVolume: number;
+  avgDepositAmount: number;
+  depositRate: number;
+  
   totalCalls: number;
   totalCallDuration: number;
   avgCallDuration: number;
@@ -186,12 +191,16 @@ export default function AgentDashboard() {
         </CardContent>
       </Card>
 
-      {/* FTD Metrics */}
+      {/* Performance Metrics - FTD for Sales, Deposits for Retention */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">{t('agent.dashboard.ftd.performance')}</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {metrics.department === 'retention' 
+            ? t('agent.dashboard.deposit.performance')
+            : t('agent.dashboard.ftd.performance')}
+        </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card data-testid="card-total-clients">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.clients')}</CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -200,40 +209,86 @@ export default function AgentDashboard() {
             </CardContent>
           </Card>
 
-          <Card data-testid="card-ftd-count">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agent.dashboard.ftd.count')}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-ftd-count">{metrics.ftdCount}</div>
-            </CardContent>
-          </Card>
+          {metrics.department === 'retention' ? (
+            <>
+              <Card data-testid="card-total-deposits">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.deposit.count')}</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-deposit-count">{metrics.totalDeposits}</div>
+                </CardContent>
+              </Card>
 
-          <Card data-testid="card-conversion-rate">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agent.dashboard.conversion.rate')}</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-conversion-rate">{metrics.ftdConversionRate.toFixed(1)}%</div>
-            </CardContent>
-          </Card>
+              <Card data-testid="card-deposit-rate">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.deposit.rate')}</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-deposit-rate">
+                    {metrics.depositRate.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('agent.dashboard.deposits.per.client')}
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card data-testid="card-ftd-volume">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.ftd.volume')}</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-ftd-volume">
-                ${metrics.totalFtdVolume.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t('agent.dashboard.avg.label')} ${metrics.avgFtdAmount.toFixed(0)}
-              </p>
-            </CardContent>
-          </Card>
+              <Card data-testid="card-deposit-volume">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.deposit.volume')}</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-deposit-volume">
+                    ${metrics.totalDepositVolume.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('agent.dashboard.avg.label')} ${metrics.avgDepositAmount.toFixed(0)}
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              <Card data-testid="card-ftd-count">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.ftd.count')}</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-ftd-count">{metrics.ftdCount}</div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-conversion-rate">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.conversion.rate')}</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-conversion-rate">{metrics.ftdConversionRate.toFixed(1)}%</div>
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-ftd-volume">
+                <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{t('agent.dashboard.total.ftd.volume')}</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold" data-testid="text-ftd-volume">
+                    ${metrics.totalFtdVolume.toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('agent.dashboard.avg.label')} ${metrics.avgFtdAmount.toFixed(0)}
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       </div>
 
