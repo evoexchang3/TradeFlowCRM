@@ -68,7 +68,15 @@ export default function TeamDashboard() {
       if (startDate) params.append('startDate', startDate.toISOString());
       if (endDate) params.append('endDate', endDate.toISOString());
       const query = params.toString() ? `?${params.toString()}` : '';
+      
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`/api/dashboard/team/${teamId}${query}`, {
+        headers,
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch team metrics');
@@ -86,7 +94,15 @@ export default function TeamDashboard() {
       if (startDate) params.append('startDate', startDate.toISOString());
       if (endDate) params.append('endDate', endDate.toISOString());
       const query = params.toString() ? `?${params.toString()}` : '';
+      
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`/api/dashboard/team/${teamId}/leaderboard${query}`, {
+        headers,
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch leaderboard');

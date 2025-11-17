@@ -45,7 +45,15 @@ export default function AgentDashboard() {
       if (startDate) params.append('startDate', startDate.toISOString());
       if (endDate) params.append('endDate', endDate.toISOString());
       const query = params.toString() ? `?${params.toString()}` : '';
+      
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`/api/dashboard/my-performance${query}`, {
+        headers,
         credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to fetch performance metrics');
