@@ -3345,6 +3345,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/teams", authMiddleware, async (req: AuthRequest, res) => {
     try {
       const teams = await storage.getTeams();
+      
+      // Filter teams by department if user is not Admin/CRM Manager
+      if (req.user?.type === 'user') {
+        const currentUser = await storage.getUser(req.user.id);
+        const currentRole = currentUser?.roleId ? await storage.getRole(currentUser.roleId) : null;
+        const roleName = currentRole?.name?.toLowerCase();
+        const userDepartment = await getUserDepartment(req.user.id);
+        const isUnrestricted = roleName === 'administrator' || roleName === 'crm manager';
+        
+        // Filter teams by department
+        if (!isUnrestricted && userDepartment) {
+          const filteredTeams = teams.filter(t => t.department === userDepartment);
+          return res.json(filteredTeams);
+        }
+      }
+      
       res.json(teams);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -9828,6 +9844,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const period = (req.query.period as string) || 'monthly';
       const teamId = req.query.teamId as string;
+      
+      // Get current user's department for filtering
+      const currentUser = await storage.getUser(req.user.id);
+      const currentRole = currentUser?.roleId ? await storage.getRole(currentUser.roleId) : null;
+      const roleName = currentRole?.name?.toLowerCase();
+      const userDepartment = await getUserDepartment(req.user.id);
+      
+      // Admin and CRM Manager can see all departments
+      const isUnrestricted = roleName === 'administrator' || roleName === 'crm manager';
 
       // Calculate date range based on period
       const now = new Date();
@@ -9908,7 +9933,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teamsMap = new Map(teamsData.map(t => [t.id, t]));
       
       const leaderboardData = allUsers
-        .filter(u => u.isActive && u.roleId && agentRoleIds.has(u.roleId) && (!teamId || u.teamId === teamId))
+        .filter(u => {
+          // Basic filters
+          if (!u.isActive || !u.roleId || !agentRoleIds.has(u.roleId)) return false;
+          
+          // Team filter
+          if (teamId && u.teamId !== teamId) return false;
+          
+          // Department filter (unless Admin/CRM Manager)
+          if (!isUnrestricted && userDepartment) {
+            const team = u.teamId ? teamsMap.get(u.teamId) : null;
+            if (team?.department !== userDepartment) return false;
+          }
+          
+          return true;
+        })
         .map(user => {
           const userAchievements = achievementsData.find(a => a.agentId === user.id);
           const userTargets = targetsData.find(t => t.agentId === user.id);
