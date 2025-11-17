@@ -118,10 +118,10 @@ export default function AgentDashboard() {
           <h1 className="text-3xl font-bold" data-testid="heading-agent-dashboard">
             {t('agent.dashboard.title')}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <div className="text-muted-foreground mt-1 flex items-center gap-2">
             {metrics.teamName && <span className="text-sm">{t('agent.dashboard.team.label')} {metrics.teamName}</span>}
-            {metrics.department && <Badge variant="outline" className="ml-2 capitalize">{metrics.department}</Badge>}
-          </p>
+            {metrics.department && <Badge variant="outline" className="capitalize">{metrics.department}</Badge>}
+          </div>
         </div>
         
         {/* Date Range Filter */}
