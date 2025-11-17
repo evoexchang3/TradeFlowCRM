@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Edit, KeyRound, UserCheck, UserX, Settings } from "lucide-react";
+import { Plus, Edit, KeyRound, UserCheck, UserX, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -83,6 +83,7 @@ export default function UserManagement() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [adjustWorkloadDialogOpen, setAdjustWorkloadDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const { toast } = useToast();
 
@@ -264,6 +265,29 @@ export default function UserManagement() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/users/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t("common.success"),
+        description: t("users.deleted.success"),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message || t("users.deleted.error"),
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleEdit = (user: any) => {
     setSelectedUser(user);
     editForm.reset({
@@ -293,6 +317,17 @@ export default function UserManagement() {
 
   const handleToggleActive = (user: any) => {
     toggleActiveMutation.mutate({ id: user.id, isActive: !user.isActive });
+  };
+
+  const handleDelete = (user: any) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedUser) {
+      deleteMutation.mutate(selectedUser.id);
+    }
   };
 
   const getRoleName = (roleId: string) => {
@@ -409,6 +444,14 @@ export default function UserManagement() {
                           ) : (
                             <UserCheck className="h-4 w-4" />
                           )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDelete(user)}
+                          data-testid={`button-delete-user-${user.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
@@ -805,6 +848,42 @@ export default function UserManagement() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent data-testid="dialog-delete-user">
+          <DialogHeader>
+            <DialogTitle>{t("users.delete.title")}</DialogTitle>
+            <DialogDescription>
+              {t("users.delete.description")}
+              {selectedUser && (
+                <span className="block mt-2 font-medium">
+                  {selectedUser.firstName} {selectedUser.lastName} ({selectedUser.email})
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              data-testid="button-cancel-delete"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? t("users.deleting") : t("users.delete.confirm")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

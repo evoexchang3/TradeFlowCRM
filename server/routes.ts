@@ -2500,6 +2500,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", authMiddleware, async (req: AuthRequest, res) => {
+    try {
+      // Only admin can delete users
+      if (req.user?.type !== 'user') {
+        return res.status(403).json({ error: 'Unauthorized: Staff access required' });
+      }
+
+      const userRole = await storage.getRole(req.user.roleId!);
+      if (userRole?.name?.toLowerCase() !== 'administrator') {
+        return res.status(403).json({ error: 'Unauthorized: Administrator access required' });
+      }
+
+      const { id } = req.params;
+
+      // Prevent deleting yourself
+      if (id === req.user.id) {
+        return res.status(400).json({ error: 'Cannot delete your own account' });
+      }
+
+      // Get user details before deletion for audit log
+      const userToDelete = await storage.getUserById(id);
+      if (!userToDelete) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Delete user
+      await storage.deleteUser(id);
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        action: 'user_delete',
+        targetType: 'user',
+        targetId: id,
+        details: { 
+          deletedUser: {
+            email: userToDelete.email,
+            name: userToDelete.name,
+          },
+          deletedBy: req.user.email 
+        },
+      });
+
+      res.json({ success: true, message: 'User deleted successfully' });
+    } catch (error: any) {
+      console.error('Delete user error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== TRADING =====
   app.post("/api/orders", authMiddleware, async (req: AuthRequest, res) => {
     try {
