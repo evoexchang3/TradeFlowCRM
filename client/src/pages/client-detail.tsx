@@ -40,6 +40,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/lib/auth";
 import { DocumentManagement } from "@/components/document-management";
 import { KycProgress } from "@/components/kyc-progress";
+import { EmailComposeDialog } from "@/components/email-compose-dialog";
 
 interface CustomStatus {
   id: string;
@@ -94,6 +95,7 @@ export default function ClientDetail() {
   const [eventLocation, setEventLocation] = useState('');
   const [kycFormResponses, setKycFormResponses] = useState<Record<string, string>>({});
   const [kycVerificationNotes, setKycVerificationNotes] = useState('');
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const { toast } = useToast();
   const { t } = useLanguage();
   const { user, hasAnyPermission } = useAuth();
@@ -763,7 +765,7 @@ export default function ClientDetail() {
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={() => window.location.href = `mailto:${client.email}`}
+            onClick={() => setEmailDialogOpen(true)}
             data-testid="button-email-client" 
             className="hover-elevate active-elevate-2"
           >
@@ -2830,5 +2832,22 @@ function TransactionsSection({ clientId }: { clientId: number }) {
         )}
       </CardContent>
     </Card>
+
+    {/* Email Compose Dialog */}
+    {client && (
+      <EmailComposeDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        client={{
+          id: client.id,
+          email: client.email,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          phone: client.phone,
+          country: client.country,
+        }}
+      />
+    )}
+  </div>
   );
 }
