@@ -610,57 +610,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const role = await storage.getRole(user.roleId);
         const roleName = role?.name?.toLowerCase();
         const userDepartment = await getUserDepartment(user.id);
-        
-        console.log(`[CLIENTS FILTER DEBUG] User: ${user.name}, Role: ${roleName}, Department: ${userDepartment}, Total clients before filter: ${clients.length}`);
 
         // Administrator and CRM Manager see all clients regardless of department
         if (roleName === 'administrator' || roleName === 'crm manager') {
-          console.log(`[CLIENTS FILTER DEBUG] Admin/CRM Manager - no filtering applied`);
           // No filtering needed - see all clients
         }
         // Team Leader sees only clients in their team
         else if (isTeamLeaderRole(roleName)) {
-          const beforeFilter = clients.length;
           clients = clients.filter(c => c.teamId === user.teamId);
-          console.log(`[CLIENTS FILTER DEBUG] Team Leader - filtered by teamId ${user.teamId}: ${beforeFilter} → ${clients.length}`);
           // Additionally filter by department
           if (isSalesRole(roleName)) {
-            const beforeDeptFilter = clients.length;
             clients = clients.filter(c => !c.hasFTD); // Sales team leader sees only sales clients
-            console.log(`[CLIENTS FILTER DEBUG] Sales TL - filtered by department: ${beforeDeptFilter} → ${clients.length}`);
           } else if (isRetentionRole(roleName)) {
-            const beforeDeptFilter = clients.length;
             clients = clients.filter(c => c.hasFTD); // Retention team leader sees only retention clients
-            console.log(`[CLIENTS FILTER DEBUG] Retention TL - filtered by department: ${beforeDeptFilter} → ${clients.length}`);
           }
         }
         // Agent sees only clients assigned to them
         else if (isAgentRole(roleName)) {
-          const beforeFilter = clients.length;
           clients = clients.filter(c => c.assignedAgentId === user.id);
-          console.log(`[CLIENTS FILTER DEBUG] Agent - filtered by assignedAgentId ${user.id}: ${beforeFilter} → ${clients.length}`);
           // Additionally filter by department
           if (isSalesRole(roleName)) {
-            const beforeDeptFilter = clients.length;
             clients = clients.filter(c => !c.hasFTD); // Sales agent sees only sales clients
-            console.log(`[CLIENTS FILTER DEBUG] Sales Agent - filtered by department: ${beforeDeptFilter} → ${clients.length}`);
           } else if (isRetentionRole(roleName)) {
-            const beforeDeptFilter = clients.length;
             clients = clients.filter(c => c.hasFTD); // Retention agent sees only retention clients
-            console.log(`[CLIENTS FILTER DEBUG] Retention Agent - filtered by department: ${beforeDeptFilter} → ${clients.length}`);
           }
         }
         // Default: if role doesn't match known roles, show only assigned clients
         else {
-          const beforeFilter = clients.length;
           clients = clients.filter(c => c.assignedAgentId === user.id);
-          console.log(`[CLIENTS FILTER DEBUG] Unknown role - filtered by assignedAgentId: ${beforeFilter} → ${clients.length}`);
         }
       } else {
         // Users without a role see only clients assigned to them
-        const beforeFilter = clients.length;
         clients = clients.filter(c => c.assignedAgentId === user.id);
-        console.log(`[CLIENTS FILTER DEBUG] No role - filtered by assignedAgentId: ${beforeFilter} → ${clients.length}`);
       }
 
       // Get last comments for all clients in one query
